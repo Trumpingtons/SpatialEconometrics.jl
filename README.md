@@ -12,9 +12,9 @@ semiparametric spatial models, short-panel dynamic models with correlated
 random effects, Monte Carlo simulation and publication-ready output — with a
 unified formula interface and optional Bayesian and visualization extensions.
 
-> **Version 0.4.0**, unreleased on `master` — 3,864 test assertions across 58 top-level testsets
+> **Version 0.4.0**, unreleased on `master` — 3,866 test assertions across 58 top-level testsets
 > with both package extensions installed, measured on Julia 1.13.3. Without
-> them, 3,829 pass and two broken markers stand in for the extension testsets,
+> them, 3,831 pass and two broken markers stand in for the extension testsets,
 > measured on Julia 1.10.13. See [Validation Status](#validation-status) for
 > Monte Carlo results.
 

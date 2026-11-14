@@ -9570,14 +9570,28 @@ vcov(m::HausMock) = m.V
         @testset "41b. a flat smoother is fit_spatial with z as a regressor" begin
             # As h → ∞ every kernel weight tends to 1 and the local-linear
             # smoother becomes the projection on [1, z]. The profile QML is
-            # then exactly the SAR QML with design [1, x, z]: measured
-            # agreement 1e-11 on ρ, β, both SEs and the log-likelihood.
+            # then exactly the SAR QML with design [1, x, z].
             rng = MersenneTwister(41_002)
             y, X, z, W = sp_draw(rng, 250, 0.5)
+            # The exact claim, with no optimiser in it: the profile likelihood
+            # depends on the data only through the first-stage residuals of y
+            # and Wy, and with a flat smoother those are (Frisch–Waugh–Lovell)
+            # the OLS residuals on [1, x, z] that fit_spatial concentrates on.
+            SPm = SpatialEconometrics.SemiparametricSpatial
+            Zs, _ = SPm._standardise(reshape(z, :, 1))
+            fs = SPm._first_stage(SPm._smoother(Zs, 1e5, 1)[1], Matrix(X), y, W * y)
+            D = hcat(ones(length(y)), X, z)
+            ols_res(v) = v .- D * (D \ v)
+            @test maximum(abs.(fs.e0 .- ols_res(y))) < 1e-8 * norm(y)
+            @test maximum(abs.(fs.e1 .- ols_res(W * y))) < 1e-8 * norm(W * y)
+            # The two fits then maximise the same function. Each locates ρ̂ by
+            # Brent's method only to its tolerance, 1e-7, so the estimates
+            # agree to that, not to rounding: 4e-8 apart on Julia 1.10 under
+            # Linux's BLAS, where an atol of 1e-8 failed CI on 2026-11-13.
             m = fit_partially_linear_sar(y, X, z, W; bandwidth = 1e5, method = ExactLU())
             f = fit_spatial(SAR(), W, hcat(X, z), y; method = ExactLU())
-            @test m.rho ≈ f.rho atol = 1e-8
-            @test m.beta[1] ≈ coef(f)[2] atol = 1e-8
+            @test m.rho ≈ f.rho atol = 1e-6
+            @test m.beta[1] ≈ coef(f)[2] atol = 1e-6
             @test stderror(m)[2] ≈ f.rho_se rtol = 1e-6
             @test stderror(m)[1] ≈ stderror(f)[2] rtol = 1e-6
             @test loglikelihood(m) ≈ loglikelihood(f) atol = 1e-6
@@ -9654,7 +9668,8 @@ vcov(m::HausMock) = m.V
             tt = vec(repeat(collect(τ)', N))
             f = fit_spatial_panel(SAR(), IndivFE(), W, hcat(vec(x), tt, tt .* vec(x)), y, N, Tp;
                                   approach = DirectQML(bias_correct = false), method = ExactLU())
-            @test m.rho ≈ f.rho atol = 1e-8
+            # Two Brent searches, each to its tolerance 1e-7 (see 41b).
+            @test m.rho ≈ f.rho atol = 1e-6
             @test loglikelihood(m) ≈ loglikelihood(f) atol = 1e-5
             # The SEs differ by one convention only. Rebuild LGG's Σ₀ from
             # the fit's own pieces: with the trace terms scaled by T it is

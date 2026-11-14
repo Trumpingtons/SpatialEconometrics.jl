@@ -1305,6 +1305,7 @@ holds today, and the figures it once projected — ~1,200 assertions and
 | **master** (+ the robust-sandwich fix and seven exact assertions) | 28 | 3,757 †† | 24,321 |
 | **master** (+ #13 pass 1, `SemiparametricSpatial`) | 29 | 3,775 ‡ | 25,558 |
 | **master** (+ #1 short-`T` row, `CREDynamicSpatialPanel`) | 30 | 3,864 § | 26,597 |
+| **master** (+ the 41b/41f optimiser-tolerance fix) | 30 | 3,866 §§ | 26,597 |
 | — | | | |
 | **v1.0.0** (Phases 6C–8) | 29–31 | ~4,100 | ~26,500 |
 
@@ -1331,6 +1332,12 @@ broken. Each is the ‡ figure plus the 54 assertions of testset 42, and the
 on both versions: the smallest is 1.47×, for the `z` test of the exact
 `Var(S*)` reference in 42c. The `src/` count rose by 1,034: the new module's
 1,029 lines and the umbrella's 5.
+
+§§ Measured locally on 2026-11-14: 3,866 on Julia 1.13.3 with the extensions,
+and 3,831 plus 2 broken on 1.10.13 without them. That is the § figure plus the
+two exact first-stage assertions added to 41b. CI confirmed the § figures
+exactly before this change: 3,864 with the extensions, and 3,829 plus 2 broken
+on every other job. The 41b fix is in `docs/AUDIT.md`.
 
 Measured on master: 30 submodules plus the umbrella across 26,597 lines of
 `src/`, 10,000 lines of tests, 4,990 lines of examples across 31 scripts,

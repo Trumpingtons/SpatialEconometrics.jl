@@ -4155,8 +4155,9 @@ tolerance:
 - **The profile QML.** At a bandwidth of `1e5` a local-linear smoother is the
   projection on `[1, z]`, and the profile QML is then
   `fit_spatial(SAR(), W, [x z], y)`. `ρ`, `β`, both standard errors and the
-  log-likelihood agree to between `1e-13` and `3e-10`. The worst margin to
-  the tolerance is 1,872× on Julia 1.13 and 3,520× on 1.10.
+  log-likelihood agree to between `1e-13` and `3e-10` on Windows. **The
+  margins first recorded here, 1,872× and 3,520×, were wrong**: see the
+  correction below.
 - **The closed form.** On that model it equals Smirnov's linear estimator.
   Its root equals the root of the quadratic, built by hand from the
   residuals.
@@ -4571,3 +4572,36 @@ about 0.007, and with 500 about 0.010.
 - **Every fit succeeded**: 4500 of 4500, after the fixes described above.
   The fit never returns a non-root. When it cannot solve the adjusted score,
   it throws.
+
+## Correction: two optimisers agree to their tolerance, not to rounding
+
+CI failed on Julia 1.10 under Linux on 2026-11-13, in testset 41b: `ρ̂` from
+`fit_partially_linear_sar` with a flat smoother and from `fit_spatial` were
+4.0e-8 apart, against an `atol` of `1e-8`.
+
+Neither estimate was wrong. Both maximise the same concentrated likelihood
+with `brent_maximize`, whose tolerance is `1e-7`, so each `ρ̂` is located only
+to about that. The two objectives agree only to rounding. On Windows the two
+Brent searches took the same path, and the estimates matched to `4e-13`. On
+Linux's BLAS the rounding differed, the paths diverged, and the estimates
+ended `4e-8` apart. The failure is intermittent: the same test passed on the
+same CI job on 2026-11-14, so the gap varies between runners, not only
+between platforms. The margins of 1,872× and 3,520× recorded for this check
+measured that coincidence, not a tolerance. Testset 41f compared `ρ̂` between
+two Brent searches the same way; it had passed on CI by the same luck.
+
+The fix:
+- 41b and 41f now compare the two `ρ̂`, and in 41b `β̂`, at `atol = 1e-6`,
+  ten times Brent's tolerance and about 1/40,000 of `ρ̂`'s standard error;
+- 41b gains the check that is truly exact: with the flat smoother, the
+  first-stage residuals of `y` and `Wy`, through which alone the profile
+  likelihood depends on the data, equal the OLS residuals on `[1, x, z]` that
+  `fit_spatial` concentrates on. They agree to within `8e-13` of the vector
+  norm on both versions, against a tolerance of `1e-8`.
+
+**The lesson is the margin lesson, one step further.** A margin measured on
+one platform is not a margin when the quantity is an optimiser's output: two
+searches can agree far more closely than their tolerance on one machine and
+diverge on another. A test that compares two optimisers asserts agreement to
+their tolerance. Agreement to rounding is asserted on the objective.
+
