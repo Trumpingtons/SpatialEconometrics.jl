@@ -6,19 +6,23 @@ cross-sectional, panel and higher-order spatial models, spatial discrete
 choice, eigenvector spatial filtering, regime models, spatial and panel
 diagnostics, model selection, geographically weighted regression, gravity
 models, HAC-robust inference, weight-matrix construction, input-output
-calibration, Monte Carlo simulation and publication-ready output — with a
+calibration, spatial causal inference and shift-share designs, network
+peer effects, common factors and spatio-temporal models, spatial VARs,
+semiparametric spatial models, short-panel dynamic models with correlated
+random effects, Monte Carlo simulation and publication-ready output — with a
 unified formula interface and optional Bayesian and visualization extensions.
 
-> **Version 0.4.0**, unreleased on `master` — 3,757 test assertions across 56 top-level testsets
-> with both package extensions installed, and 3,715 without them. Every
-> testset reports an identical count on Julia 1.13.3 and 1.10.13. See
-> [Validation Status](#validation-status) for Monte Carlo results.
+> **Version 0.4.0**, unreleased on `master` — 3,864 test assertions across 58 top-level testsets
+> with both package extensions installed, measured on Julia 1.13.3. Without
+> them, 3,829 pass and two broken markers stand in for the extension testsets,
+> measured on Julia 1.10.13. See [Validation Status](#validation-status) for
+> Monte Carlo results.
 
 **Documentation:** [dev](https://randsley.github.io/SpatialEconometrics.jl/dev/)
 — a `stable` build appears with the first tagged release.
 
 Every exported name carries a docstring, so `?fit_spatial` works in the
-REPL. All 187 of them appear in the API reference — the 188th, `@formula`,
+REPL. All 286 of them appear in the API reference — the 287th, `@formula`,
 is re-exported from StatsModels.jl and documented there. The docs build runs
 with no `warnonly` exemptions, so a missing docstring or a broken
 cross-reference fails CI.
@@ -87,7 +91,7 @@ println(m)
 println(spatial_effects(m))
 ```
 
-Nineteen worked examples live in [`examples/`](examples/), one per topic,
+Thirty-one worked examples live in [`examples/`](examples/), one per topic,
 each runnable on its own.
 
 ---
@@ -105,6 +109,7 @@ exported name.
 | [Cross-Sectional](https://randsley.github.io/SpatialEconometrics.jl/dev/models/cross_sectional/) | SAR and SDM by concentrated ML, effects decomposition |
 | [Panel](https://randsley.github.io/SpatialEconometrics.jl/dev/models/panel/) | Static spatial panels, Lee-Yu and direct QML |
 | [Dynamic Panel](https://randsley.github.io/SpatialEconometrics.jl/dev/models/dynamic_panel/) | Time lag plus spatial lag, bias correction |
+| [Short-T Dynamic Panel (CRE)](https://randsley.github.io/SpatialEconometrics.jl/dev/models/cre_dynamic_panel/) | Fixed-`T` M-estimator with correlated random effects |
 | [Spatial Error (SEM)](https://randsley.github.io/SpatialEconometrics.jl/dev/models/sem/) | Dependence in the disturbance |
 | [GS2SLS / SARAR](https://randsley.github.io/SpatialEconometrics.jl/dev/models/gs2sls/) | Endogenous regressors and instruments |
 | [Dynamic Panel GMM](https://randsley.github.io/SpatialEconometrics.jl/dev/models/gmm/) | Arellano-Bond, Blundell-Bond, Hansen and AR tests |
@@ -112,6 +117,11 @@ exported name.
 | [Regime Models](https://randsley.github.io/SpatialEconometrics.jl/dev/models/regime/) | Coefficients varying by group, SKATER regionalization |
 | [Discrete Choice](https://randsley.github.io/SpatialEconometrics.jl/dev/models/discrete_choice/) | Spatial probit by linearized GMM and Gibbs sampling |
 | [Spatial Filtering](https://randsley.github.io/SpatialEconometrics.jl/dev/models/filtering/) | ESF and RE-ESF |
+| [Causal Inference](https://randsley.github.io/SpatialEconometrics.jl/dev/models/causal/) | Exposure mapping, spatial DiD, synthetic control, shift-share |
+| [Networks](https://randsley.github.io/SpatialEconometrics.jl/dev/models/networks/) | Peer-effects identification, network 2SLS, multiplex SAR |
+| [Common Factors & Spatio-Temporal](https://randsley.github.io/SpatialEconometrics.jl/dev/models/common_factors/) | CD and `α` tests, SP-CCE, STAR, interactive fixed effects |
+| [Spatial VAR](https://randsley.github.io/SpatialEconometrics.jl/dev/models/spvar/) | Multivariate space-time systems, STIR, the nested panel VAR |
+| [Semiparametric Models](https://randsley.github.io/SpatialEconometrics.jl/dev/models/semiparametric/) | Partially linear SAR, closed-form `ρ`, `β(τ)` |
 | [GWR & MGWR](https://randsley.github.io/SpatialEconometrics.jl/dev/models/gwr/) | Coefficient surfaces, multiscale backfitting |
 | [Gravity Models](https://randsley.github.io/SpatialEconometrics.jl/dev/models/gravity/) | PPML and negative binomial with high-dimensional FE |
 | [Spatial Diagnostics](https://randsley.github.io/SpatialEconometrics.jl/dev/diagnostics/spatial/) | Moran's I, Geary's c, LISA, Anselin LM battery |
@@ -154,6 +164,7 @@ want an internal helper:
 | `SpatialEconometricsPrototype` | Cross-sectional SAR & SDM by concentrated ML | LeSage & Pace (2009) |
 | `SpatialPanelEconometrics` | Static spatial panels with FE, Lee-Yu & Direct QML | Lee & Yu (2010) |
 | `DynamicSpatialPanelEconometrics` | Dynamic spatial panels with bias correction | Yu, de Jong & Lee (2008) |
+| `CREDynamicSpatialPanel` | Short-`T` dynamic spatial panel with correlated random effects | Li & Yang (2021) |
 | `SpatialGS2SLSPanel` | SARAR panels with endogenous regressors | Kelejian & Prucha (1998) |
 | `DynamicPanelSystemGMM` | Arellano-Bond & Blundell-Bond GMM | Roodman (2009) |
 | `StructuralMacroCalibration` | GRAS & cross-entropy SAM/MRIO balancing | Junius & Oosterhaven (2003) |
@@ -173,6 +184,10 @@ want an internal helper:
 | `SpatialCausal` | Exposure mapping, spatial DiD, synthetic control | Abadie, Diamond & Hainmueller (2010) |
 | `SpatialShiftShare` | Shift-share designs and the AKM standard error | Adao, Kolesar & Morales (2019) |
 | `SpatialNetworks` | Peer-effects identification, network 2SLS, multiplex SAR | Bramoulle, Djebbari & Fortin (2009) |
+| `SpatialCommonFactors` | Weak vs strong dependence: CD test, `α` exponent, SP-CCE | Bailey, Kapetanios & Pesaran (2016) |
+| `SpatioTemporalModels` | STAR, interactive fixed effects, forecasting | Pfeifer & Deutsch (1980); Shi & Lee (2017) |
+| `SpVAR` | Spatial vector autoregression, STIR, nested panel VAR | Di Giacinto (2010) |
+| `SemiparametricSpatial` | Partially linear SAR, closed-form `ρ`, overlap `π̄`, `β(τ)` | Su & Jin (2010) |
 | `SpatialSimulation` | Six DGPs, Monte Carlo, power analysis | — |
 | `SpatialTables` | Coefficient and regression tables, LaTeX / CSV / Markdown | — |
 
@@ -211,10 +226,10 @@ our own because:
 
 ```text
 SpatialEconometrics/
-├── src/            # 29 modules: the umbrella plus 28 submodules
+├── src/            # 31 modules: the umbrella plus 30 submodules
 ├── ext/            # Makie and Turing package extensions
-├── test/           # runtests.jl — 56 top-level testsets
-├── examples/       # 29 runnable examples, one per topic
+├── test/           # runtests.jl — 58 top-level testsets
+├── examples/       # 31 runnable examples, one per topic
 ├── docs/           # Documenter source for the manual and API reference
 ├── validation/     # Monte Carlo output referenced below
 └── benchmark/      # BenchmarkTools suite; see benchmark/README.md
@@ -246,6 +261,13 @@ SpatialEconometrics/
 | Spatial Discrete Choice | ✓ | **Yes** (GMM approx. unbiased, SD ≈ 0.25 at N=196; Gibbs posterior mean 0.374 at ρ=0.4) |
 | Spatial Filtering | ✓ | **Yes** (E'E = I exactly; RE-ESF β and σ² recovery; closed-form Moran reference matches the full spectrum) |
 | Output & Tables | ✓ | LaTeX / CSV / Markdown round-trips, Tables.jl interface |
+| Spatial Causal Inference | ✓ | Two-period DiD exact; staggered rollout exact under homogeneity; synthetic control against the exact optimum |
+| Shift-Share | ✓ | Shock-level equivalence, Rotemberg decomposition and AKM-to-clustering reduction, all exact |
+| Networks | ✓ | Published algebraic identities; rank condition verdict by verdict; 2SLS against explicit normal equations |
+| Common Factors | ✓ | CD and `α` against the printed equations; `α` scale invariance exact |
+| Spatio-Temporal / SpVAR | ✓ | STAR against explicit normal equations; IRF long run equals the spatial multiplier; `s = 0` SpVAR is the nested panel VAR |
+| Semiparametric | ✓ | **Yes** (12 cells, `validation/mc_semiparametric_output.txt`; flat smoother reproduces `fit_spatial` to 3e-10) |
+| Short-T CRE Dynamic Panel | ✓ | **Yes** (Li & Yang's Table 1 replicated, 4,500/4,500 fits; sandwich coverage 0.92–0.97 for `β`, `ρ`, `λ`) |
 
 **Cross-sectional SDM Monte Carlo results** (`validation/mc_sdm_output.txt`):
 ρ̂ mean = 0.595 (true 0.600); mean SE = 0.0324, empirical SD = 0.0328; 95%
