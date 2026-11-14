@@ -41,6 +41,7 @@ include("SpatioTemporalModels.jl")
 include("SpVAR.jl")
 include("SemiparametricSpatial.jl")
 include("CREDynamicSpatialPanel.jl")
+include("CommonShockDynamicPanel.jl")
 
 const UtilsMod      = SpatialUtils
 const CrossSection  = SpatialEconometricsPrototype
@@ -62,6 +63,7 @@ const SpatioTempMod = SpatioTemporalModels
 const SpVARMod     = SpVAR
 const SemiparMod   = SemiparametricSpatial
 const CREDynMod    = CREDynamicSpatialPanel
+const CommonShockMod = CommonShockDynamicPanel
 const WeightsMod    = SpatialWeights
 const SelectionMod  = SpatialModelSelection
 const PanelDiagMod  = SpatialPanelDiagnostics
@@ -103,6 +105,7 @@ import .SpatialCommonFactors: CDTestResult, pesaran_cd, AlphaExponentResult, alp
 import .SpatioTemporalModels: STARModel, fit_star, InteractiveFEModel, fit_interactive_fe, factor_projection, IRFResult, space_time_irf, spatial_forecast
 import .SemiparametricSpatial: local_polynomial_smoother, SpectralOverlapResult, spectral_overlap, PartiallyLinearSARModel, fit_partially_linear_sar, ClosedFormRhoResult, closed_form_rho, TVCoefSARModel, fit_tv_coef_sar
 import .CREDynamicSpatialPanel: CREDynamicSpatialPanelModel, fit_cre_dynamic_spatial_panel
+import .CommonShockDynamicPanel: CommonShockDynamicPanelModel, fit_common_shock_dynamic_panel
 import .SpVAR: SpVARModel, fit_spvar, OrderConditionResult, spvar_order_condition, STIRResult, space_time_stir, spvar_irf, spvar_forecast, NestedPanelVARModel, fit_nested_panel_var, lr_spatial_interaction
 import .SpatialFiltering: SpatialEigen, spatial_eigenvectors, moran_coefficient, ESFModel, fit_esf, selected_eigenvectors, REESFModel, fit_re_esf, STPCAResult, stpca, fourier_basis, component_weight, feature_contributions, component_groups
 
@@ -579,6 +582,8 @@ export
     TVCoefSARModel, fit_tv_coef_sar,
     # Short-T dynamic spatial panel with correlated random effects (Li & Yang 2021)
     CREDynamicSpatialPanelModel, fit_cre_dynamic_spatial_panel,
+    # Short-T dynamic spatial panel with common shocks (Bai & Chen 2026)
+    CommonShockDynamicPanelModel, fit_common_shock_dynamic_panel,
     # Extension entry points (methods live in ext/)
     AbstractBayesianSpatialResult,
     bayesian_sar, bayesian_sdm, bayesian_sem,
