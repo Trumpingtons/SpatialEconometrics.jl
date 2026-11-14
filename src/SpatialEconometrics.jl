@@ -40,6 +40,7 @@ include("SpatialCommonFactors.jl")
 include("SpatioTemporalModels.jl")
 include("SpVAR.jl")
 include("SemiparametricSpatial.jl")
+include("CREDynamicSpatialPanel.jl")
 
 const UtilsMod      = SpatialUtils
 const CrossSection  = SpatialEconometricsPrototype
@@ -60,6 +61,7 @@ const FactorsMod    = SpatialCommonFactors
 const SpatioTempMod = SpatioTemporalModels
 const SpVARMod     = SpVAR
 const SemiparMod   = SemiparametricSpatial
+const CREDynMod    = CREDynamicSpatialPanel
 const WeightsMod    = SpatialWeights
 const SelectionMod  = SpatialModelSelection
 const PanelDiagMod  = SpatialPanelDiagnostics
@@ -100,6 +102,7 @@ import .SpatialNetworks: network_weights, group_weights, PeerIdentification, pee
 import .SpatialCommonFactors: CDTestResult, pesaran_cd, AlphaExponentResult, alpha_exponent, DependenceVerdict, dependence_verdict, SpCCEModel, fit_sp_cce
 import .SpatioTemporalModels: STARModel, fit_star, InteractiveFEModel, fit_interactive_fe, factor_projection, IRFResult, space_time_irf, spatial_forecast
 import .SemiparametricSpatial: local_polynomial_smoother, SpectralOverlapResult, spectral_overlap, PartiallyLinearSARModel, fit_partially_linear_sar, ClosedFormRhoResult, closed_form_rho, TVCoefSARModel, fit_tv_coef_sar
+import .CREDynamicSpatialPanel: CREDynamicSpatialPanelModel, fit_cre_dynamic_spatial_panel
 import .SpVAR: SpVARModel, fit_spvar, OrderConditionResult, spvar_order_condition, STIRResult, space_time_stir, spvar_irf, spvar_forecast, NestedPanelVARModel, fit_nested_panel_var, lr_spatial_interaction
 import .SpatialFiltering: SpatialEigen, spatial_eigenvectors, moran_coefficient, ESFModel, fit_esf, selected_eigenvectors, REESFModel, fit_re_esf, STPCAResult, stpca, fourier_basis, component_weight, feature_contributions, component_groups
 
@@ -574,6 +577,8 @@ export
     PartiallyLinearSARModel, fit_partially_linear_sar,
     ClosedFormRhoResult, closed_form_rho,
     TVCoefSARModel, fit_tv_coef_sar,
+    # Short-T dynamic spatial panel with correlated random effects (Li & Yang 2021)
+    CREDynamicSpatialPanelModel, fit_cre_dynamic_spatial_panel,
     # Extension entry points (methods live in ext/)
     AbstractBayesianSpatialResult,
     bayesian_sar, bayesian_sdm, bayesian_sem,

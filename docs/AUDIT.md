@@ -4358,3 +4358,216 @@ provides one, so it is not built.
 was plausible, specific and wrong. It was written from the textbook picture
 of boundary bias for a local-*constant* fit, which local-*linear* fitting
 largely removes. It cost nothing to write and an hour to refute.
+
+
+## #1 short-`T` row: Li & Yang's M-estimator, with a variance that is not theirs
+
+Built on 2026-11-13 and 14: `src/CREDynamicSpatialPanel.jl`, submodule 30,
+Li & Yang's (2021) adjusted-quasi-score M-estimator for the short-`T`
+dynamic spatial panel with correlated random effects. Two parts of it have
+no proof behind them in this form, so the standing rule applies:
+
+- **the variance.** `Γ̂`, the middle of the sandwich, is not Li & Yang's
+  hybrid estimator. It adapts the corrected plug-in of Li, Meng & Yang
+  (2026), whose proof covers the fixed-effects model, to the CRE model;
+- **the solver.** Levenberg–Marquardt in `log φ` from a first-difference IV
+  start is a numerical choice that the paper does not make.
+
+Both were measured, against exact values first and then by Monte Carlo.
+
+### What was verified exactly first
+
+Testset 42 checks each of these against an independent computation:
+
+- **Lemma 2.1.** `Y`, `Y₋₁` and `e` are written as explicit linear maps of
+  every shock, pre-sample ones included. Matrix algebra gives `E(Y₋₁e')` and
+  `E(Ye')`, which agree with the lemma's `σ²(φC₋₁ + D₋₁)` and `σ²(φC + D)`
+  to `1e-12`. The fast traces equal the block and full `nT × nT` ones.
+- **`m = 0`.** With `y₀` exogenous, the adjusted score is identically the
+  conditional score, which equals the ForwardDiff gradient of the
+  conditional log-likelihood, and the M-estimate equals the separately
+  maximised CQMLE to `1e-6`.
+- **`Γ̂` against the exact `Var(S*)`.** Each score component is linear-
+  quadratic in the shocks, so a brute-force covariance over all shocks gives
+  the exact `Var(S*(ψ₀))` for any third and fourth moments. Testset 42c
+  draws 2000 samples at `n = 16`, `T = 3`, `m = 2`, with normal and `χ²`
+  errors, and evaluates `Γ̂` at the true parameters and moments:
+  - the mean of `Γ̂` matches the exact value. The largest `|z|` over the
+    entries is 0.93 and 2.13 on Julia 1.13, and 1.82 and 1.49 on 1.10,
+    against a bound of 4. The largest relative difference is 0.3%;
+  - the `β` block of `Γ̂` does not vary over draws, because `β`'s score is
+    linear. It equals the exact value to `1e-15`;
+  - the plug-in bias correction moves the mean of `Γ̂` by 4.6 to 15 times
+    the bias that remains with it, so without the correction the estimator
+    would be biased;
+  - the reference is itself checked: the products `SᵢSⱼ` of simulated
+    scores match it, with the largest `|z|` 3.05 against a bound of 4.5.
+
+  The first version of this check used a fixed 15% tolerance on `cov(S)`. On
+  1.10 with `χ²` errors it read .148, inside by 2%. A sample covariance of
+  heavy-tailed quadratic forms needs its own standard error, so the check
+  became the `z` test above.
+- **The fit.** Testset 42f checks that the root the fit reaches from its IV
+  start is the root the solver reaches from the true `δ`, to `4e-9` on both
+  versions. It first asserted that `ρ̂`, `λ̂₁` and `β̂` were within .1 of the
+  truth. That failed on 1.10: at `n = 100` in this design the SE of `ρ̂` is
+  about .06, and 1.10's draw puts `ρ̂` 2.1 SEs from .3. A fixed band is not
+  a test of a correct estimator, so it was replaced by a bound of 4 SEs on
+  `ρ̂`.
+
+### What the first runs found
+
+- **Wrong roots.** The plan started the solver at the CQMLE. From there and
+  from a weak IV start, 4 of 20 trial fits failed or stopped at a root away
+  from the truth. Adding `ΔX_{t−1}` and its spatial lags to the instruments
+  cut the sd of the start value of `ρ` from 0.20 to 0.038. `φ` and `λ₃` now
+  start from moment estimates on the IV residuals.
+- **`φ = ∞` is a false root.** As `φ` grows, the `φ` score tends to zero,
+  and Newton and Levenberg–Marquardt both drifted there: 7 of 60 trial fits
+  stopped at `φ` between `1e9` and `1e23`. The solver now works with
+  `φ·S_φ`, which tends to `−n/2`, in `log φ`. After that, 60 of 60 fits
+  reached the root that the solver reaches when started at the truth.
+  Testset 42e checks the limit.
+- **The CQMLE can fail where the M-estimator does not.** The first Monte
+  Carlo run averaged a `NaN` into the CQMLE column. It was stopped, and the
+  script now averages the CQMLE over the fits where it converged and reports
+  the count.
+- **The full run still lost 5 of 4500 fits**: 1 of 1000 in the `n = 100`
+  normal cell, 3 of 1000 with mixture errors, and 2 of 500 in the `n = 200`
+  normal cell. Each failure raised an error; no fit returned a non-root.
+  - One fit, the first mixture failure (replication 118), threw a raw
+    `SingularException` from the GLS step for `β`, at a Levenberg–Marquardt
+    trial step. The trial had a huge `φ`, where `Ω⁻¹` loses its between part
+    and the time-invariant columns `Z` and `X̄` drop out. Such a trial is now
+    rejected like any step that does not reduce `‖S‖`.
+  - With that change, the sample still failed, with the documented "not
+    solved" error, and so did three others found by rerunning only the first
+    solve (replications 832 normal and 582 mixture at `n = 100`, 315 normal
+    at `n = 200`). Their IV starts for `φ` were 3.6–3.8 in three of the four,
+    against a truth of 1, and the solver drifted towards `φ = ∞`. A root
+    existed: started at the true `δ`, the solver reached it in 5 iterations.
+    A failed solve is now retried once from the same start with `φ = 1`, and
+    all four fit.
+  - The CQMLE's line search got the same guard, and a CQMLE failure no
+    longer aborts the fit. A scan with the old CQMLE code found no sample
+    where it threw, so that guard is defensive only.
+  - The three cells with failures were rerun with the new code, from the
+    same seeds. All 2500 fits succeeded, so the other two failures were
+    trial steps that now get rejected. Their rows moved by at most .003. The
+    other three cells had no failures and are unchanged, because each change
+    acts only on a path that used to abort the fit. The table below is
+    therefore what one full run of the current code prints.
+
+### The design
+
+Li & Yang's Table 1, DGP1:
+- `T = 3`, `m = 10`, `y_{−m} = 0`;
+- `W₁ = W₃` queen contiguity on a 10 × 10 or 10 × 20 grid, `W₂` group
+  interaction with `round(√n)` groups;
+- `X_t` as in their footnote 7, `Z ~ Bernoulli(.5)`;
+- `β = γ = π = σ²_v = φ = 1`, `ρ = .3`, `λ₁ = λ₂ = λ₃ = .2`;
+- normal errors, a normal mixture (10% `N(0,4)`, 90% `N(0,1)`), or a centred
+  `χ²₃`, all standardised. `ε` uses the same family as `v`.
+
+There are 1000 replications at `n = 100` and 500 at `n = 200`, and each
+cell reseeds from `20261113`. "rse" is the sandwich SE and "Hessian se" is
+`sqrt(diag(vcov_hessian))`.
+
+### The table
+
+| n | errors | param | true | CQMLE mean (sd) | M-est mean (sd) | mean rse | mean Hessian se | cover rse | cover Hessian |
+|---|---|---|---|---|---|---|---|---|---|
+| 100 | normal | x | 1.00 | 0.997 (0.036) | 1.000 (0.035) | 0.036 | 0.036 | 0.951 | 0.948 |
+| 100 | normal | z | 1.00 | 0.941 (0.228) | 1.013 (0.238) | 0.234 | 0.233 | 0.945 | 0.944 |
+| 100 | normal | mean_x | 1.00 | 0.858 (0.108) | 0.995 (0.100) | 0.102 | 0.098 | 0.963 | 0.950 |
+| 100 | normal | sigma2_v | 1.00 | 1.031 (0.114) | 0.979 (0.104) | 0.102 | 0.102 | 0.919 | 0.926 |
+| 100 | normal | phi | 1.00 | 0.764 (0.241) | 0.974 (0.277) | 0.278 | 0.268 | 0.925 | 0.914 |
+| 100 | normal | rho | 0.30 | 0.351 (0.034) | 0.301 (0.030) | 0.032 | 0.030 | 0.958 | 0.949 |
+| 100 | normal | lambda1 | 0.20 | 0.187 (0.029) | 0.199 (0.030) | 0.030 | 0.030 | 0.947 | 0.942 |
+| 100 | normal | lambda2 | 0.20 | 0.189 (0.031) | 0.197 (0.032) | 0.031 | 0.031 | 0.935 | 0.932 |
+| 100 | normal | lambda3 | 0.20 | 0.155 (0.122) | 0.145 (0.126) | 0.125 | 0.122 | 0.941 | 0.933 |
+|  | normal | (1000 of 1000 fits; CQMLE converged in 985 of them; 2.2 s per fit) | | | | | | | |
+| 100 | mixture | x | 1.00 | 0.997 (0.037) | 1.001 (0.036) | 0.036 | 0.036 | 0.951 | 0.948 |
+| 100 | mixture | z | 1.00 | 0.928 (0.228) | 0.998 (0.241) | 0.235 | 0.234 | 0.948 | 0.947 |
+| 100 | mixture | mean_x | 1.00 | 0.865 (0.117) | 1.001 (0.106) | 0.102 | 0.098 | 0.936 | 0.919 |
+| 100 | mixture | sigma2_v | 1.00 | 1.025 (0.139) | 0.973 (0.127) | 0.119 | 0.101 | 0.888 | 0.857 |
+| 100 | mixture | phi | 1.00 | 0.790 (0.280) | 1.006 (0.330) | 0.310 | 0.274 | 0.910 | 0.883 |
+| 100 | mixture | rho | 0.30 | 0.349 (0.038) | 0.299 (0.034) | 0.032 | 0.030 | 0.929 | 0.915 |
+| 100 | mixture | lambda1 | 0.20 | 0.188 (0.028) | 0.199 (0.029) | 0.030 | 0.030 | 0.954 | 0.951 |
+| 100 | mixture | lambda2 | 0.20 | 0.188 (0.033) | 0.197 (0.034) | 0.031 | 0.031 | 0.932 | 0.929 |
+| 100 | mixture | lambda3 | 0.20 | 0.158 (0.122) | 0.147 (0.124) | 0.126 | 0.122 | 0.952 | 0.943 |
+|  | mixture | (1000 of 1000 fits; CQMLE converged in 983 of them; 2.4 s per fit) | | | | | | | |
+| 100 | chi2 | x | 1.00 | 0.999 (0.036) | 1.002 (0.036) | 0.036 | 0.036 | 0.951 | 0.947 |
+| 100 | chi2 | z | 1.00 | 0.938 (0.216) | 1.013 (0.230) | 0.236 | 0.235 | 0.951 | 0.950 |
+| 100 | chi2 | mean_x | 1.00 | 0.860 (0.112) | 0.999 (0.099) | 0.103 | 0.098 | 0.969 | 0.956 |
+| 100 | chi2 | sigma2_v | 1.00 | 1.035 (0.167) | 0.982 (0.152) | 0.147 | 0.102 | 0.893 | 0.790 |
+| 100 | chi2 | phi | 1.00 | 0.791 (0.319) | 1.010 (0.378) | 0.353 | 0.275 | 0.912 | 0.848 |
+| 100 | chi2 | rho | 0.30 | 0.350 (0.036) | 0.299 (0.032) | 0.032 | 0.030 | 0.965 | 0.947 |
+| 100 | chi2 | lambda1 | 0.20 | 0.186 (0.030) | 0.198 (0.031) | 0.030 | 0.030 | 0.937 | 0.934 |
+| 100 | chi2 | lambda2 | 0.20 | 0.188 (0.033) | 0.196 (0.033) | 0.032 | 0.031 | 0.944 | 0.939 |
+| 100 | chi2 | lambda3 | 0.20 | 0.157 (0.125) | 0.147 (0.128) | 0.126 | 0.122 | 0.932 | 0.921 |
+|  | chi2 | (1000 of 1000 fits; CQMLE converged in 978 of them; 2.5 s per fit) | | | | | | | |
+| 200 | normal | x | 1.00 | 0.994 (0.026) | 0.998 (0.025) | 0.025 | 0.025 | 0.946 | 0.946 |
+| 200 | normal | z | 1.00 | 0.932 (0.151) | 1.006 (0.160) | 0.167 | 0.166 | 0.960 | 0.960 |
+| 200 | normal | mean_x | 1.00 | 0.864 (0.076) | 1.003 (0.068) | 0.071 | 0.069 | 0.956 | 0.954 |
+| 200 | normal | sigma2_v | 1.00 | 1.039 (0.083) | 0.987 (0.075) | 0.073 | 0.072 | 0.928 | 0.928 |
+| 200 | normal | phi | 1.00 | 0.785 (0.177) | 1.002 (0.202) | 0.198 | 0.193 | 0.942 | 0.934 |
+| 200 | normal | rho | 0.30 | 0.351 (0.025) | 0.300 (0.021) | 0.022 | 0.021 | 0.956 | 0.950 |
+| 200 | normal | lambda1 | 0.20 | 0.186 (0.021) | 0.199 (0.022) | 0.022 | 0.022 | 0.944 | 0.942 |
+| 200 | normal | lambda2 | 0.20 | 0.189 (0.027) | 0.198 (0.027) | 0.025 | 0.025 | 0.928 | 0.930 |
+| 200 | normal | lambda3 | 0.20 | 0.188 (0.085) | 0.177 (0.087) | 0.088 | 0.087 | 0.954 | 0.952 |
+|  | normal | (500 of 500 fits; CQMLE converged in 499 of them; 9.7 s per fit) | | | | | | | |
+| 200 | mixture | x | 1.00 | 0.998 (0.026) | 1.001 (0.025) | 0.025 | 0.025 | 0.950 | 0.948 |
+| 200 | mixture | z | 1.00 | 0.937 (0.157) | 1.008 (0.167) | 0.165 | 0.165 | 0.932 | 0.930 |
+| 200 | mixture | mean_x | 1.00 | 0.863 (0.075) | 0.999 (0.069) | 0.071 | 0.069 | 0.972 | 0.952 |
+| 200 | mixture | sigma2_v | 1.00 | 1.035 (0.099) | 0.984 (0.091) | 0.086 | 0.072 | 0.926 | 0.866 |
+| 200 | mixture | phi | 1.00 | 0.779 (0.190) | 0.991 (0.222) | 0.217 | 0.191 | 0.934 | 0.904 |
+| 200 | mixture | rho | 0.30 | 0.350 (0.025) | 0.300 (0.022) | 0.022 | 0.021 | 0.962 | 0.952 |
+| 200 | mixture | lambda1 | 0.20 | 0.187 (0.023) | 0.199 (0.023) | 0.022 | 0.022 | 0.920 | 0.920 |
+| 200 | mixture | lambda2 | 0.20 | 0.189 (0.026) | 0.198 (0.026) | 0.025 | 0.025 | 0.944 | 0.940 |
+| 200 | mixture | lambda3 | 0.20 | 0.186 (0.087) | 0.175 (0.089) | 0.088 | 0.087 | 0.942 | 0.940 |
+|  | mixture | (500 of 500 fits; CQMLE converged in 499 of them; 9.0 s per fit) | | | | | | | |
+| 200 | chi2 | x | 1.00 | 0.996 (0.025) | 1.000 (0.025) | 0.025 | 0.025 | 0.962 | 0.962 |
+| 200 | chi2 | z | 1.00 | 0.925 (0.158) | 0.997 (0.167) | 0.166 | 0.166 | 0.944 | 0.944 |
+| 200 | chi2 | mean_x | 1.00 | 0.859 (0.074) | 0.996 (0.068) | 0.072 | 0.069 | 0.956 | 0.952 |
+| 200 | chi2 | sigma2_v | 1.00 | 1.040 (0.114) | 0.988 (0.104) | 0.106 | 0.072 | 0.938 | 0.814 |
+| 200 | chi2 | phi | 1.00 | 0.785 (0.230) | 1.003 (0.276) | 0.249 | 0.193 | 0.920 | 0.838 |
+| 200 | chi2 | rho | 0.30 | 0.351 (0.025) | 0.301 (0.022) | 0.022 | 0.021 | 0.958 | 0.942 |
+| 200 | chi2 | lambda1 | 0.20 | 0.187 (0.021) | 0.199 (0.022) | 0.022 | 0.022 | 0.956 | 0.954 |
+| 200 | chi2 | lambda2 | 0.20 | 0.188 (0.024) | 0.197 (0.025) | 0.025 | 0.025 | 0.938 | 0.940 |
+| 200 | chi2 | lambda3 | 0.20 | 0.185 (0.091) | 0.174 (0.093) | 0.088 | 0.087 | 0.938 | 0.930 |
+|  | chi2 | (500 of 500 fits; CQMLE converged in 499 of them; 9.1 s per fit) | | | | | | | |
+
+With 1000 replications a coverage of 0.95 has a Monte Carlo standard error of
+about 0.007, and with 500 about 0.010.
+
+### What it settles, and what it does not
+
+- **The estimator is Li & Yang's.** With normal errors, the M-estimator's
+  means and sds agree with their Table 1 to about one Monte Carlo standard
+  error at both sizes. So do the CQMLE's: `ρ̂` .351 against their .3547 at
+  `n = 100`, and `π̂` .858 against .8425.
+- **The CQMLE is inconsistent, as claimed.** Its `ρ̂` is .351 at both sizes.
+  The M-estimator's bias in `ρ`, `π` and `φ` is below .03 in every cell.
+- **`λ₃` is biased down at `T = 3`** (.145–.147 at `n = 100`, .174–.177 at
+  `n = 200`), as in Li & Yang's table (.152 and .176).
+- **The sandwich covers.** For `β`, `ρ` and the `λ`s, coverage is between
+  .920 and .972 in all six cells. The lowest values, .929 for `ρ` with mixture
+  errors at `n = 100` and .920 for `λ₁` with mixture errors at `n = 200`,
+  are 3.0 and 3.1 Monte Carlo standard errors below .95.
+- **It covers `σ²_v` and `φ` less well at `n = 100`:** .888–.925, rising to
+  .920–.942 at `n = 200`. Its mean SE for `σ²_v` is 3–7% below the sd with
+  non-normal errors at `n = 100`. Li & Yang's own robust SE (their Table 2 crse)
+  is low by a similar amount: .143 against an sd of .156 in the same cell.
+- **The normality-based SEs fail under non-normal errors, and not because
+  `n` is small.** With `χ²` errors, `vcov_hessian` covers `σ²_v` in 79.0% of
+  fits at `n = 100` and 81.4% at `n = 200`, and `φ` in 84.8% and 83.8%.
+  This is what the sandwich is for.
+- **The mixture cell does not match the paper's.** Our `σ²_v` sd with mixture
+  errors is .127 at `n = 100`; theirs is .170. Our normal and `χ²` cells do
+  match theirs (.104 against .105, .152 against .156), so their mixture has
+  heavier tails than the reading of their text used here. The comparison of
+  coverage is unaffected, as both columns are from the same draws.
+- **Every fit succeeded**: 4500 of 4500, after the fixes described above.
+  The fit never returns a non-root. When it cannot solve the adjusted score,
+  it throws.

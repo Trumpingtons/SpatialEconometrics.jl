@@ -126,7 +126,7 @@ are short, so this is a gap the data exposes.
 
 | Feature | Description | Reference |
 |---|---|---|
-| Fixed-`T` dynamic spatial panel, individual effects only | The same SDPD form `fit_dynamic_spatial_panel` already fits (`y_{t−1}`, `W₂y_{t−1}`, `W₁y_t`, plus a spatial error `W₃`), with time dummies and **correlated random effects** in Mundlak form, `μ = X̄π + ε`, so time-invariant regressors `Z` are estimable. The estimator is an M-estimator: the conditional quasi-scores given `y₀` are biased when `y₀` is endogenous, so each biased component is corrected by its expectation (Lemma 2.1, the adjusted quasi-score of Yang 2018). The correction depends on the process start time `m` but on nothing else about `y₀`, and the simulations report robustness to a wrong `m`. The VC matrix is a hybrid of analytic terms and sample analogues, because neither error component can be estimated with fixed `T`. Simulations: `T ∈ {3, 6}`, `n ≤ 400`, rook, queen and group `W`, non-normal errors, 2000 replications. The conditional QMLE of the dynamic parameter is biased and does not converge with `n`; the M-estimator is nearly unbiased and its robust SEs track the empirical sds. The spatial-error parameter `λ₃` stays biased at `T = 3`. **This is the short-`T` counterpart of the existing `fit_dynamic_spatial_panel`, whose Yu–de Jong–Lee bias correction is a large-`T` device**, so it is the natural first build here, before Bai & Chen's factor version | Li & Yang (2021), *J. Econometrics* 221(2) — **read in part** (§§1–6; Appendices B–C proofs and the online supplement not) |
+| Fixed-`T` dynamic spatial panel, individual effects only | The same SDPD form `fit_dynamic_spatial_panel` already fits (`y_{t−1}`, `W₂y_{t−1}`, `W₁y_t`, plus a spatial error `W₃`), with time dummies and **correlated random effects** in Mundlak form, `μ = X̄π + ε`, so time-invariant regressors `Z` are estimable. The estimator is an M-estimator: the conditional quasi-scores given `y₀` are biased when `y₀` is endogenous, so each biased component is corrected by its expectation (Lemma 2.1, the adjusted quasi-score of Yang 2018). The correction depends on the process start time `m` but on nothing else about `y₀`, and the simulations report robustness to a wrong `m`. The VC matrix is a hybrid of analytic terms and sample analogues, because neither error component can be estimated with fixed `T`. Simulations: `T ∈ {3, 6}`, `n ≤ 400`, rook, queen and group `W`, non-normal errors, 2000 replications. The conditional QMLE of the dynamic parameter is biased and does not converge with `n`; the M-estimator is nearly unbiased and its robust SEs track the empirical sds. The spatial-error parameter `λ₃` stays biased at `T = 3`. **This is the short-`T` counterpart of the existing `fit_dynamic_spatial_panel`, whose Yu–de Jong–Lee bias correction is a large-`T` device**, so it is the natural first build here, before Bai & Chen's factor version | Li & Yang (2021), *J. Econometrics* 221(2) — **read in part** (§§1–6; from the Supplementary Appendix, §II and Tables 1–2; the Appendices B–C proofs not). ✅ **Built 2026-11-14** as `fit_cre_dynamic_spatial_panel` (`src/CREDynamicSpatialPanel.jl`, submodule 30). The VC is not this hybrid: it is the corrected plug-in of Li, Meng & Yang (2026), adapted to the CRE model, and it is checked against the exact `Var(S*)`. The Table 1 replication is in `docs/AUDIT.md` |
 | Fixed-`T` dynamic spatial panel with common shocks | `y_t = ρWy_t + γy_{t−1} + X_tβ + Λf_t + ε_t` for large `N` and fixed `T`. The loadings are projected on observed controls, `y₀`, and their spatial lags `W y₀ … W^L y₀` ("spatially enriched random loadings"), so no unit-specific parameter is estimated. Conditional Gaussian QML keeps the Jacobian `\|I − ρW\|^T`. Block-coordinate algorithm: GLS for `(γ, β)`, low-rank updates for the factor covariance, scalar search over `ρ`. Spatially corrected sandwich variance | Bai & Chen (2026), arXiv 2608.22499 — ⚠️ **preprint, read in part** (model, algorithm, simulations, application; the theory in §3 not) |
 
 Two of its measured results need to be checked before any build. At `T = 5`,
@@ -141,7 +141,7 @@ Chapter 6 measurements. Bai & Chen's §3 theory must be read before their row is
 Yang (2021) has now been read: Bai & Chen's two descriptions of it check
 out. Its scalar, time-invariant CRE is a special case of their loading
 projection, and its score is re-centred using the process start time.
-Li & Yang's own row above needs only the proofs read.
+Li & Yang's own row above is now built (2026-11-14); its proofs are still unread.
 
 **Dependencies:** None (uses existing SpatialUtils infrastructure)
 
@@ -1234,6 +1234,7 @@ independent support enumeration.
 | 20 | 🔶 Semiparametric Spatial (#13) | ~500 (pass 1: 1,136) | Pass 1 done 2026-11-13: Su & Jin PLSAR, closed-form `ρ`, the overlap `π̄`, LGG `β(τ)`. Geniaux's remedy, quantile and penalised rows remain |
 | 21 | ⬜ Spatial GARCH (#16) | ~450 | Spatial structure in the variance |
 | 22 | ✅ **SpVAR** (deferred from #12) | ~450 | Di Giacinto (2010): block-triangular `C₀`, separable FIML, outward/inward STIR, the nested panel VAR and the LR test against it; plus `order_weights` |
+| 23 | ✅ Short-`T` CRE dynamic panel (#1 planned addition) | ~1,500 (actual: 1,029) | Li & Yang (2021) M-estimator with the corrected plug-in variance of Li, Meng & Yang (2026); built 2026-11-14, Table 1 replicated (`docs/AUDIT.md`). Bai & Chen's common-shocks row remains |
 | | **Phase 7B total** | **~2,300** | Items 18, 19 and 22 closed 2026-11-04; actual ~3,450 lines across three submodules |
 
 **Items 18 and 19 were taken as one pass**, on 2026-11-04, because the
@@ -1303,6 +1304,7 @@ holds today, and the figures it once projected — ~1,200 assertions and
 | **v0.4.0** (= master today, unreleased) | 28 | 3,750 † | 24,321 |
 | **master** (+ the robust-sandwich fix and seven exact assertions) | 28 | 3,757 †† | 24,321 |
 | **master** (+ #13 pass 1, `SemiparametricSpatial`) | 29 | 3,775 ‡ | 25,558 |
+| **master** (+ #1 short-`T` row, `CREDynamicSpatialPanel`) | 30 | 3,864 § | 26,597 |
 | — | | | |
 | **v1.0.0** (Phases 6C–8) | 29–31 | ~4,100 | ~26,500 |
 
@@ -1322,9 +1324,17 @@ the new module's 1,131 lines, the umbrella's 8 lines that load it, and 98
 net lines of docstring prose in four commits since the †† row (`f7bea6a`,
 `a4a09e1`, `6ff3bbd`, `e1a681e`).
 
-Measured on master: 29 submodules plus the umbrella across 25,563 lines of
-`src/`, 9,708 lines of tests, 4,870 lines of examples across 30 scripts,
-398 lines of package extensions, 58 documentation pages and 20 notebooks
+§ Measured locally on 2026-11-14. On Julia 1.13.3 with both extensions loaded:
+3,864 passed, none broken. On 1.10.13 without them: 3,829 passed and 2
+broken. Each is the ‡ figure plus the 54 assertions of testset 42, and the
+1.13 figure confirms the arithmetic 3,810 of the ‡ note. Margins were measured
+on both versions: the smallest is 1.47×, for the `z` test of the exact
+`Var(S*)` reference in 42c. The `src/` count rose by 1,034: the new module's
+1,029 lines and the umbrella's 5.
+
+Measured on master: 30 submodules plus the umbrella across 26,597 lines of
+`src/`, 10,000 lines of tests, 4,990 lines of examples across 31 scripts,
+398 lines of package extensions, 60 documentation pages and 20 notebooks
 (13 Jupyter, 7 Pluto).
 
 The `v0.4.0` row sits 68 lines above the measured row before it, and no

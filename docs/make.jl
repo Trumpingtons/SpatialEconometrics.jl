@@ -34,6 +34,7 @@ makedocs(
             "Cross-Sectional" => "models/cross_sectional.md",
             "Panel" => "models/panel.md",
             "Dynamic Panel" => "models/dynamic_panel.md",
+            "Short-T Dynamic Panel (CRE)" => "models/cre_dynamic_panel.md",
             "Spatial Error (SEM)" => "models/sem.md",
             "GS2SLS / SARAR Panels" => "models/gs2sls.md",
             "Dynamic Panel GMM" => "models/gmm.md",
@@ -85,6 +86,7 @@ makedocs(
             "Panels" => [
                 "Static Spatial Panels" => "api/panel.md",
                 "Dynamic Spatial Panels" => "api/dynamic_panel.md",
+                "Short-T Dynamic Panel (CRE)" => "api/cre_dynamic_panel.md",
                 "GS2SLS / SARAR Panels" => "api/gs2sls.md",
                 "Dynamic Panel GMM" => "api/gmm.md",
             ],
