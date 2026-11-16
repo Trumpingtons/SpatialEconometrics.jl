@@ -1066,19 +1066,97 @@ for the smoother windows)
 **Motivation:** Every model in this package puts the spatial structure in
 the conditional mean. Financial and risk applications need it in the
 conditional *variance*: volatility clusters across firms and assets that are
-close in some economic sense, not in kilometres. Fülle & Otto (2023) fit a
-spatial log-GARCH to the 50 largest Dow Jones Global Titans constituents
-with `W` built from covariate distance, and find a seven-covariate
-non-geographic `W` beats every geographic candidate. This is also the
-cleanest demonstration that the package's machinery is not about geography.
+close in some economic sense, not in kilometres. Fülle & Otto (2024) fit
+Sato & Matsuda's (2021) spatial log-GARCH to one year of log-returns of the
+50 Dow Jones Global Titans firms. Their `W` is the `k`-nearest-neighbour graph
+in a space of standardised balance-sheet positions, and the positions are
+chosen by forward selection on the log-likelihood from 66 candidates. The
+best `W` uses seven. This is also a clean demonstration that the package's
+machinery is not about geography.
+
+**Correction, 2026-11-16, when the paper was read:** this paragraph said the
+seven-covariate `W` "beats every geographic candidate". The paper fits no
+geographic `W`: Table 2 compares covariate spaces only. The deliverables
+table also had the model wrong: `ρ` multiplies `W log y²`, and `λ`
+multiplies `W log h`.
 
 **Deliverables:**
 
 | Feature | Description | Reference |
 |---|---|---|
-| Spatial GARCH | Conditional variance with a spatial lag, `log h = α + ρ W log h + ...`, estimated by QML | Fülle & Otto (2023) |
-| Covariate-distance W | `W` from Euclidean distance over a covariate set rather than coordinates, with forward selection over covariates | Santi et al. (2021); Fülle & Otto (2023) |
-| Endogeneity caveat | Diagnostics for feedback from `y` into the covariates that define `W` — the failure mode the editorial flags | Qu & Lee (2015) |
+| Spatial log-GARCH | `y_i = √h_i ε_i`, `log h = α1 + ρW₁ log y² + λW₂ log h (+ Zδ)`. With `W₁ = W₂ = W` it is a SARMA(1,1) in `log y²`: `log y² = (λ + ρ)W log y² + α1 + Zδ + (I − λW) log ε²`. A solution exists if `\|λ + ρ\| < 1` for row-standardised `W`. Estimated by Sato & Matsuda's two-step procedure: Gaussian QML of the SARMA for `(λ, ρ, δ)`, with the intercept absorbing `E log ε²`, then `α` in closed form (their eq. 11) from the `log χ²₁` quasi-likelihood | Sato & Matsuda (2021); Fülle & Otto (2024) |
+| Covariate-distance W | `k`-nearest-neighbour `W` from Euclidean distance between standardised covariate vectors, which `knn_weights` already computes in any dimension. Fülle & Otto choose the covariates by forward selection on the log-likelihood | Santi et al. (2021), not yet read; Fülle & Otto (2024) |
+| Endogeneity caveat | Diagnostics for feedback from `y` into the covariates that define `W`, the failure mode the editorial flags | Qu & Lee (2015) |
+
+**What the two papers establish, read 2026-11-16** (Fülle & Otto in full;
+Sato & Matsuda's main text and its four-page supplement of proofs):
+
+- **Only Sato & Matsuda have theory.** Theorems 3.1–3.2 give consistency
+  and asymptotic normality of the first-step `(λ, ρ, δ, σ²)` under
+  Assumptions 3.1–3.8 (`log ε²` i.i.d. with `4 + η` moments, bounded `W`,
+  a compact parameter space), with the sandwich `Σ⁻¹ + Σ⁻¹ΩΣ⁻¹` for
+  non-normal `log ε²`. Theorem 3.3 gives only consistency for `α̂`, with no
+  distribution, so there is no standard error for `α`, and their Table 3
+  reports SEs for `λ` and `ρ` only. The proof of Theorem 3 needs only
+  `E ε² = 1`, not Gaussian `ε`. **The explicit `Ω_ψ` is not given.** The
+  main text says it is "expressed explicitly in Appendix A", but the
+  supplement gives only the Hessian deviations `D_ψψ`, so the middle of the
+  sandwich must be derived here, in Lee's (2004) form for linear-quadratic
+  scores with the third and fourth moments of `log ε²`. Theorem 2's proof
+  also has a truncated sentence. Their simulations (rook `W`,
+  `n ∈ {100, 400}`, normal, `χ²₃` and log-normal `ε`) include a regressor.
+  The first step is nearly unbiased there; `α̂` is not at `n = 100` with a
+  small `λ` (bias −0.43 to −1.01).
+- **The mean part cannot separate `λ` from `ρ`.** Assumption 3.8 is the
+  mean-part identification condition of Lee (2004). The mean of `log y²`
+  depends on `(λ, ρ)` only through `λ + ρ`, so the condition's quantity is
+  zero all along the ridge `λ + ρ = λ₀ + ρ₀`, whatever the regressors. With
+  an intercept only and a row-standardised `W` (Fülle & Otto's case), it is
+  zero everywhere. Checked numerically on 2026-11-16: about `1e-30` in both
+  cases, against 0.10 off the ridge with one regressor. This is this
+  roadmap's derivation, not the paper's. So `λ` and `ρ` are told apart only
+  by the variance part, the quadratic identification condition of Lee
+  (2004), which neither the main text nor the supplement states. The
+  supplement's uniqueness step cites an information inequality, which gives
+  only `Q(θ) ≤ Q(θ₀)`, and then says uniqueness "holds by contradiction in
+  the same way as Lee (2004)". Fülle & Otto's simulation shows
+  what that costs: with true locations at `n = 200`, sd(`λ̂`) is .26–.31
+  against .08–.12 for `ρ̂`.
+- **Fülle & Otto's estimator is not Sato & Matsuda's.** They maximise the
+  full likelihood with `ε ~ N(0, 1)` and the Jacobian of their eqs (5)–(8),
+  and give no asymptotic theory: identifiability is referred to Sato &
+  Matsuda (note 1). Their Table 3 reports SEs, including one for `α`, with
+  no stated method.
+- **Their simulation table is internally inconsistent.** For `α`, the RMSE
+  is below the sd in every cell (e.g. `n = 50`, `ω = 0`: sd .280, RMSE
+  .090), which cannot happen, since RMSE² ≈ sd² + bias². §3.1 also says an
+  inverse-distance `W^(X)` is computed, where §2.1 and the design use `k`NN
+  with `k = 10`.
+- **A proxy `W` makes the estimator inconsistent, not just noisier.** Their
+  conclusion says the estimates are "asymptotically unbiased … when a large
+  linear correlation is imposed". In their Table 1 that holds at `ω = 0`,
+  which is the true locations. At `ρ₀ = .3`, `ω = .5`, `ρ̂` is .05–.06 at
+  every `n`, and its RMSE stays at .26.
+- **The application has no inference on the selection.** It is one cross
+  section, one return per firm (`n = 50`). `W` is chosen by the largest
+  log-likelihood over forward steps through 66 covariates, with no penalty
+  for the search. AIC and BIC are set aside because each candidate has the
+  same three parameters. The chosen model has `ρ̂ = .034` (.016) and
+  `λ̂ = .869` (.019).
+
+**What a build would therefore be:**
+- Sato & Matsuda's two-step estimator with its sandwich SEs for `(λ, ρ, δ)`,
+  `α̂` without an SE;
+- the covariate-distance `W` as a constructor;
+- forward selection, if offered at all, as a search with no inference
+  attached.
+
+Before any of it is offered, the open questions get a null-distribution
+Monte Carlo: the weak identification of `λ`, the intercept-only case, and
+exact zeros in `y`. An exact zero makes `log y²` undefined, and neither
+paper deals with it. The derived `Ω` gets the same check as every variance
+here: its mean against the exact variance of the score at the true
+parameters, by simulation. Santi et al. (2021) is held but not yet read.
 
 **New file:** `src/SpatialGARCH.jl` (~450 lines)
 
@@ -1590,7 +1668,7 @@ development line rather than across three releases.
 - Di Giacinto, V. (2010). On vector autoregressive modeling in space and time. *Journal of Geographical Systems*, 12(2), 125–154. doi:10.1007/s10109-010-0116-6. **Verified and read in full** from Banca d'Italia *Temi di discussione* 746, which is freely available and carries the same text.
 - Elhorst, J. P. (2010). Applied spatial econometrics: Raising the bar. *Spatial Economic Analysis*, 5(1), 9–28.
 - Ertur, C., & Musolesi, A. (2017). Weak and strong cross-sectional dependence: A panel data analysis of international technology diffusion. *Journal of Applied Econometrics*, 32(3), 477–503.
-- Fülle, M. J., & Otto, P. (2023). Spatial GARCH models for unknown spatial locations — an application to financial stock returns. *Spatial Economic Analysis*, 19(1), 92–105.
+- Fülle, M. J., & Otto, P. (2024). Spatial GARCH models for unknown spatial locations — an application to financial stock returns. *Spatial Economic Analysis*, 19(1), 92–105. Published online 6 Sep 2023. https://doi.org/10.1080/17421772.2023.2237067. **Read** 2026-11-16.
 - Geniaux, G. (2026). Flexible nonlinear spatial autoregressive models under spatial confounding: a gradient boosting approach with closed-form estimation. arXiv:2611.16592v1 [stat.ME]. **Preprint, not peer reviewed, read in part**: §§1–5; Appendices A–D not. Held in `ExtRef/`.
 - Geniaux, G., & Martinetti, D. (2017). A new method for dealing with spatially varying coefficients. *Geographical Analysis*, 50(1), 28–50.
 - Gibbons, S., & Overman, H. G. (2012). Mostly pointless spatial econometrics? *Journal of Regional Science*, 52(2), 172–191. **Read** in the LSE working-paper version, whose pagination differs.
@@ -1607,6 +1685,7 @@ development line rather than across three releases.
 - Krzyśko, M., Nijkamp, P., Ratajczak, W., Wołyński, W., & Wenerska, B. (2023). Spatio-temporal principal component analysis. *Spatial Economic Analysis*, 19(1), 8–29.
 - Kubara, M., & Kopczewska, K. (2023). Akaike information criterion in choosing the optimal k-nearest neighbours of the spatial weight matrix. *Spatial Economic Analysis*, 19(1), 73–91.
 - Lam, C., & Souza, P. C. L. (2020). Estimation and selection of spatial weight matrix in a spatial lag model. *Journal of Business & Economic Statistics*, 38(3), 693–710. https://doi.org/10.1080/07350015.2019.1569526. **Read in part** in the accepted manuscript (Warwick WRAP 112458).
+- Lee, L.-F. (2004). Asymptotic distributions of quasi-maximum likelihood estimators for spatial autoregressive models. *Econometrica*, 72(6), 1899–1925. https://doi.org/10.1111/j.1468-0262.2004.00558.x
 - Lee, L. F., & Liu, X. (2010). Efficient GMM estimation of high order spatial autoregressive models with autoregressive disturbances. *Econometric Theory*, 26(1), 187–230.
 - Lee, L.-F., & Yu, J. (2012). QML estimation of spatial dynamic panel data models with time varying spatial weights matrices. *Spatial Economic Analysis*, 7(1), 31–74.
 - Leenders, R. T. A. J. (2002). Modeling social influence through network autocorrelation: constructing the weight matrix. *Social Networks*, 24(1), 21–47.
@@ -1627,6 +1706,7 @@ development line rather than across three releases.
 - Pfeifer, P. E., & Deutsch, S. J. (1980). A three-stage iterative procedure for space-time modeling. *Technometrics*, 22(1), 35–47. **Verified**; read in full from the authors' reprint, NCJRS 60692, after tandfonline and JSTOR both refused automated access. Their spatial lag operator is defined on order-`k` neighbourhoods, not powers of `W` — see `docs/AUDIT.md`.
 - Qu, X., & Lee, L. F. (2015). Estimating a spatial autoregressive model with an endogenous spatial weight matrix. *Journal of Econometrics*, 184(2), 209–232. **Read in part** (§§2–3).
 - Santi, F., Dickson, M. M., Espa, G., Taufer, E., & Mazzitelli, A. (2021). Handling spatial dependence under unknown unit locations. *Spatial Economic Analysis*, 16(2), 194–216.
+- Sato, T., & Matsuda, Y. (2021). Spatial extension of generalized autoregressive conditional heteroskedasticity models. *Spatial Economic Analysis*, 16(2), 148–160. Published online 30 Mar 2020. https://doi.org/10.1080/17421772.2020.1742929. **Read** (main text, and the online supplement of proofs, which does not contain the explicit `Ω` the main text promises).
 - Shi, W., & Lee, L. F. (2017). Spatial dynamic panel data models with interactive fixed effects. *Journal of Econometrics*, 197(2), 323–347.
 - Smirnov, O. A. (2022). A closed-form consistent estimator for linear models with spatial dependence. *Geographical Analysis*, 54(1), 3–31. doi:10.1111/gean.12268 (online 28 Dec 2020, hence "2020" in Geniaux). **Verified and read** (2026-11-13) from the Early View version (paginated 1–29) held in `ExtRef/`; the DOI and title are confirmed by Scite and the issue pages come from library catalogues. Main text read in full; the cells of Tables 2–7 are scrambled by text extraction and were read through the prose that reports them. Geniaux's two uses of it check out: the estimator and the conservative variance (its Tables 3 and 6: the estimated variance exceeds the MSE by 10–20% at moderate `ρ` and by a factor of 2–3 at strong `ρ`).
 - Su, L., & Jin, S. (2010). Profile quasi-maximum likelihood estimation of partially linear spatial autoregressive models. *Journal of Econometrics*, 157(1), 18–33. doi:10.1016/j.jeconom.2009.10.033. **Verified, read in part** (2026-11-13), from the submitted manuscript of 23 Aug 2007 held in `ExtRef/`. Read: §1, §2 (model and the two-step profile QMLE), §3 (Assumptions 1–8), the statements of Theorems 4.1–4.4 and 5.1–5.4 as far as text extraction preserves them, §6 (simulations) and §7. Not read: the Appendix proofs. Its abstract carries the same content as the published one, in more detail. Because this is the pre-review manuscript, equation and theorem numbers may not match the article. In the simulations the asymptotic standard error of `m̂(0)` (about 0.08) is roughly half the empirical one (0.13–0.22) in the Table 3 rows that extraction keeps legible, so check the page images before relying on pointwise bands.
