@@ -1,7 +1,8 @@
 # SpatialEconometrics.jl — Development Roadmap
 
-> **Current version:** 0.4.0 (on `master`, unreleased; `Project.toml` carries
-> it since 2026-11-06)
+> **Current version:** 0.5.0, tagged `v0.5.0` on 2026-11-16. It adds #13
+> pass 1, the two short-`T` panels of #1 and #16 to `v0.4.0` (tagged
+> 2026-11-06). Neither tag is registered.
 >
 > 32 submodules, 3,949 test assertions in 60 top-level testsets with both
 > package extensions installed and 3,914 (plus 2 broken markers) without
@@ -1449,9 +1450,10 @@ reopened and re-sourced rather than executed from its own summary.
 ### Size: Actuals and Projections
 
 Rows above the rule are measured; rows below are estimates. v0.4.0 has
-crossed the rule: it is not a projection any more, it is what `master`
-holds today, and the figures it once projected — ~1,200 assertions and
-~13,800 lines — were passed some time ago.
+crossed the rule: it is not a projection any more but a tagged release
+(2026-11-06), and the figures it once projected — ~1,200 assertions and
+~13,800 lines — were passed some time ago. v0.5.0 (2026-11-16) is likewise
+a measured row.
 
 | Milestone | Modules | Test assertions | Lines of `src/` |
 |---|---|---|---|
@@ -1471,13 +1473,14 @@ holds today, and the figures it once projected — ~1,200 assertions and
 | **master** (+ #1 and #12, so Phase 7B half done) | 27 | 3,415 † | 22,577 |
 | **master** (+ row 22 SpVAR, so Phase 7B mostly done) | 28 | 3,718 † | 24,151 |
 | **master** (+ Pfeifer & Deutsch read: STAR `spatial_weights`) | 28 | 3,750 † | 24,253 |
-| **v0.4.0** (= master today, unreleased) | 28 | 3,750 † | 24,321 |
+| **v0.4.0** (tagged 2026-11-06) | 28 | 3,750 † | 24,321 |
 | **master** (+ the robust-sandwich fix and seven exact assertions) | 28 | 3,757 †† | 24,321 |
 | **master** (+ #13 pass 1, `SemiparametricSpatial`) | 29 | 3,775 ‡ | 25,558 |
 | **master** (+ #1 short-`T` row, `CREDynamicSpatialPanel`) | 30 | 3,864 § | 26,597 |
 | **master** (+ the 41b/41f optimiser-tolerance fix) | 30 | 3,866 §§ | 26,597 |
 | **master** (+ #1 common-shocks row, `CommonShockDynamicPanel`) | 31 | 3,897 ¶ | 27,293 |
 | **master** (+ #16 spatial log-GARCH, `SpatialGARCH`) | 32 | 3,949 ¶¶ | 27,865 |
+| **v0.5.0** (tagged 2026-11-16, = the row above) | 32 | 3,949 ¶¶ | 27,865 |
 | — | | | |
 | **v1.0.0** (Phases 6C–8) | 29–31 | ~4,100 | ~26,500 |
 
