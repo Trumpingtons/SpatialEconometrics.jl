@@ -6,8 +6,8 @@
 > 31 submodules, 3,897 test assertions in 59 top-level testsets with both
 > package extensions installed and 3,862 (plus 2 broken markers) without
 > them, measured on 2026-11-16 on Julia 1.13.3, and without them on 1.10.13.
-> CI last confirmed the figures of 2026-11-14 (§ below); this one is local
-> until CI runs. 32 examples, 20 notebooks, 2 package extensions, CI/CD and
+> CI confirmed them exactly on 2026-11-16 (`a336b0f`), on 1.10, 1.13 and
+> nightly across Linux, Windows and macOS. 32 examples, 20 notebooks, 2 package extensions, CI/CD and
 > 62 Documenter.jl pages. **Phases 4, 5, 6, 6B, 6C and 7A are complete.** Item #10 (Performance) closed on 2026-10-30 with its scope
 > reduced on measured grounds and may be revisited. Phase 6C, the GWR
 > compact local design, is delivered. **Phase 7A closed on 2026-11-01:**
@@ -1440,6 +1440,9 @@ still 42c's 1.47×. The `src/` count rose by 696: the new module's 691 lines
 and the umbrella's 5. A plain `Pkg.test()` does not see the extensions even
 when they are installed globally, because its sandbox holds only the test
 dependencies; the extension figure is from `julia --project=. test/runtests.jl`.
+CI confirmed both figures exactly on `a336b0f`: 3,897 on the extensions job,
+and 3,862 plus 2 broken on 1.10 and 1.13 (Linux), 1.13 on Windows and
+macOS, and nightly.
 
 Measured on master: 31 submodules plus the umbrella across 27,293 lines of
 `src/`, 10,219 lines of tests, 5,111 lines of examples across 32 scripts,
