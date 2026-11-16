@@ -231,11 +231,11 @@ our own because:
 ```text
 SpatialEconometrics/
 ├── src/            # 33 modules: the umbrella plus 32 submodules
-├── ext/            # Makie and Turing package extensions
-├── test/           # runtests.jl — 59 top-level testsets
+├── ext/            # Makie and Turing package extensions (see ext/README.md)
+├── test/           # runtests.jl — 60 top-level testsets (see test/README.md)
 ├── examples/       # 33 runnable examples, one per topic
 ├── docs/           # Documenter source for the manual and API reference
-├── validation/     # Monte Carlo output referenced below
+├── validation/     # Monte Carlo studies and their output (see validation/README.md)
 └── benchmark/      # BenchmarkTools suite; see benchmark/README.md
 ```
 

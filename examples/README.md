@@ -1,6 +1,6 @@
 # Examples
 
-Thirty-two worked examples, one per topic. Each is a self-contained script
+Thirty-three worked examples, one per topic. Each is a self-contained script
 that simulates its own data, so none needs a download, and each prints its
 results to the terminal.
 
