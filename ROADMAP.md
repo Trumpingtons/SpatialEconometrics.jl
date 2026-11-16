@@ -1085,7 +1085,7 @@ multiplies `W log h`.
 | Feature | Description | Reference |
 |---|---|---|
 | Spatial log-GARCH | `y_i = √h_i ε_i`, `log h = α1 + ρW₁ log y² + λW₂ log h (+ Zδ)`. With `W₁ = W₂ = W` it is a SARMA(1,1) in `log y²`: `log y² = (λ + ρ)W log y² + α1 + Zδ + (I − λW) log ε²`. A solution exists if `\|λ + ρ\| < 1` for row-standardised `W`. Estimated by Sato & Matsuda's two-step procedure: Gaussian QML of the SARMA for `(λ, ρ, δ)`, with the intercept absorbing `E log ε²`, then `α` in closed form (their eq. 11) from the `log χ²₁` quasi-likelihood | Sato & Matsuda (2021); Fülle & Otto (2024) |
-| Covariate-distance W | `k`-nearest-neighbour `W` from Euclidean distance between standardised covariate vectors, which `knn_weights` already computes in any dimension. Fülle & Otto choose the covariates by forward selection on the log-likelihood | Santi et al. (2021), not yet read; Fülle & Otto (2024) |
+| Covariate-distance W | `k`-nearest-neighbour `W` from Euclidean distance between standardised covariate vectors, which `knn_weights` already computes in any dimension. Fülle & Otto choose the covariates by forward selection on the log-likelihood | Santi et al. (2021); Fülle & Otto (2024) |
 | Endogeneity caveat | Diagnostics for feedback from `y` into the covariates that define `W`, the failure mode the editorial flags | Qu & Lee (2015) |
 
 **What the two papers establish, read 2026-11-16** (Fülle & Otto in full;
@@ -1156,7 +1156,35 @@ Monte Carlo: the weak identification of `λ`, the intercept-only case, and
 exact zeros in `y`. An exact zero makes `log y²` undefined, and neither
 paper deals with it. The derived `Ω` gets the same check as every variance
 here: its mean against the exact variance of the score at the true
-parameters, by simulation. Santi et al. (2021) is held but not yet read.
+parameters, by simulation.
+
+**Santi et al. (2021), read 2026-11-16.** This is where the covariate-distance
+`W` comes from. It is proposed for the conditional mean (SLM, `y = ρ_X W_X y
++ Xβ + u`), not for GARCH, and as an empirical device, not an estimator with
+theory. The paper says it "does not guarantee that point estimators and
+standard error estimators are consistent" (p. 3).
+- **Approximation quality is measured against the true `W`.** It is
+  `cor(W_X u, W u)`, from the Frobenius distance `‖ρ_X W_X − ρW‖²_F` (eq.
+  8), so it needs the very `W` that is unknown. In the Beijing application
+  they could compute it (0.4428) only because latitude and longitude were
+  in the data. There is no diagnostic for the case the method is for.
+- **Its guidance is derived for `k`NN constant-weight matrices:**
+  - use only spatially non-stationary covariates, standardised;
+  - choose `k` close to the true neighbourhood size, slightly larger if
+    unsure;
+  - use constant weights within a neighbourhood;
+  - row standardisation is then neutral.
+- **`ρ̂` is badly attenuated unless the proxy is good.** At `ρ = .7`, the
+  relative bias of `ρ̂` is −80% for `cor(W_X u, Wu) ≤ .1`, −8% at .7–.8, and
+  −0.4% above .9 (Table 2). Slopes of covariates are less biased than OLS
+  throughout. That is the paper's claim, and the tables support it.
+- **Table 1's `ρ` block and LM-test block have misplaced row labels**: four
+  rows for three models, one unlabelled. Table 2 has the same layout
+  correctly labelled.
+
+So all three papers agree that a proxy `W` gives biased `ρ̂` that a larger
+`n` does not cure, and none gives a way to measure the proxy's quality from
+the data alone. A build should say so where it offers the constructor.
 
 **New file:** `src/SpatialGARCH.jl` (~450 lines)
 
@@ -1708,7 +1736,7 @@ development line rather than across three releases.
 - Pesaran, M. H. (2015). Testing weak cross-sectional dependence in large panels. *Econometric Reviews*, 34(6–10), 1089–1117.
 - Pfeifer, P. E., & Deutsch, S. J. (1980). A three-stage iterative procedure for space-time modeling. *Technometrics*, 22(1), 35–47. **Verified**; read in full from the authors' reprint, NCJRS 60692, after tandfonline and JSTOR both refused automated access. Their spatial lag operator is defined on order-`k` neighbourhoods, not powers of `W` — see `docs/AUDIT.md`.
 - Qu, X., & Lee, L. F. (2015). Estimating a spatial autoregressive model with an endogenous spatial weight matrix. *Journal of Econometrics*, 184(2), 209–232. **Read in part** (§§2–3).
-- Santi, F., Dickson, M. M., Espa, G., Taufer, E., & Mazzitelli, A. (2021). Handling spatial dependence under unknown unit locations. *Spatial Economic Analysis*, 16(2), 194–216.
+- Santi, F., Dickson, M. M., Espa, G., Taufer, E., & Mazzitelli, A. (2021). Handling spatial dependence under unknown unit locations. *Spatial Economic Analysis*, 16(2), 194–216. Published online 3 Jul 2020. https://doi.org/10.1080/17421772.2020.1769171. **Read** 2026-11-16 (main text; the online supplement with the proofs of eqs 7–8, 10, 11 and 13 is not held).
 - Sato, T., & Matsuda, Y. (2021). Spatial extension of generalized autoregressive conditional heteroskedasticity models. *Spatial Economic Analysis*, 16(2), 148–160. Published online 30 Mar 2020. https://doi.org/10.1080/17421772.2020.1742929. **Read** (main text, and the online supplement of proofs, which does not contain the explicit `Ω` the main text promises).
 - Shi, W., & Lee, L. F. (2017). Spatial dynamic panel data models with interactive fixed effects. *Journal of Econometrics*, 197(2), 323–347.
 - Smirnov, O. A. (2022). A closed-form consistent estimator for linear models with spatial dependence. *Geographical Analysis*, 54(1), 3–31. doi:10.1111/gean.12268 (online 28 Dec 2020, hence "2020" in Geniaux). **Verified and read** (2026-11-13) from the Early View version (paginated 1–29) held in `ExtRef/`; the DOI and title are confirmed by Scite and the issue pages come from library catalogues. Main text read in full; the cells of Tables 2–7 are scrambled by text extraction and were read through the prose that reports them. Geniaux's two uses of it check out: the estimator and the conservative variance (its Tables 3 and 6: the estimated variance exceeds the MSE by 10–20% at moderate `ρ` and by a factor of 2–3 at strong `ρ`).
