@@ -4920,8 +4920,8 @@ No fit failed in B or C.
   - the `(.05, .9)` RMSEs of `λ̂` and `ρ̂` with normal `ε` are 35% and
     44% above theirs.
 
-  Their search region is not stated. **The `(.05, .9)` gap is not
-  explained.**
+  Diagnosed below: the start and the `z` draw are ruled out, and the most
+  likely cause is a narrower, unstated search region in their runs.
 - **`λ` is identified with an intercept only, slowly.** Its sd halves per
   quadrupling of `n`, and coverage is .94–.96 from `n = 400`. But at `n = 100`
   it is biased by −.14, a third of its value. At `n = 1600` its sd is 2.3
@@ -4938,3 +4938,42 @@ No fit failed in B or C.
 - **`α̂` behaves as Sato & Matsuda report.** It is poor when `λ` is small
   and `ε` heavy-tailed, and better at `n = 400`. It has no SE, because their
   Theorem 3.3 gives consistency only.
+
+### The `(.05, .9)` gap at `n = 100`, diagnosed
+
+`validation/mc_spatial_log_garch_diagnostics.jl` refits that one cell, 1000
+samples per law, three ways on the same samples. It also repeats the
+default fit over five further draws of `z`. The output is committed as
+`validation/mc_spatial_log_garch_diagnostics_output.txt`. Bias / RMSE:
+
+| law | fit | λ | ρ |
+|---|---|---|---|
+| normal | default (grid start) | −.065 / .189 | +.025 / .154 |
+| normal | Newton from the truth | −.065 / .189 | +.025 / .154 |
+| normal | `λ ≥ 0` | +.013 / .099 | −.038 / .100 |
+| `χ²₃` | default | −.050 / .188 | +.015 / .156 |
+| `χ²₃` | `λ ≥ 0` | +.021 / .105 | −.043 / .105 |
+| log-normal | default | −.062 / .187 | +.023 / .157 |
+| log-normal | `λ ≥ 0` | +.015 / .103 | −.039 / .105 |
+| S&M, normal | — | −.027 / .139 | −.011 / .108 |
+
+These default figures differ slightly from the main run's (.187 / .155),
+because the errors are a fresh draw.
+
+- **The start is not the cause.** Newton started at the true `(λ, λ + ρ)`
+  reaches the same root as the grid start in all 2,999 fits. There is no
+  second local maximum near the truth for such a start to find.
+- **The `z` draw is not the cause.** Five further draws give `λ` RMSE
+  .189–.201 and `ρ` RMSE .154–.161. The main run's `z` (sd 1.09) is typical.
+- **A search region narrower than ours is the remaining explanation, and it
+  fits in direction.** With `λ₀ = .05`, the unrestricted `λ̂` is negative in
+  485–547 samples of 1000. Restricting `λ ≥ 0` puts that half on the edge.
+  The RMSEs fall, the bias of `λ̂` turns positive and that of `ρ̂` negative,
+  all towards Sato & Matsuda's figures. But `λ ≥ 0` overshoots them, to
+  about .10. So their region, if this is the cause, lies between `λ ≥ 0` and
+  `(−0.99, 0.99)`. The paper does not state it. Finding the bound that
+  reproduces their table would be curve-fitting, so it was not done.
+
+The package keeps `(−0.99, 0.99)`. A restriction lowers the RMSE only when
+the truth lies inside it. It also puts many estimates on its edge, about
+half here, where the sandwich does not apply.

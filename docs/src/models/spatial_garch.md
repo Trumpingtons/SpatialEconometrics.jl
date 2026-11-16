@@ -206,8 +206,12 @@ What the cells show:
   stays this small for `δ`, `λ` and `ρ` was not measured.
 - **At `n = 100` with `(0.05, 0.9)`, the RMSEs of `λ̂` and `ρ̂` are larger
   than Sato & Matsuda's**: .187 and .155 against .139 and .108 with normal
-  `ε`. By `n = 400` they agree to within .007. The paper does not state its
-  search region; the difference is not explained.
+  `ε`. By `n = 400` they agree to within .007. A diagnostic run rules out
+  the starting point and the draw of `z`. Restricting `λ ≥ 0` moves every
+  figure towards theirs and past it: the unrestricted `λ̂` is negative in
+  about half the samples when `λ₀ = 0.05`. So the most likely cause is a
+  narrower search region, which the paper does not state. The package
+  keeps the unrestricted region (details in `docs/AUDIT.md`).
 - **`α̂` errs most when `λ` is small and `ε` heavy-tailed**, as Sato & Matsuda
   find. With log-normal `ε` and `(0.05, 0.9)`, its bias is −1.09 at
   `n = 100` and −0.28 at `n = 400` (theirs: −1.01 and −0.31). With

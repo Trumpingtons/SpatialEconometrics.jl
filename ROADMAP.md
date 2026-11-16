@@ -1204,7 +1204,9 @@ added to the reading (details in `docs/AUDIT.md`):
 - **Table 1 is reproduced at `n = 400`.** At `n = 100`:
   - the `(.9, .05)` cells differ, for the reason above;
   - the `λ` and `ρ` RMSEs at `(.05, .9)` are about a third larger than
-    theirs, and this is not explained.
+    theirs. A diagnostic run rules out the start and the `z` draw. A
+    narrower search region, unstated in the paper, is the most likely
+    cause: `λ ≥ 0` moves the figures towards theirs and past them.
 
   Coverage at `n = 400`, which they do not report, is .93–.96. The
   exception is `λ` and `ρ` at `(.9, .05)`, at .87–.89.

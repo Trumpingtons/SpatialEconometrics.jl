@@ -1,0 +1,34 @@
+Diagnostics: design A, n = 100, (λ, ρ) = (.05, .9); bias / RMSE
+S&M Table 1, normal: λ −.027 / .139, ρ −.011 / .108;  chi3: λ −.023 / .141, ρ −.017 / .115;
+                     lognorm: λ −.029 / .132, ρ −.006 / .108
+main run's z: sd 1.09
+
+normal  R=1000  [76s]
+   default (grid start)   fits 1000   λ -0.065 / 0.189   ρ +0.025 / 0.154
+   Newton from truth      fits 1000   λ -0.065 / 0.189   ρ +0.025 / 0.154
+   λ ≥ 0                  fits 1000   λ +0.013 / 0.099   ρ -0.038 / 0.100
+   default failures 0; from-truth failures 0; from truth reached a different root in 0 fits, 0 of them with a lower likelihood
+   λ ≥ 0: 531 of 1000 fits on the edge λ = 0 (default λ̂ < 0 in 531)
+
+chi3    R=1000  [145s]
+   default (grid start)   fits 1000   λ -0.050 / 0.188   ρ +0.015 / 0.156
+   Newton from truth      fits 1000   λ -0.050 / 0.188   ρ +0.015 / 0.156
+   λ ≥ 0                  fits 1000   λ +0.021 / 0.105   ρ -0.043 / 0.105
+   default failures 0; from-truth failures 0; from truth reached a different root in 0 fits, 0 of them with a lower likelihood
+   λ ≥ 0: 485 of 1000 fits on the edge λ = 0 (default λ̂ < 0 in 485)
+
+lognorm R=1000  [213s]
+   default (grid start)   fits  999   λ -0.062 / 0.187   ρ +0.023 / 0.157
+   Newton from truth      fits  999   λ -0.062 / 0.187   ρ +0.023 / 0.157
+   λ ≥ 0                  fits  999   λ +0.015 / 0.103   ρ -0.039 / 0.105
+   default failures 1; from-truth failures 0; from truth reached a different root in 0 fits, 0 of them with a lower likelihood
+   λ ≥ 0: 547 of 999 fits on the edge λ = 0 (default λ̂ < 0 in 547)
+
+z draws (normal ε, default fit, R = 1000 each)
+   z draw 1: sd(z) 1.12  fits 1000  λ -0.054 / 0.195   ρ +0.015 / 0.161  [273s]
+   z draw 2: sd(z) 0.98  fits  999  λ -0.071 / 0.194   ρ +0.028 / 0.156  [331s]
+   z draw 3: sd(z) 1.02  fits 1000  λ -0.053 / 0.189   ρ +0.015 / 0.157  [399s]
+   z draw 4: sd(z) 1.01  fits 1000  λ -0.082 / 0.201   ρ +0.034 / 0.159  [457s]
+   z draw 5: sd(z) 1.07  fits 1000  λ -0.075 / 0.195   ρ +0.030 / 0.154  [517s]
+
+total 517 s
