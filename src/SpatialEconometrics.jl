@@ -42,6 +42,7 @@ include("SpVAR.jl")
 include("SemiparametricSpatial.jl")
 include("CREDynamicSpatialPanel.jl")
 include("CommonShockDynamicPanel.jl")
+include("SpatialGARCH.jl")
 
 const UtilsMod      = SpatialUtils
 const CrossSection  = SpatialEconometricsPrototype
@@ -64,6 +65,7 @@ const SpVARMod     = SpVAR
 const SemiparMod   = SemiparametricSpatial
 const CREDynMod    = CREDynamicSpatialPanel
 const CommonShockMod = CommonShockDynamicPanel
+const GARCHMod     = SpatialGARCH
 const WeightsMod    = SpatialWeights
 const SelectionMod  = SpatialModelSelection
 const PanelDiagMod  = SpatialPanelDiagnostics
@@ -90,7 +92,7 @@ import .SpatialErrorModel: SpatialErrorRegressionModel, SpatialErrorPanelModel, 
 import .GWREstimation: GWRModel, MGWRModel, fit_gwr, fit_mgwr, BandwidthType, FixedBandwidth, AdaptiveBandwidth, KernelFunction, GaussianKernel, BisquareKernel, ExponentialKernel
 import .SpatialGravityModels: GravityModel, GravityVariant, PoissonGravity, NegBinGravity, GravityFE, OriginFE, DestinationFE, BilateralFE, fit_gravity, multilateral_resistance
 import .FormulaDSL: @formula, slag, fe, endo, ParsedSpatialFormula, extract_panel_permutation
-import .SpatialWeights: knn_weights, distance_weights, band_weights, order_weights, order_weights_list, block_diagonal_weights, row_standardize, row_standardize!, spectral_standardize, spectral_standardize!, minmax_standardize, minmax_standardize!, SpatialConnectivity, spatial_connectivity, read_gal, write_gal, read_gwt, write_gwt
+import .SpatialWeights: knn_weights, covariate_weights, distance_weights, band_weights, order_weights, order_weights_list, block_diagonal_weights, row_standardize, row_standardize!, spectral_standardize, spectral_standardize!, minmax_standardize, minmax_standardize!, SpatialConnectivity, spatial_connectivity, read_gal, write_gal, read_gwt, write_gwt
 import .SpatialModelSelection: spatial_aic, spatial_bic, LRTestResult, lr_test, VuongTestResult, vuong_test, CommonFactorTestResult, common_factor_test, WaldTestResult, wald_test, KnnSelectionResult, select_knn_w, model_comparison_table, log_marginal_likelihood, bayes_spec_probs, SpecEvidence, SpecRoadmapResult, sdem_roadmap
 import .SpatialPanelDiagnostics: HausmanTestResult, spatial_hausman_test, ChowTestResult, spatial_chow_test, PanelLMTestResult, panel_lm_tests, PanelMoranResult, panel_moran
 import .HigherOrderSpatial: SLXModel, fit_slx, SACModel, fit_sac, SDEMModel, fit_sdem
@@ -106,6 +108,7 @@ import .SpatioTemporalModels: STARModel, fit_star, InteractiveFEModel, fit_inter
 import .SemiparametricSpatial: local_polynomial_smoother, SpectralOverlapResult, spectral_overlap, PartiallyLinearSARModel, fit_partially_linear_sar, ClosedFormRhoResult, closed_form_rho, TVCoefSARModel, fit_tv_coef_sar
 import .CREDynamicSpatialPanel: CREDynamicSpatialPanelModel, fit_cre_dynamic_spatial_panel
 import .CommonShockDynamicPanel: CommonShockDynamicPanelModel, fit_common_shock_dynamic_panel
+import .SpatialGARCH: SpatialLogGARCHModel, fit_spatial_log_garch
 import .SpVAR: SpVARModel, fit_spvar, OrderConditionResult, spvar_order_condition, STIRResult, space_time_stir, spvar_irf, spvar_forecast, NestedPanelVARModel, fit_nested_panel_var, lr_spatial_interaction
 import .SpatialFiltering: SpatialEigen, spatial_eigenvectors, moran_coefficient, ESFModel, fit_esf, selected_eigenvectors, REESFModel, fit_re_esf, STPCAResult, stpca, fourier_basis, component_weight, feature_contributions, component_groups
 
@@ -501,7 +504,7 @@ export
     lm_test_robust_lag_durbin, lm_test_durbin_terms, sdm_tests,
     make_rook_weights, make_queen_weights,
     # SpatialWeights
-    knn_weights, distance_weights, band_weights, order_weights, order_weights_list, block_diagonal_weights,
+    knn_weights, covariate_weights, distance_weights, band_weights, order_weights, order_weights_list, block_diagonal_weights,
     row_standardize, row_standardize!, spectral_standardize, spectral_standardize!, minmax_standardize, minmax_standardize!,
     SpatialConnectivity, spatial_connectivity,
     read_gal, write_gal, read_gwt, write_gwt,
@@ -584,6 +587,8 @@ export
     CREDynamicSpatialPanelModel, fit_cre_dynamic_spatial_panel,
     # Short-T dynamic spatial panel with common shocks (Bai & Chen 2026)
     CommonShockDynamicPanelModel, fit_common_shock_dynamic_panel,
+    # Spatial log-GARCH (Sato & Matsuda 2021)
+    SpatialLogGARCHModel, fit_spatial_log_garch,
     # Extension entry points (methods live in ext/)
     AbstractBayesianSpatialResult,
     bayesian_sar, bayesian_sdm, bayesian_sem,

@@ -8,7 +8,7 @@ using Printf
 
 export
     # Construction
-    knn_weights, distance_weights, band_weights, block_diagonal_weights,
+    knn_weights, covariate_weights, distance_weights, band_weights, block_diagonal_weights,
     order_weights, order_weights_list,
     # Standardization
     row_standardize, row_standardize!, spectral_standardize, spectral_standardize!, minmax_standardize, minmax_standardize!,
@@ -76,6 +76,68 @@ function knn_weights(
     end
 
     return W
+end
+
+# ─── Covariate-Distance Weights ──────────────────────────────────────
+
+"""
+    covariate_weights(Xcov, k; standardize = true, binary = true,
+                      row_standardize = true) -> SparseMatrixCSC
+
+`k`-nearest-neighbour weights from distances between units' **covariates**
+rather than their locations. This is the proxy `W` of Santi et al. (2021),
+which Fülle & Otto (2024) pair with the spatial log-GARCH, for data whose
+locations are unknown.
+
+Each column of `Xcov` (`n × d`, rows are units) is centred and scaled to unit
+variance when `standardize` is true, and the result goes to
+[`knn_weights`](@ref). The defaults follow Santi et al.'s guidance, which they
+derive for this kind of matrix:
+- put in `Xcov` only covariates that vary across space (a covariate with no
+  spatial pattern only adds noise to the distances);
+- set `k` close to the number of neighbours in the true, unknown `W`, and if
+  unsure slightly above it rather than below;
+- give the neighbours equal weights (`binary = true`). With equal weights
+  and a fixed `k`, row standardisation changes `W` only by a constant
+  factor.
+
+!!! warning "What a proxy `W` costs"
+    A proxy `W` is a misspecified `W`, and none of the three papers gives a
+    way to check it from the data. Santi et al. measure its quality by
+    `cor(W_X u, W u)`, which needs the true `W`. When the proxy is poor, the
+    spatial parameter is biased towards zero and more data does not cure it:
+    in Santi et al.'s Table 2 (a spatial lag model, `ρ = 0.7`, `n = 300`)
+    the relative bias of `ρ̂` is about −80% when that correlation is at most
+    0.1, −8% at 0.7–0.8 and −0.4% above 0.9. Fülle & Otto report the same
+    kind of bias for the spatial log-GARCH, and the package's Monte Carlo
+    measures it (`validation/mc_spatial_log_garch.jl`, design C). At
+    `n = 1600`, with `ρ = 0.45`, a proxy that keeps 37% of the true
+    neighbours biases `ρ̂` by −0.08, and its interval covers 53% of the time.
+    With fixed noise in the covariates, the bias grows with `n`, because the
+    points crowd together. Santi et al.'s slopes are less biased than
+    under a model that ignores the dependence, which is what the papers
+    claim. Read `ρ̂` from a proxy `W` as a lower bound on the dependence, not
+    an estimate of it.
+
+There is no search here over which covariates to use: Fülle & Otto's forward
+selection chooses `W` by maximum likelihood over many candidates, and nothing
+corrects the inference that follows for that search.
+"""
+function covariate_weights(
+    Xcov::AbstractVecOrMat{<:Real}, k::Int;
+    standardize::Bool = true, binary::Bool = true, row_standardize::Bool = true
+)
+    Xm = Float64.(Xcov isa AbstractVector ? reshape(Xcov, :, 1) : Xcov)
+    if standardize
+        for j in axes(Xm, 2)
+            c = view(Xm, :, j)
+            s = std(c)
+            s > 0 || throw(ArgumentError("covariate_weights: column $j of Xcov is " *
+                "constant, so it carries no distance information."))
+            c .= (c .- mean(c)) ./ s
+        end
+    end
+    return knn_weights(Xm, k; binary = binary, row_standardize = row_standardize)
 end
 
 # ─── Distance-Decay Weights ──────────────────────────────────────────

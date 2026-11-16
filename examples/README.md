@@ -58,6 +58,7 @@ repository.
 | 27 | [`27_common_factors.jl`](27_common_factors.jl) | Weak versus strong cross-sectional dependence: CD, `α`, SP-CCE |
 | 31 | [`31_cre_dynamic_panel.jl`](31_cre_dynamic_panel.jl) | Short-`T` dynamic panel with correlated random effects (Li & Yang) |
 | 32 | [`32_common_shocks_short_panel.jl`](32_common_shocks_short_panel.jl) | Short-`T` dynamic panel with common shocks: which SERL order `L` (Bai & Chen) |
+| 33 | [`33_spatial_log_garch.jl`](33_spatial_log_garch.jl) | Spatial log-GARCH: sandwich SEs, `λ` against `λ + ρ`, a covariate-distance `W` (Sato & Matsuda) |
 
 ### Space and time
 

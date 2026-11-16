@@ -9,12 +9,12 @@ models, HAC-robust inference, weight-matrix construction, input-output
 calibration, spatial causal inference and shift-share designs, network
 peer effects, common factors and spatio-temporal models, spatial VARs,
 semiparametric spatial models, short-panel dynamic models with correlated
-random effects or common shocks, Monte Carlo simulation and publication-ready output — with a
+random effects or common shocks, spatial log-GARCH for the variance, Monte Carlo simulation and publication-ready output — with a
 unified formula interface and optional Bayesian and visualization extensions.
 
-> **Version 0.4.0**, unreleased on `master` — 3,897 test assertions across 59 top-level testsets
+> **Version 0.4.0**, unreleased on `master` — 3,949 test assertions across 60 top-level testsets
 > with both package extensions installed, measured on Julia 1.13.3. Without
-> them, 3,862 pass and two broken markers stand in for the extension testsets,
+> them, 3,914 pass and two broken markers stand in for the extension testsets,
 > measured on Julia 1.10.13. See [Validation Status](#validation-status) for
 > Monte Carlo results.
 
@@ -22,7 +22,7 @@ unified formula interface and optional Bayesian and visualization extensions.
 — a `stable` build appears with the first tagged release.
 
 Every exported name carries a docstring, so `?fit_spatial` works in the
-REPL. All 288 of them appear in the API reference — the 289th, `@formula`,
+REPL. All 291 of them appear in the API reference — the 292nd, `@formula`,
 is re-exported from StatsModels.jl and documented there. The docs build runs
 with no `warnonly` exemptions, so a missing docstring or a broken
 cross-reference fails CI.
@@ -123,6 +123,7 @@ exported name.
 | [Common Factors & Spatio-Temporal](https://randsley.github.io/SpatialEconometrics.jl/dev/models/common_factors/) | CD and `α` tests, SP-CCE, STAR, interactive fixed effects |
 | [Spatial VAR](https://randsley.github.io/SpatialEconometrics.jl/dev/models/spvar/) | Multivariate space-time systems, STIR, the nested panel VAR |
 | [Semiparametric Models](https://randsley.github.io/SpatialEconometrics.jl/dev/models/semiparametric/) | Partially linear SAR, closed-form `ρ`, `β(τ)` |
+| [Spatial log-GARCH](https://randsley.github.io/SpatialEconometrics.jl/dev/models/spatial_garch/) | Spatial dependence in the conditional variance; covariate-distance `W` for unknown locations |
 | [GWR & MGWR](https://randsley.github.io/SpatialEconometrics.jl/dev/models/gwr/) | Coefficient surfaces, multiscale backfitting |
 | [Gravity Models](https://randsley.github.io/SpatialEconometrics.jl/dev/models/gravity/) | PPML and negative binomial with high-dimensional FE |
 | [Spatial Diagnostics](https://randsley.github.io/SpatialEconometrics.jl/dev/diagnostics/spatial/) | Moran's I, Geary's c, LISA, Anselin LM battery |
@@ -167,6 +168,7 @@ want an internal helper:
 | `DynamicSpatialPanelEconometrics` | Dynamic spatial panels with bias correction | Yu, de Jong & Lee (2008) |
 | `CREDynamicSpatialPanel` | Short-`T` dynamic spatial panel with correlated random effects | Li & Yang (2021) |
 | `CommonShockDynamicPanel` | Short-`T` dynamic spatial panel with common shocks | Bai & Chen (2026) |
+| `SpatialGARCH` | Spatial log-GARCH: two-step QML with a derived sandwich | Sato & Matsuda (2021) |
 | `SpatialGS2SLSPanel` | SARAR panels with endogenous regressors | Kelejian & Prucha (1998) |
 | `DynamicPanelSystemGMM` | Arellano-Bond & Blundell-Bond GMM | Roodman (2009) |
 | `StructuralMacroCalibration` | GRAS & cross-entropy SAM/MRIO balancing | Junius & Oosterhaven (2003) |
@@ -228,10 +230,10 @@ our own because:
 
 ```text
 SpatialEconometrics/
-├── src/            # 32 modules: the umbrella plus 31 submodules
+├── src/            # 33 modules: the umbrella plus 32 submodules
 ├── ext/            # Makie and Turing package extensions
 ├── test/           # runtests.jl — 59 top-level testsets
-├── examples/       # 32 runnable examples, one per topic
+├── examples/       # 33 runnable examples, one per topic
 ├── docs/           # Documenter source for the manual and API reference
 ├── validation/     # Monte Carlo output referenced below
 └── benchmark/      # BenchmarkTools suite; see benchmark/README.md
@@ -271,6 +273,7 @@ SpatialEconometrics/
 | Semiparametric | ✓ | **Yes** (12 cells, `validation/mc_semiparametric_output.txt`; flat smoother reproduces `fit_spatial` to 3e-10) |
 | Short-T CRE Dynamic Panel | ✓ | **Yes** (Li & Yang's Table 1 replicated, 4,500/4,500 fits; sandwich coverage 0.92–0.97 for `β`, `ρ`, `λ`) |
 | Short-T Common-Shock Panel | ✓ | **Yes** (`validation/mc_serl_sdpd_output.txt`: at `L = 1` coverage of `ρ` 0.93–0.96 to `N = 4000`, at `L = 0` it falls to 0.40; the default `Q` biases `β` at large `N` when regressors are serially correlated with the loadings, and every period of `X` as `Q` removes it) |
+| Spatial log-GARCH | ✓ | **Yes** (`validation/mc_spatial_log_garch_output.txt`: Sato & Matsuda's Table 1 reproduced at `n = 400`, where the derived sandwich covers 0.93–0.96 except near `λ = 1`; the quasi-likelihood is unbounded as `λ → 1`, so 36–39% of `n = 100` samples at `λ = 0.9` have no interior maximum and the fit throws; a proxy `W` biases `ρ̂` more as `n` grows) |
 
 **Cross-sectional SDM Monte Carlo results** (`validation/mc_sdm_output.txt`):
 ρ̂ mean = 0.595 (true 0.600); mean SE = 0.0324, empirical SD = 0.0328; 95%

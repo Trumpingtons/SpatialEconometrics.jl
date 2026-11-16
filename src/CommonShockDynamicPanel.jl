@@ -42,7 +42,7 @@ import StatsAPI
 import StatsAPI: coef, vcov, stderror, loglikelihood, nobs, coefnames, residuals
 import ForwardDiff
 
-import ..SpatialUtils: check_design_rank, _print_coef_table
+import ..SpatialUtils: check_design_rank, _print_coef_table, _logdet_eig
 
 export CommonShockDynamicPanelModel, fit_common_shock_dynamic_panel
 
@@ -107,16 +107,8 @@ end
 # Likelihood and unit scores
 # ─────────────────────────────────────────────────────────────────────────────
 
-# log|det(I − ρW)| from the eigenvalues; a conjugate pair contributes
-# log|1 − ρλ|² through real arithmetic, so ForwardDiff can differentiate it.
-function _logdetB(d::_CSData, ρ)
-    s = zero(ρ)
-    @inbounds for j in eachindex(d.eig_re)
-        a = d.eig_re[j]; b = d.eig_im[j]
-        s += log((1 - ρ * a)^2 + (ρ * b)^2) / 2
-    end
-    return s
-end
+# log|det(I − ρW)| from the eigenvalues (the shared `SpatialUtils` helper).
+_logdetB(d::_CSData, ρ) = _logdet_eig(ρ, d.eig_re, d.eig_im)
 _dlogdetB(d, ρ) = ForwardDiff.derivative(x -> _logdetB(d, x), ρ)
 _d2logdetB(d, ρ) = ForwardDiff.derivative(x -> _dlogdetB(d, x), ρ)
 

@@ -52,6 +52,7 @@ makedocs(
             "Common Factors & Spatio-Temporal" => "models/common_factors.md",
             "Spatial VAR" => "models/spvar.md",
             "Semiparametric Models" => "models/semiparametric.md",
+            "Spatial log-GARCH" => "models/spatial_garch.md",
         ],
         "Diagnostics" => [
             "Spatial Diagnostics" => "diagnostics/spatial.md",
@@ -82,6 +83,7 @@ makedocs(
                 "Common Factors & Spatio-Temporal" => "api/common_factors.md",
                 "Spatial VAR" => "api/spvar.md",
                 "Semiparametric Models" => "api/semiparametric.md",
+                "Spatial log-GARCH" => "api/spatial_garch.md",
                 "Geographically Weighted Regression" => "api/gwr.md",
             ],
             "Panels" => [

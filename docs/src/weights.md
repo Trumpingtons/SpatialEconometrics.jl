@@ -11,6 +11,19 @@ W = knn_weights(coords, k;
     symmetrize=false)      # force symmetry via max(W, W')
 ```
 
+### From Covariates (unknown locations)
+
+When locations are unknown, `covariate_weights` builds a `k`-nearest-neighbour
+`W` from distances between standardised covariates (Santi et al. 2021), with
+equal weights:
+
+```julia
+W = covariate_weights(Xcov, k)       # Xcov is n × d, rows are units
+```
+
+It is a proxy, and its quality cannot be checked from the data. Its docstring
+gives the cost in bias and the guidance on choosing `Xcov` and `k`.
+
 ### Distance Decay
 
 ```julia

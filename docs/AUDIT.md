@@ -4731,3 +4731,210 @@ panels of the main run's cell.
   in the baseline it is 1.03. Its coverage stays .925–.966. Not pursued.
 - **Every fit converged** except 3 of 500 at `N = 500`, `L = 0`, and those
   threw. No fit returned a non-solution.
+
+## #16: Sato & Matsuda's spatial log-GARCH, a variance the paper does not give, and a likelihood with no top
+
+Built on 2026-11-16: `src/SpatialGARCH.jl`, submodule 32. It is Sato &
+Matsuda's (2021) two-step estimator of the spatial log-GARCH
+`log h = λW log h + ρW log y² + α1 + Zδ`, fitted as the SARMA(1,1)
+`R(λ + ρ)Y = Xβ + R(λ)V` in `Y = log y²`. `covariate_weights` comes with
+it: Santi et al.'s (2021) covariate-distance `W`, as a constructor with no
+selection search. Three things are this package's own, so the standing rule
+applies:
+
+- **the score covariance `Ω`.** Theorem 3.2 states the sandwich
+  `Σ⁻¹ + Σ⁻¹ΩΣ⁻¹`. The main text says `Ω` is given in Appendix A, but the
+  supplement gives only the Hessian deviations, so `Ω` is derived here;
+- **the solver.** A 21 × 21 grid in `(λ, λ + ρ)`, then Newton steps on the
+  analytic score and Hessian to `max|∂ℓ/∂θ|/n < 1e-8`. The fit refuses to
+  return anything else;
+- **the claims about `λ`**: that the mean part alone cannot separate it
+  from `ρ`, and what the intercept-only case costs.
+
+### What was verified exactly first
+
+Testset 44 checks each of these against an independent computation:
+
+- **The quasi log-likelihood** (eq. 8) equals a dense computation to
+  `1e-10`. The profiled `β` and `σ²` solve their first-order conditions. The
+  eigenvalue log-determinants and traces equal `logabsdet` and `tr`.
+- **The analytic score and Hessian** equal automatic differentiation at
+  three parameter points: to `3.6e-12` (bound `1e-9`) and `2.9e-11` (bound
+  `1e-8`) on 1.13, and to `9.1e-13` and `1.2e-11` on 1.10.
+- **The linear-quadratic forms.** At `ψ₀`, every score component is
+  `a'V + V'AV − σ²tr A` in the i.i.d. `V = log ε² − E log ε²`. The forms
+  reproduce the score to `1e-9`. Their covariance has an exact formula in
+  `σ²`, `μ₃` and `μ₄`, now `_lq_cov` in `SpatialUtils`, and it equals a
+  brute-force sum over every index quadruple to a relative `1e-12`.
+- **The null test.** The design is held fixed (rook 7 × 7, one covariate)
+  and `S(ψ₀)` is drawn 4000 times under three laws: normal `ε`;
+  `ε² ~ Gamma(2)/2`; log-normal `ε`. Over the 15 entries:
+  - the largest `|z|` of the simulated covariance against the exact one is
+    1.40, 1.49 and 1.88 on 1.13, and 0.99, 1.65 and 1.36 on 1.10, against a
+    bound of 4;
+  - the mean of `Ω̂(ψ₀)`, with sample moments, gives at most 0.59 on 1.13
+    and 1.22 on 1.10;
+  - the Gaussian information, right only when `log ε²` is normal, fails the
+    same test. Under normal `ε` its `|z|` is 30.2 on 1.13 and 29.3 on 1.10;
+    under the gamma law it is 22.8 and 23.5. The required minimum is 15, so
+    the test has power. That 1.95× margin on 1.10 is the smallest in
+    testset 44.
+- **The fit.** It recovers the truth within 4 SEs at `n = 400`: at most
+  0.40 SE away on 1.13, and 1.47 on 1.10. `α̂` and `log ĥ` equal a dense recomputation, and the sandwich
+  equals its rebuilt parts. Flipping the signs of `y` or relabelling the
+  units changes nothing (`6.7e-16`).
+
+### A likelihood with no top
+
+The first full Monte Carlo had 355–390 failed fits in 1000 at `n = 100`,
+`(λ, ρ) = (.9, .05)`. It had one in each `(.45, .45)` cell at `n = 100`, and
+none elsewhere. Every failing sample has its
+largest likelihood on a fine grid at `λ = 0.999`, and the reason holds for
+every sample:
+- `W` is row-standardised, so `R(λ)1 = (1 − λ)1`;
+- the intercept can remove the part of `R(λ + ρ)Y − Xβ` that `R(λ)⁻¹`
+  inflates as `λ → 1`, so `σ̂²(λ)` converges;
+- `−log|R(λ)|` grows like `−log(1 − λ)`.
+
+The concentrated log-likelihood is therefore unbounded above as `λ → 1`.
+Measured on a failing sample, it rises by 2.302–2.303 for each decade of
+`1 − λ`, from `1 − 10⁻⁵` to `1 − 10⁻¹⁰` (`log 10` = 2.3026), while `σ̂²`
+changes only in the fifth digit. Testset 44a now checks this value against value on its own design:
+- the decade steps equal `log 10` to `4.7e-5` and `4.5e-6` on 1.13, and
+  to `1.9e-4` and `1.9e-5` on 1.10 (bound `1e-3`);
+- `σ̂²` moves by `4e-6` on 1.13 and `1.1e-5` on 1.10 (bound `1e-4`).
+
+Neither paper mentions it. The estimate is the interior local maximum. In
+300 samples of the failing design, 215 fits returned. For each of the other
+85, a second search looked for an interior root and found none. It started
+Newton from the best point of a 96 × 100 grid restricted to `λ ≤ 0.95`. So
+the default search missed no interior root that this second search could
+find.
+
+The fit now says so when its search reaches the edge of `bounds`, and the
+Monte Carlo counts those failures apart (44f checks the message). Sato &
+Matsuda's Table 1 reports all 1000 samples, so in those cells it describes
+whatever their optimiser returned at their boundary.
+
+### The design
+
+Three designs, `validation/mc_spatial_log_garch.jl`, with the output
+committed as `validation/mc_spatial_log_garch_output.txt`. One thread, 2 h.
+`ε` is scaled so that `E ε² = 1`: normal, `χ²₃/√15`, `exp(Z − 1)`. A fit
+that throws is counted, and the summaries are over the fits that return.
+
+- **A**, Sato & Matsuda's Table 1:
+  - rook `W` with `n = 100` and 400, one fixed `z ~ N(0, 1)`, `α = .5`,
+    `δ = 1`;
+  - `(λ, ρ)` ∈ {(.9, .05), (.45, .45), (.05, .9)}, three laws, 1000 samples.
+- **B**, intercept only: `(.45, .45)`, normal `ε`, `n` = 100, 400 and 1600,
+  500 samples.
+- **C**, a proxy `W`:
+  - the data come from a binary 10-nearest-neighbour `W` on uniform
+    locations `S`;
+  - the fit uses `covariate_weights((1 − ω)S + ωE, 10)`, `E` standard
+    normal, with `ω` ∈ {0, .01, .03, .1} and `n` = 400 and 1600;
+  - `(.45, .45)`, normal `ε`, 200 samples.
+
+### The tables
+
+A at `n = 400`. No fit failed. Coverage is of nominal 95% sandwich
+intervals, given as the range over the three laws:
+
+| (λ, ρ) | SE/sd | cov δ | cov λ | cov ρ | covG λ | covG ρ |
+|---|---|---|---|---|---|---|
+| (.9, .05) | .97–1.01 | .945–.947 | .878–.886 | .869–.885 | .847–.872 | .837–.864 |
+| (.45, .45) | .95–1.04 | .940–.951 | .940–.948 | .933–.948 | .937–.947 | .936–.950 |
+| (.05, .9) | .95–1.04 | .943–.954 | .943–.949 | .942–.959 | .947–.951 | .946–.957 |
+
+A at `n = 100`:
+- **At `(.9, .05)`,** 355, 368 and 390 fits throw (normal, `χ²₃`,
+  log-normal), all at the edge of `bounds`. Over the rest, mean SE/sd for
+  `λ` and `ρ` is 1.33–1.52, inflated by a few large SEs near the edge.
+  Sandwich coverage is .91–.96 and Gaussian coverage .79–.88.
+- **At `(.45, .45)`,** one fit in 1000 throws under each law, also at the
+  edge of `bounds`. At `(.05, .9)` none does.
+- **At `(.45, .45)` and `(.05, .9)`,** sandwich coverage of `λ` and `ρ` is
+  .895–.929, and of `δ` .945–.956.
+
+Against Sato & Matsuda's Table 1 (normal `ε`, bias / RMSE):
+
+| (λ, ρ) | n | par | here | S&M |
+|---|---|---|---|---|
+| (.9, .05) | 400 | λ | .009 / .030 | .007 / .029 |
+| (.9, .05) | 400 | ρ | −.011 / .027 | −.009 / .026 |
+| (.45, .45) | 400 | λ | −.012 / .097 | −.015 / .098 |
+| (.45, .45) | 400 | ρ | −.000 / .073 | .002 / .072 |
+| (.05, .9) | 400 | λ | −.014 / .087 | −.011 / .080 |
+| (.05, .9) | 400 | ρ | .005 / .075 | .002 / .069 |
+| (.9, .05) | 100 | λ | .017 / .050 | .029 / .082 |
+| (.45, .45) | 100 | λ | −.044 / .215 | −.060 / .238 |
+| (.05, .9) | 100 | λ | −.056 / .187 | −.027 / .139 |
+| (.05, .9) | 100 | ρ | .018 / .155 | −.011 / .108 |
+
+The `α̂` bias for log-normal `ε` at `(.05, .9)` is −1.090 at `n = 100` and
+−.278 at 400 (theirs −1.009 and −.313). At `(.45, .45)` and `n = 100` it is
+−.288 (theirs −.277).
+
+B:
+
+| n | bias λ | sd λ | sd ρ | sd(λ+ρ) | corr(λ̂, ρ̂) | cov λ | cov ρ |
+|---|---|---|---|---|---|---|---|
+| 100 | −.141 | .260 | .149 | .172 | −.775 | .912 | .914 |
+| 400 | −.040 | .125 | .082 | .055 | −.940 | .952 | .938 |
+| 1600 | −.016 | .061 | .040 | .026 | −.949 | .950 | .958 |
+
+C ("shared" is the share of true neighbours the proxy keeps):
+
+| n | ω | shared | bias ρ | cov ρ | bias λ | bias δ | cov δ |
+|---|---|---|---|---|---|---|---|
+| 400 | 0 | .98 | +.013 | .945 | −.035 | +.011 | .960 |
+| 400 | .01 | .88 | +.004 | .895 | −.024 | −.005 | .960 |
+| 400 | .03 | .64 | −.014 | .905 | −.033 | +.026 | .925 |
+| 400 | .1 | .20 | −.156 | .585 | −.002 | +.115 | .920 |
+| 1600 | 0 | .99 | +.005 | .975 | −.010 | +.001 | .945 |
+| 1600 | .01 | .75 | −.031 | .835 | +.016 | +.005 | .955 |
+| 1600 | .03 | .37 | −.079 | .530 | +.023 | +.055 | .915 |
+| 1600 | .1 | .06 | −.167 | .110 | −.218 | +.265 | .155 |
+
+No fit failed in B or C.
+
+### What it settles, and what it does not
+
+- **The derived `Ω` is right where the model is.** At `n = 400` with the
+  true `W`, mean SE/sd is .95–1.04 in all 27 parameter-cells, and coverage
+  is .933–.959 except for `λ` and `ρ` at `(.9, .05)`.
+- **At `(.9, .05)`, the `λ` and `ρ` intervals cover .87–.89 at `n = 400`.**
+  The SE scale is right (.97–1.01) and the bias is 0.3–0.45 sd. A normal
+  sampling distribution with that bias and scale would cover .92–.94. The
+  rest is the shape of the distribution, in the design closest to the edge
+  where the likelihood has no top. Not pursued further.
+- **The sandwich beats the Gaussian information only at `(.9, .05)`.**
+  Elsewhere their coverages differ by at most .02, in either direction,
+  although one entry of the score covariances differs by 30 standard
+  errors (44d). Why
+  the difference is so small for `δ`, `λ` and `ρ` was not measured.
+- **Table 1 is reproduced at `n = 400`**: with normal `ε`, the RMSEs of `λ̂`
+  and `ρ̂` agree to within .007. At `n = 100`:
+  - the `(.9, .05)` cells differ for the reason above;
+  - the `(.05, .9)` RMSEs of `λ̂` and `ρ̂` with normal `ε` are 35% and
+    44% above theirs.
+
+  Their search region is not stated. **The `(.05, .9)` gap is not
+  explained.**
+- **`λ` is identified with an intercept only, slowly.** Its sd halves per
+  quadrupling of `n`, and coverage is .94–.96 from `n = 400`. But at `n = 100`
+  it is biased by −.14, a third of its value. At `n = 1600` its sd is 2.3
+  times that of `λ̂ + ρ̂`, with `corr(λ̂, ρ̂)` = −.95. The covariate in A
+  cuts the sd of `λ̂` at `n = 400` from .125 to .096.
+- **A proxy `W` is a bias that a larger `n` makes worse.** At fixed
+  covariate noise the proxy keeps fewer true neighbours as the points
+  crowd together, and `ρ̂`'s bias grows while its sd does not. At
+  `n = 1600`, the proxy that keeps 37% of the true neighbours covers `ρ`
+  53% of the time; the one that keeps 6% covers it 11% of the time and
+  biases `δ̂` too. This is Santi et al.'s and Fülle & Otto's finding,
+  reproduced. Still, no paper gives a way to measure the proxy from the
+  data. The constructor's docstring and the manual page say so.
+- **`α̂` behaves as Sato & Matsuda report.** It is poor when `λ` is small
+  and `ε` heavy-tailed, and better at `n = 400`. It has no SE, because their
+  Theorem 3.3 gives consistency only.

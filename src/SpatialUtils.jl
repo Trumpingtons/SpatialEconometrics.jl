@@ -949,6 +949,65 @@ function check_design_rank(X::AbstractMatrix{T},
     throw(ArgumentError(msg))
 end
 
+# ─── Eigenvalue log-determinant ──────────────────────────────────────
+
+"""
+    _logdet_eig(ρ, re, im)
+
+`log|det(I − ρW)|` from the eigenvalues `re .+ im .* im` of `W`. A conjugate
+pair contributes `log|1 − ρμ|²` through real arithmetic, so the function
+takes ForwardDiff duals. Shared by `CommonShockDynamicPanel` and
+`SpatialGARCH`.
+"""
+function _logdet_eig(ρ, re::AbstractVector{<:Real}, im::AbstractVector{<:Real})
+    s = zero(ρ)
+    @inbounds for j in eachindex(re)
+        a = re[j]; b = im[j]
+        s += log((1 - ρ * a)^2 + (ρ * b)^2) / 2
+    end
+    return s
+end
+
+# ─── Covariance of linear-quadratic forms ────────────────────────────
+
+"""
+    _lq_cov(forms, s2, μ3, μ4) -> Matrix
+
+Exact covariance matrix of the linear-quadratic forms
+`S_k = a_k'v + v'A_k v − E(v'A_k v)` in a vector `v` of independent,
+mean-zero entries with variances `s2`, third moments `μ3` and fourth moments
+`μ4` (vectors, or scalars for identically distributed entries). Each form is a
+pair `(A, a)` with `A` symmetric, or `A === nothing` for a purely linear form:
+
+    Cov(S_i, S_j) = 2 Σ_kl A_kl B_kl s_k s_l + Σ_k A_kk B_kk (μ4_k − 3s_k²)
+                    + Σ_k μ3_k (A_kk b_k + B_kk a_k) + Σ_k s_k a_k b_k.
+
+Shared by `SpatialGARCH` (the score covariance of the spatial log-GARCH) and
+the test suite's exact-variance checks.
+"""
+function _lq_cov(forms, s2, μ3, μ4)
+    n = length(last(first(forms)))
+    sv  = s2 isa AbstractVector ? Float64.(s2) : fill(Float64(s2), n)
+    m3v = μ3 isa AbstractVector ? Float64.(μ3) : fill(Float64(μ3), n)
+    exk = (μ4 isa AbstractVector ? Float64.(μ4) : fill(Float64(μ4), n)) .- 3 .* sv .^ 2
+    p = length(forms)
+    S = sv * sv'
+    dg = [A === nothing ? nothing : diag(A) for (A, _) in forms]
+    SA = [A === nothing ? nothing : S .* A for (A, _) in forms]
+    V = zeros(p, p)
+    for i in 1:p, j in i:p
+        A, a = forms[i]; B, b = forms[j]
+        v = sum(sv .* a .* b)
+        if A !== nothing && B !== nothing
+            v += 2 * sum(SA[i] .* B) + sum(dg[i] .* dg[j] .* exk)
+        end
+        B !== nothing && (v += sum(m3v .* dg[j] .* a))
+        A !== nothing && (v += sum(m3v .* dg[i] .* b))
+        V[i, j] = V[j, i] = v
+    end
+    return V
+end
+
 # ─── Normal CDF approximation (Abramowitz & Stegun 26.2.17) ──────────
 
 function _normcdf(z::Real)

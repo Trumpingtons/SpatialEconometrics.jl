@@ -1,0 +1,146 @@
+Monte Carlo: fit_spatial_log_garch   (R_SCALE = 1.0, 1 thread)
+coverage of nominal 95% intervals; cov = sandwich, covG = Gaussian −Ĥ⁻¹; SE/sd = mean SE / sd
+fail = fits that threw (summaries are over the rest); at a bound = the search ran to the edge of `bounds`
+
+== A. Sato & Matsuda Table 1 design (α = .5, δ = 1), fixed z ==
+n= 100 (λ,ρ)=(0.90,0.05) normal  R=1000 fail=355 (at a bound 355)  [78s]
+   δ  bias +0.029  rmse 0.156  sd 0.154  SE/sd 1.10  cov 0.958  covG 0.952
+   λ  bias +0.017  rmse 0.050  sd 0.047  SE/sd 1.48  cov 0.941  covG 0.867
+   ρ  bias -0.022  rmse 0.048  sd 0.043  SE/sd 1.47  cov 0.916  covG 0.814
+   α  bias +0.009  rmse 0.142   (no SE)
+n= 100 (λ,ρ)=(0.90,0.05) chi3    R=1000 fail=368 (at a bound 368)  [147s]
+   δ  bias +0.038  rmse 0.140  sd 0.134  SE/sd 1.11  cov 0.956  covG 0.951
+   λ  bias +0.016  rmse 0.051  sd 0.049  SE/sd 1.34  cov 0.929  covG 0.828
+   ρ  bias -0.021  rmse 0.050  sd 0.045  SE/sd 1.33  cov 0.908  covG 0.793
+   α  bias +0.014  rmse 0.131   (no SE)
+n= 100 (λ,ρ)=(0.90,0.05) lognorm R=1000 fail=390 (at a bound 390)  [216s]
+   δ  bias +0.030  rmse 0.145  sd 0.142  SE/sd 1.07  cov 0.943  covG 0.941
+   λ  bias +0.013  rmse 0.047  sd 0.046  SE/sd 1.49  cov 0.956  covG 0.880
+   ρ  bias -0.017  rmse 0.045  sd 0.041  SE/sd 1.52  cov 0.933  covG 0.854
+   α  bias -0.019  rmse 0.135   (no SE)
+n= 100 (λ,ρ)=(0.45,0.45) normal  R=1000 fail=1 (at a bound 1)  [273s]
+   δ  bias +0.041  rmse 0.215  sd 0.211  SE/sd 0.99  cov 0.945  covG 0.943
+   λ  bias -0.044  rmse 0.215  sd 0.210  SE/sd 0.97  cov 0.922  covG 0.913
+   ρ  bias -0.001  rmse 0.153  sd 0.154  SE/sd 1.00  cov 0.908  covG 0.894
+   α  bias -0.064  rmse 0.254   (no SE)
+n= 100 (λ,ρ)=(0.45,0.45) chi3    R=1000 fail=1 (at a bound 1)  [330s]
+   δ  bias +0.025  rmse 0.180  sd 0.178  SE/sd 1.03  cov 0.952  covG 0.949
+   λ  bias -0.029  rmse 0.200  sd 0.198  SE/sd 0.99  cov 0.912  covG 0.895
+   ρ  bias -0.008  rmse 0.152  sd 0.152  SE/sd 1.00  cov 0.895  covG 0.885
+   α  bias -0.068  rmse 0.221   (no SE)
+n= 100 (λ,ρ)=(0.45,0.45) lognorm R=1000 fail=1 (at a bound 1)  [389s]
+   δ  bias +0.046  rmse 0.186  sd 0.180  SE/sd 1.05  cov 0.950  covG 0.944
+   λ  bias -0.032  rmse 0.207  sd 0.205  SE/sd 0.93  cov 0.908  covG 0.903
+   ρ  bias -0.010  rmse 0.155  sd 0.155  SE/sd 0.96  cov 0.904  covG 0.891
+   α  bias -0.288  rmse 0.545   (no SE)
+n= 100 (λ,ρ)=(0.05,0.90) normal  R=1000 fail=0 (at a bound 0)  [445s]
+   δ  bias +0.031  rmse 0.214  sd 0.212  SE/sd 1.01  cov 0.947  covG 0.939
+   λ  bias -0.056  rmse 0.187  sd 0.179  SE/sd 1.03  cov 0.928  covG 0.916
+   ρ  bias +0.018  rmse 0.155  sd 0.155  SE/sd 1.01  cov 0.929  covG 0.922
+   α  bias -0.512  rmse 0.910   (no SE)
+n= 100 (λ,ρ)=(0.05,0.90) chi3    R=1000 fail=0 (at a bound 0)  [502s]
+   δ  bias +0.022  rmse 0.187  sd 0.186  SE/sd 1.00  cov 0.949  covG 0.939
+   λ  bias -0.061  rmse 0.195  sd 0.186  SE/sd 0.98  cov 0.906  covG 0.899
+   ρ  bias +0.023  rmse 0.160  sd 0.158  SE/sd 0.99  cov 0.915  covG 0.917
+   α  bias -0.484  rmse 0.890   (no SE)
+n= 100 (λ,ρ)=(0.05,0.90) lognorm R=1000 fail=0 (at a bound 0)  [559s]
+   δ  bias +0.022  rmse 0.186  sd 0.185  SE/sd 1.04  cov 0.956  covG 0.950
+   λ  bias -0.062  rmse 0.194  sd 0.184  SE/sd 0.98  cov 0.907  covG 0.904
+   ρ  bias +0.023  rmse 0.159  sd 0.158  SE/sd 0.97  cov 0.914  covG 0.916
+   α  bias -1.090  rmse 1.838   (no SE)
+n= 400 (λ,ρ)=(0.90,0.05) normal  R=1000 fail=0 (at a bound 0)  [866s]
+   δ  bias +0.010  rmse 0.079  sd 0.079  SE/sd 0.98  cov 0.945  covG 0.946
+   λ  bias +0.009  rmse 0.030  sd 0.028  SE/sd 0.97  cov 0.878  covG 0.847
+   ρ  bias -0.011  rmse 0.027  sd 0.025  SE/sd 0.97  cov 0.869  covG 0.837
+   α  bias +0.001  rmse 0.082   (no SE)
+n= 400 (λ,ρ)=(0.90,0.05) chi3    R=1000 fail=0 (at a bound 0)  [1175s]
+   δ  bias +0.008  rmse 0.069  sd 0.069  SE/sd 0.98  cov 0.945  covG 0.937
+   λ  bias +0.008  rmse 0.028  sd 0.027  SE/sd 0.99  cov 0.886  covG 0.872
+   ρ  bias -0.010  rmse 0.026  sd 0.024  SE/sd 1.00  cov 0.885  covG 0.864
+   α  bias -0.000  rmse 0.072   (no SE)
+n= 400 (λ,ρ)=(0.90,0.05) lognorm R=1000 fail=0 (at a bound 0)  [1478s]
+   δ  bias +0.007  rmse 0.070  sd 0.070  SE/sd 1.00  cov 0.947  covG 0.944
+   λ  bias +0.009  rmse 0.028  sd 0.026  SE/sd 1.00  cov 0.885  covG 0.861
+   ρ  bias -0.010  rmse 0.026  sd 0.023  SE/sd 1.01  cov 0.875  covG 0.844
+   α  bias -0.014  rmse 0.082   (no SE)
+n= 400 (λ,ρ)=(0.45,0.45) normal  R=1000 fail=0 (at a bound 0)  [1774s]
+   δ  bias +0.013  rmse 0.113  sd 0.112  SE/sd 0.97  cov 0.940  covG 0.940
+   λ  bias -0.012  rmse 0.097  sd 0.096  SE/sd 1.01  cov 0.948  covG 0.947
+   ρ  bias -0.000  rmse 0.073  sd 0.073  SE/sd 1.00  cov 0.944  covG 0.940
+   α  bias -0.012  rmse 0.087   (no SE)
+n= 400 (λ,ρ)=(0.45,0.45) chi3    R=1000 fail=0 (at a bound 0)  [2071s]
+   δ  bias +0.011  rmse 0.094  sd 0.094  SE/sd 1.02  cov 0.951  covG 0.948
+   λ  bias -0.012  rmse 0.099  sd 0.098  SE/sd 0.95  cov 0.940  covG 0.937
+   ρ  bias +0.000  rmse 0.074  sd 0.074  SE/sd 0.97  cov 0.933  covG 0.936
+   α  bias -0.015  rmse 0.090   (no SE)
+n= 400 (λ,ρ)=(0.45,0.45) lognorm R=1000 fail=0 (at a bound 0)  [2368s]
+   δ  bias +0.009  rmse 0.097  sd 0.097  SE/sd 1.02  cov 0.949  covG 0.948
+   λ  bias -0.010  rmse 0.094  sd 0.094  SE/sd 1.01  cov 0.946  covG 0.947
+   ρ  bias -0.002  rmse 0.070  sd 0.070  SE/sd 1.04  cov 0.948  covG 0.950
+   α  bias -0.080  rmse 0.224   (no SE)
+n= 400 (λ,ρ)=(0.05,0.90) normal  R=1000 fail=0 (at a bound 0)  [2663s]
+   δ  bias +0.011  rmse 0.113  sd 0.112  SE/sd 1.00  cov 0.952  covG 0.953
+   λ  bias -0.014  rmse 0.087  sd 0.086  SE/sd 1.03  cov 0.943  covG 0.947
+   ρ  bias +0.005  rmse 0.075  sd 0.074  SE/sd 1.04  cov 0.942  covG 0.946
+   α  bias -0.112  rmse 0.288   (no SE)
+n= 400 (λ,ρ)=(0.05,0.90) chi3    R=1000 fail=0 (at a bound 0)  [2958s]
+   δ  bias +0.008  rmse 0.098  sd 0.097  SE/sd 1.00  cov 0.954  covG 0.955
+   λ  bias -0.018  rmse 0.088  sd 0.087  SE/sd 1.03  cov 0.949  covG 0.951
+   ρ  bias +0.009  rmse 0.076  sd 0.076  SE/sd 1.03  cov 0.959  covG 0.957
+   α  bias -0.117  rmse 0.286   (no SE)
+n= 400 (λ,ρ)=(0.05,0.90) lognorm R=1000 fail=0 (at a bound 0)  [3253s]
+   δ  bias +0.007  rmse 0.106  sd 0.106  SE/sd 0.95  cov 0.943  covG 0.941
+   λ  bias -0.013  rmse 0.089  sd 0.088  SE/sd 1.00  cov 0.948  covG 0.948
+   ρ  bias +0.004  rmse 0.078  sd 0.078  SE/sd 0.99  cov 0.942  covG 0.947
+   α  bias -0.278  rmse 0.599   (no SE)
+
+== B. Intercept only, (λ, ρ) = (.45, .45), normal ε ==
+n= 100 R=500 fail=0 (at a bound 0)  [3282s]
+   λ  bias -0.141  rmse 0.296  sd 0.260  SE/sd 1.01  cov 0.912  covG 0.930
+   ρ  bias +0.037  rmse 0.153  sd 0.149  SE/sd 1.00  cov 0.914  covG 0.926
+   λ+ρ bias -0.104  sd 0.172;  corr(λ̂, ρ̂) -0.775
+n= 400 R=500 fail=0 (at a bound 0)  [3426s]
+   λ  bias -0.040  rmse 0.131  sd 0.125  SE/sd 1.00  cov 0.952  covG 0.956
+   ρ  bias +0.015  rmse 0.083  sd 0.082  SE/sd 1.00  cov 0.938  covG 0.944
+   λ+ρ bias -0.025  sd 0.055;  corr(λ̂, ρ̂) -0.940
+n=1600 R=500 fail=0 (at a bound 0)  [4217s]
+   λ  bias -0.016  rmse 0.063  sd 0.061  SE/sd 1.01  cov 0.950  covG 0.954
+   ρ  bias +0.007  rmse 0.040  sd 0.040  SE/sd 1.04  cov 0.958  covG 0.962
+   λ+ρ bias -0.009  sd 0.026;  corr(λ̂, ρ̂) -0.949
+
+== C. Proxy W: true W = 10-NN on locations S; fit W = covariate_weights((1−ω)S + ωE, 10) ==
+   (λ, ρ) = (.45, .45), α = .5, δ = 1, normal ε, fixed z, S and E
+n= 400 ω=0.00  neighbours shared with true W 0.98  R=200 fail=0 (at a bound 0)  [4310s]
+   δ  bias +0.011  rmse 0.100  sd 0.099  SE/sd 1.11  cov 0.960
+   λ  bias -0.035  rmse 0.140  sd 0.136  SE/sd 1.09  cov 0.965
+   ρ  bias +0.013  rmse 0.108  sd 0.108  SE/sd 1.06  cov 0.945
+n= 400 ω=0.01  neighbours shared with true W 0.88  R=200 fail=0 (at a bound 0)  [4399s]
+   δ  bias -0.005  rmse 0.107  sd 0.107  SE/sd 1.04  cov 0.960
+   λ  bias -0.024  rmse 0.152  sd 0.151  SE/sd 0.96  cov 0.920
+   ρ  bias +0.004  rmse 0.116  sd 0.116  SE/sd 0.96  cov 0.895
+n= 400 ω=0.03  neighbours shared with true W 0.64  R=200 fail=0 (at a bound 0)  [4491s]
+   δ  bias +0.026  rmse 0.122  sd 0.119  SE/sd 1.01  cov 0.925
+   λ  bias -0.033  rmse 0.158  sd 0.155  SE/sd 0.95  cov 0.945
+   ρ  bias -0.014  rmse 0.105  sd 0.104  SE/sd 1.01  cov 0.905
+n= 400 ω=0.10  neighbours shared with true W 0.20  R=200 fail=0 (at a bound 0)  [4581s]
+   δ  bias +0.115  rmse 0.186  sd 0.146  SE/sd 1.16  cov 0.920
+   λ  bias -0.002  rmse 0.223  sd 0.224  SE/sd 0.96  cov 0.900
+   ρ  bias -0.156  rmse 0.180  sd 0.089  SE/sd 1.14  cov 0.585
+n=1600 ω=0.00  neighbours shared with true W 0.99  R=200 fail=0 (at a bound 0)  [5216s]
+   δ  bias +0.001  rmse 0.056  sd 0.057  SE/sd 1.00  cov 0.945
+   λ  bias -0.010  rmse 0.063  sd 0.062  SE/sd 1.05  cov 0.975
+   ρ  bias +0.005  rmse 0.050  sd 0.050  SE/sd 1.05  cov 0.975
+n=1600 ω=0.01  neighbours shared with true W 0.75  R=200 fail=0 (at a bound 0)  [5829s]
+   δ  bias +0.005  rmse 0.061  sd 0.061  SE/sd 0.99  cov 0.955
+   λ  bias +0.016  rmse 0.067  sd 0.066  SE/sd 0.90  cov 0.920
+   ρ  bias -0.031  rmse 0.060  sd 0.052  SE/sd 0.89  cov 0.835
+n=1600 ω=0.03  neighbours shared with true W 0.37  R=200 fail=0 (at a bound 0)  [6405s]
+   δ  bias +0.055  rmse 0.089  sd 0.070  SE/sd 1.07  cov 0.915
+   λ  bias +0.023  rmse 0.065  sd 0.061  SE/sd 1.04  cov 0.910
+   ρ  bias -0.079  rmse 0.089  sd 0.042  SE/sd 1.04  cov 0.530
+n=1600 ω=0.10  neighbours shared with true W 0.06  R=200 fail=0 (at a bound 0)  [7069s]
+   δ  bias +0.265  rmse 0.279  sd 0.088  SE/sd 1.01  cov 0.155
+   λ  bias -0.218  rmse 0.259  sd 0.141  SE/sd 0.94  cov 0.725
+   ρ  bias -0.167  rmse 0.175  sd 0.055  SE/sd 0.84  cov 0.110
+
+total 7069 s

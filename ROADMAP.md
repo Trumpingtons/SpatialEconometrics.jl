@@ -3,12 +3,11 @@
 > **Current version:** 0.4.0 (on `master`, unreleased; `Project.toml` carries
 > it since 2026-11-06)
 >
-> 31 submodules, 3,897 test assertions in 59 top-level testsets with both
-> package extensions installed and 3,862 (plus 2 broken markers) without
+> 32 submodules, 3,949 test assertions in 60 top-level testsets with both
+> package extensions installed and 3,914 (plus 2 broken markers) without
 > them, measured on 2026-11-16 on Julia 1.13.3, and without them on 1.10.13.
-> CI confirmed them exactly on 2026-11-16 (`a336b0f`), on 1.10, 1.13 and
-> nightly across Linux, Windows and macOS. 32 examples, 20 notebooks, 2 package extensions, CI/CD and
-> 62 Documenter.jl pages. **Phases 4, 5, 6, 6B, 6C and 7A are complete.** Item #10 (Performance) closed on 2026-10-30 with its scope
+> 33 examples, 20 notebooks, 2 package extensions, CI/CD and
+> 64 Documenter.jl pages. **Phases 4, 5, 6, 6B, 6C and 7A are complete.** Item #10 (Performance) closed on 2026-10-30 with its scope
 > reduced on measured grounds and may be revisited. Phase 6C, the GWR
 > compact local design, is delivered. **Phase 7A closed on 2026-11-01:**
 > item #15's exposure mapping and spatial difference-in-differences landed
@@ -17,7 +16,8 @@
 > and mostly done:** items #1 (common factors) and #12 (spatio-temporal)
 > closed together on 2026-11-04, and row 22's **SpVAR** closed the same day
 > in a second pass, with time-varying `ρ` re-filed under #13 where its
-> published method belongs; #13 and #16 remain. Tier 3 is otherwise untouched,
+> published method belongs; #13 remains, and #16 (spatial log-GARCH) was
+> built on 2026-11-16. Tier 3 is otherwise untouched,
 > and the correctness audit in `docs/AUDIT.md` is closed — findings 1–25,
 > with 29–32 added afterwards from the benchmark suite and Phase 6C.
 >
@@ -1186,7 +1186,55 @@ So all three papers agree that a proxy `W` gives biased `ρ̂` that a larger
 `n` does not cure, and none gives a way to measure the proxy's quality from
 the data alone. A build should say so where it offers the constructor.
 
-**New file:** `src/SpatialGARCH.jl` (~450 lines)
+✅ **Built 2026-11-16** as `fit_spatial_log_garch` (`src/SpatialGARCH.jl`,
+submodule 32; testset 44; example 33) and `covariate_weights`. The
+constructor stands alone: the user chose on 2026-11-16 not to have a forward
+selection search. The endogeneity-caveat row is not built. What the build
+added to the reading (details in `docs/AUDIT.md`):
+- **`Ω` is derived and checked.** At `ψ₀` every score component is
+  linear-quadratic in `V`, so its covariance is exact in `σ²`, `μ₃` and
+  `μ₄`. Simulation under three error laws matches it (largest `|z|` 1.9 over
+  15 entries). The Gaussian information fails the same test (`|z|` = 30).
+- **The quasi-likelihood is unbounded above as `λ → 1`, in every sample.**
+  Because `W1 = 1`, the intercept absorbs what `R(λ)⁻¹` inflates, so `σ̂²`
+  stays bounded while `−log|R(λ)|` grows like `−log(1 − λ)`. Neither paper
+  states this. The estimate is an interior local maximum. At `n = 100` with
+  `(λ, ρ) = (.9, .05)`, 36–39% of samples have none, and the fit throws.
+  Sato & Matsuda's Table 1 reports every sample.
+- **Table 1 is reproduced at `n = 400`.** At `n = 100`:
+  - the `(.9, .05)` cells differ, for the reason above;
+  - the `λ` and `ρ` RMSEs at `(.05, .9)` are about a third larger than
+    theirs, and this is not explained.
+
+  Coverage at `n = 400`, which they do not report, is .93–.96. The
+  exception is `λ` and `ρ` at `(.9, .05)`, at .87–.89.
+- **With an intercept only, `λ` is identified in practice.** Its sd halves
+  as `n` quadruples (.125 at 400, .061 at 1600), and coverage is .94–.96
+  from `n = 400`. But its sd is 2.3 times that of `λ̂ + ρ̂`, and
+  `corr(λ̂, ρ̂)` ≈ −.95.
+- **A proxy `W` biases `ρ̂`, and a larger `n` makes it worse at fixed
+  covariate noise.** At `n = 1600`:
+  - a proxy that keeps 37% of the true neighbours biases `ρ̂` by −.08, with
+    coverage .53;
+  - one that keeps 6% biases it by −.17, with coverage .11.
+
+**Deferred to a possible later pass, by the user's decision of 2026-11-16:
+Fülle & Otto's forward selection of the covariates.** It would leave the
+fit and the constructor unchanged, but before it ships it needs three
+things:
+- **Its own null Monte Carlo.** Generate data with a true `W` unrelated to
+  the candidate covariates, run the selection, and count how often the
+  selected model's `ρ` is significant. The sandwich treats `W` as fixed, and
+  neither paper measures what the search costs.
+- **A rule for candidates with no interior maximum**, which throw.
+- **A check that the search does not favour candidates whose `λ̂` sits near
+  1**, where the `−log(1 − λ)` term inflates the likelihood.
+
+If it is built, it should return the ranked candidates with a warning that
+the SEs ignore the search.
+
+**New file:** `src/SpatialGARCH.jl` (~450 lines estimated; built: 454, plus
+59 in `SpatialUtils` and 62 in `SpatialWeights`)
 
 **Dependencies:** None
 
@@ -1210,6 +1258,8 @@ the data alone. A build should say so where it offers the constructor.
 | JSS paper | Journal of Statistical Software submission: "SpatialEconometrics.jl: A Comprehensive Spatial Econometrics Suite in Julia" |
 | Contributing guide | `CONTRIBUTING.md` with coding conventions, testing requirements, and PR checklist |
 | CI/CD pipeline | GitHub Actions for automated testing on Julia 1.10, 1.13, nightly; code coverage via Codecov |
+| Claude skill (planned 2026-11-16, next separate pass) | A skill for Claude Code: `SKILL.md` plus reference files. **Contents:** a decision guide from data type to estimator (cross-section, panel, dynamic, variance, unknown locations); the `W` constructors and their pitfalls (row standardisation, connectivity, proxy `W`); how to read each fit's warnings and throws (e.g. no interior maximum near `λ = 1` means no `λ̂` to report); per-function reference generated from the docstrings, with a check that keeps it in sync. **Limits:** it needs Julia installed, and a persistent REPL or a system image to avoid paying compile latency on every call. Estimated at a day |
+| MCP server (after registration) | For Claude Desktop, which has no shell. **Design:** a persistent Julia process (which also removes compile latency); a few coarse tools (`load_data`, `build_weights`, `fit`, `diagnostics`, `summary`), with fits held server-side by handle; results, warnings and throws returned as structured JSON; packaged for one-click install. **Prerequisites:** the skill's decision guide, which supplies the tool descriptions, and registration, so the install does not depend on a GitHub URL. Check the maturity of the Julia MCP libraries before choosing between native Julia and a thin Python wrapper. Estimated at about a week |
 
 **New files/directories:** `docs/`, `notebooks/`, `benchmark/`, `.github/workflows/`, `CONTRIBUTING.md`
 
@@ -1349,11 +1399,11 @@ independent support enumeration.
 | 18 | ✅ Spatio-Temporal Models (#12) | ~500 | STAR, forecasting, interactive FE; SpVAR in a second pass |
 | 19 | ✅ Common factors in panels (#1) | ~400 | SP-CCE and the CD / `α` exponent tests |
 | 20 | 🔶 Semiparametric Spatial (#13) | ~500 (pass 1: 1,136) | Pass 1 done 2026-11-13: Su & Jin PLSAR, closed-form `ρ`, the overlap `π̄`, LGG `β(τ)`. Geniaux's remedy, quantile and penalised rows remain |
-| 21 | ⬜ Spatial GARCH (#16) | ~450 | Spatial structure in the variance |
+| 21 | ✅ Spatial GARCH (#16) | ~450 (actual: 575) | Sato & Matsuda (2021) two-step log-GARCH with a derived sandwich, plus `covariate_weights`; built 2026-11-16, Monte Carlo in `docs/AUDIT.md` |
 | 22 | ✅ **SpVAR** (deferred from #12) | ~450 | Di Giacinto (2010): block-triangular `C₀`, separable FIML, outward/inward STIR, the nested panel VAR and the LR test against it; plus `order_weights` |
 | 23 | ✅ Short-`T` CRE dynamic panel (#1 planned addition) | ~1,500 (actual: 1,029) | Li & Yang (2021) M-estimator with the corrected plug-in variance of Li, Meng & Yang (2026); built 2026-11-14, Table 1 replicated (`docs/AUDIT.md`) |
 | 24 | ✅ Short-`T` dynamic panel with common shocks (#1 planned addition) | — (actual: 691) | Bai & Chen (2026) SERL QML with the Appendix D sandwich; built 2026-11-14, Monte Carlo to `N = 4000` in `docs/AUDIT.md` |
-| | **Phase 7B total** | **~2,300** | Items 18, 19 and 22 closed 2026-11-04; items 23 and 24 on 2026-11-14 |
+| | **Phase 7B total** | **~2,300** | Items 18, 19 and 22 closed 2026-11-04; items 23 and 24 on 2026-11-14; item 21 on 2026-11-16 |
 
 **Items 18 and 19 were taken as one pass**, on 2026-11-04, because the
 roadmap cross-references them as two halves of one phenomenon and that is
@@ -1425,6 +1475,7 @@ holds today, and the figures it once projected — ~1,200 assertions and
 | **master** (+ #1 short-`T` row, `CREDynamicSpatialPanel`) | 30 | 3,864 § | 26,597 |
 | **master** (+ the 41b/41f optimiser-tolerance fix) | 30 | 3,866 §§ | 26,597 |
 | **master** (+ #1 common-shocks row, `CommonShockDynamicPanel`) | 31 | 3,897 ¶ | 27,293 |
+| **master** (+ #16 spatial log-GARCH, `SpatialGARCH`) | 32 | 3,949 ¶¶ | 27,865 |
 | — | | | |
 | **v1.0.0** (Phases 6C–8) | 29–31 | ~4,100 | ~26,500 |
 
@@ -1472,9 +1523,28 @@ CI confirmed both figures exactly on `a336b0f`: 3,897 on the extensions job,
 and 3,862 plus 2 broken on 1.10 and 1.13 (Linux), 1.13 on Windows and
 macOS, and nightly.
 
-Measured on master: 31 submodules plus the umbrella across 27,293 lines of
-`src/`, 10,219 lines of tests, 5,111 lines of examples across 32 scripts,
-398 lines of package extensions, 62 documentation pages and 20 notebooks
+¶¶ Measured locally on 2026-11-16. On Julia 1.13.3 with both extensions
+loaded: 3,949 passed, none broken. On 1.10.13 without them: 3,914 passed and
+2 broken. Each is the ¶ figure plus the 52 assertions of testset 44. Margins
+were measured on both versions. The smallest in testset 44 is 1.95×, for the
+power check of 44d on 1.10: the Gaussian information's `|z|` of 29.3 against
+a required 15. So the suite's smallest is still 42c's 1.47×. The `src/`
+count rose by 572:
+- the new module's 454 lines;
+- 59 in `SpatialUtils` for the two shared helpers;
+- 62 in `SpatialWeights` for `covariate_weights`;
+- 5 in the umbrella;
+- less 8 in `CommonShockDynamicPanel`, whose log-determinant moved to
+  `SpatialUtils`.
+
+The v1.0.0 projection in the table is now passed on two of its three
+counts: 32 submodules against 29–31, and 27,865 lines against `~26,500`.
+The assertion count, 3,949 against `~4,100`, is not yet passed. The
+projection is left as written, like the earlier ones.
+
+Measured on master: 32 submodules plus the umbrella across 27,865 lines of
+`src/`, 10,417 lines of tests, 5,197 lines of examples across 33 scripts,
+398 lines of package extensions, 64 documentation pages and 20 notebooks
 (13 Jupyter, 7 Pluto).
 
 The `v0.4.0` row sits 68 lines above the measured row before it, and no

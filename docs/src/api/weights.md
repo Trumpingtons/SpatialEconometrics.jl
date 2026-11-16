@@ -10,6 +10,7 @@ CurrentModule = SpatialEconometrics
 SpatialConnectivity
 band_weights
 block_diagonal_weights
+covariate_weights
 distance_weights
 knn_weights
 minmax_standardize
