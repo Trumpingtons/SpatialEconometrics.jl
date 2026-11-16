@@ -1,6 +1,6 @@
 # Examples
 
-Thirty-one worked examples, one per topic. Each is a self-contained script
+Thirty-two worked examples, one per topic. Each is a self-contained script
 that simulates its own data, so none needs a download, and each prints its
 results to the terminal.
 
@@ -57,6 +57,7 @@ repository.
 | 17 | [`17_panel_diagnostics.jl`](17_panel_diagnostics.jl) | Spatial Hausman, Chow and joint panel LM tests |
 | 27 | [`27_common_factors.jl`](27_common_factors.jl) | Weak versus strong cross-sectional dependence: CD, `α`, SP-CCE |
 | 31 | [`31_cre_dynamic_panel.jl`](31_cre_dynamic_panel.jl) | Short-`T` dynamic panel with correlated random effects (Li & Yang) |
+| 32 | [`32_common_shocks_short_panel.jl`](32_common_shocks_short_panel.jl) | Short-`T` dynamic panel with common shocks: which SERL order `L` (Bai & Chen) |
 
 ### Space and time
 

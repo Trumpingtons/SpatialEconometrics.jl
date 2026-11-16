@@ -581,9 +581,14 @@ time effects `δ_t` take its place.
 - `L`: the SERL order, the highest spatial lag of `Q_X` and `y₀` among the
   controls. Bai & Chen's Table 4 finds `L = 0` badly under-covers when `y₀`
   comes from a long-running process, and `L = 1` near nominal at
-  `N ≤ 1000`.
+  `N ≤ 1000`. This package's Monte Carlo finds coverage of `ρ` at `L = 1`
+  near nominal up to `N = 4000` (see the manual page).
 - `Q`: the `N × p` regressor summaries `Q_X`. The default is each unit's
-  mean of `X` over periods `1..T`.
+  mean of `X` over periods `1..T`. The mean is enough only if `E(λ_i | X_i)`
+  depends on `X_i` through it. When the regressors' deviations from the
+  loadings are serially correlated, it is not, and `β̂` is biased by an amount
+  that does not shrink with `N`. Passing every period of `X`
+  (`Q = hcat(X_1, …, X_T)`, `N × KT`) removes that bias; see the manual page.
 - `controls`: an `N × q` matrix that replaces the SERL controls `z_i`
   entirely; `L` and `Q` are then ignored.
 - `eigenvalues`: the eigenvalues of `W`, if already known. Otherwise they are

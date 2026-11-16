@@ -4605,3 +4605,129 @@ searches can agree far more closely than their tolerance on one machine and
 diverge on another. A test that compares two optimisers asserts agreement to
 their tolerance. Agreement to rounding is asserted on the objective.
 
+
+## #1 short-`T` row: Bai & Chen's common-shock panel, and a bias the paper's design hides
+
+Built on 2026-11-14: `src/CommonShockDynamicPanel.jl`, submodule 31, Bai &
+Chen's (2026, a preprint) conditional QML for the short-`T` dynamic spatial
+panel with common shocks and spatially enriched random loadings (SERL). The
+paper's theory covers the estimator and the Appendix D covariance. Two
+things are this package's own, so the standing rule applies:
+
+- **the solver.** Appendix C's start and Algorithm 1 are the paper's. The
+  Newton polish to `max|∂ℓ/∂α|/N < 1e-8`, and the refusal to return
+  anything else, are not;
+- **the claim about `L = 1` at large `N`.** The paper measures `N = 500` and
+  1000 only.
+
+### What was verified exactly first
+
+Testset 43 checks each of these against an independent computation:
+
+- **The likelihood** equals one built from scratch over all `NT`
+  observations, with `log|det|` of the full `NT × NT` Jacobian, to `1e-12`.
+  This replaces the planned reduction to Li & Yang's model, which tests less.
+- **The analytic score and Hessian** equal automatic differentiation. Writing
+  the score found a sign error in the `ρ` Jacobian term (a difference of 5.3)
+  before any fit used it.
+- **The pair matrices** equal the explicit `T × T` blocks of
+  `(W⊗I_T)C⁻¹` and `(I_N⊗L_T)C⁻¹`, `Σ_i g_i` equals the score, and `Ω_v`
+  equals an explicit loop over pairs.
+- **`Ω̂_M` does not depend on the order of the units**, although each `g_i`
+  does: coefficients agree to `5.6e-16` and SEs to `3.4e-15` after a
+  relabelling on 1.13, and to `1.1e-16` and `1.2e-14` on 1.10.
+- **The `θ` block of the sandwich equals the profiled covariance (28)**, to a
+  relative `4.8e-15` on 1.13 and `3.2e-15` on 1.10.
+- **The null test.** Eqs. (52)–(53) make `E[Ω̂_M(α₀)] = Var(Σ_i g_i(α₀))`
+  exact in finite samples. Testset 43e holds the data's design fixed and
+  draws 8000 samples at `N = 30`, `T = 4`, with centred `χ²` errors. Over
+  the 325 entries the largest `|z|` is 2.73 on Julia 1.13 and 2.67 on 1.10,
+  against a bound of 4.5. The plain outer product of the unit scores fails
+  the same test, with `z` = 8.35 and 8.75 against a required 5, so the test
+  has power. At 3000
+  draws that `z` was 4.8, too close to the bound, so the count was raised.
+
+### The design
+
+Bai & Chen's long-running design, §6.2.1:
+- `T = 5`, `ρ = .5`, `φ = .3`, `β = (.8, −.3)`, `r = 2`, no time effects;
+- `W` row-normalised 8-nearest-neighbour on uniform locations, drawn once
+  per `N`;
+- `λ_i ~ N(0, I₂)`, `x_it = 0.5λ_i + √.75 h_it` with `h` an AR(1) with
+  coefficient .8, started stationary;
+- `y` starts at 0 and runs 100 periods before `y₀`. The factors are drawn
+  once per `T` and held fixed. Errors are `N(0, 1)`.
+
+Each panel is fitted at `L = 0` and `L = 1`, 500 panels per `N`. Intervals
+are 95% from the sandwich with the pair part scaled by `N/(N − p)`.
+`validation/mc_serl_sdpd.jl`; its output is committed as
+`validation/mc_serl_sdpd_output.txt`.
+
+### The table
+
+| N | L | bias ρ | sd ρ | bias φ | sd φ | cov ρ | cov φ | cov β₁ | cov β₂ | fits |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 500 | 0 | −.0180 | .0179 | −.0037 | .0245 | .823 | .950 | .926 | .944 | 497/500 |
+| 500 | 1 | −.0055 | .0194 | +.0019 | .0237 | .942 | .948 | .920 | .952 | 500/500 |
+| 1000 | 0 | −.0149 | .0117 | −.0064 | .0159 | .780 | .948 | .948 | .918 | 500/500 |
+| 1000 | 1 | −.0006 | .0124 | −.0018 | .0155 | .964 | .966 | .952 | .918 | 500/500 |
+| 2000 | 0 | −.0137 | .0090 | −.0068 | .0121 | .640 | .898 | .942 | .914 | 500/500 |
+| 2000 | 1 | +.0008 | .0096 | −.0024 | .0121 | .926 | .932 | .924 | .914 | 500/500 |
+| 4000 | 0 | −.0134 | .0065 | −.0073 | .0083 | .398 | .866 | .886 | .860 | 500/500 |
+| 4000 | 1 | +.0018 | .0068 | −.0030 | .0081 | .936 | .936 | .888 | .854 | 500/500 |
+
+A fit takes about 0.9 s at `N = 1000` and 9.8 s at `N = 4000`, variance
+included. The three failed fits threw the documented error.
+
+### What the table did not explain, and the diagnostics that did
+
+Coverage of `β` falls with `N` at **both** `L`, to .85–.89 at `N = 4000`,
+6 to 10 Monte Carlo standard errors below .95. Either the `β` SEs are wrong
+or `β̂` is biased. `validation/mc_serl_sdpd_diagnostics.jl` separates the two,
+with 200 panels per row (output in `validation/mc_serl_sdpd_diagnostics_output.txt`):
+
+| design | N | fit | par | bias | sd | mean SE / sd | cov |
+|---|---|---|---|---|---|---|---|
+| baseline | 4000 | L = 0 | ρ | +.0001 | .0068 | 0.94 | .940 |
+| baseline | 4000 | L = 0 | φ | +.0003 | .0073 | 1.03 | .945 |
+| baseline | 4000 | L = 0 | β₁ | −.0010 | .0090 | 0.97 | .950 |
+| baseline | 4000 | L = 0 | β₂ | +.0010 | .0088 | 0.98 | .955 |
+| long-running | 4000 | L = 1 | β₁ | +.0082 | .0125 | 1.00 | .925 |
+| long-running | 4000 | L = 1 | β₂ | −.0094 | .0130 | 0.94 | .865 |
+| long-running | 4000 | L = 2 | β₁ | +.0082 | .0125 | 1.00 | .925 |
+| long-running | 4000 | L = 2 | β₂ | −.0094 | .0130 | 0.94 | .865 |
+| long-running | 2000 | L = 1, Q means | β₁ | +.0089 | .0172 | 1.04 | .935 |
+| long-running | 2000 | L = 1, Q means | β₂ | −.0097 | .0160 | 1.08 | .930 |
+| long-running | 2000 | L = 1, Q every period | β₁ | −.0007 | .0177 | 1.02 | .955 |
+| long-running | 2000 | L = 1, Q every period | β₂ | +.0012 | .0167 | 1.07 | .965 |
+
+"Baseline" is Bai & Chen's §6.1.1: `x` independent of `λ`, `y₀ = 1'λ + ν`,
+so `L = 0` is correctly specified. The long-running rows reuse the first 200
+panels of the main run's cell.
+
+### What it settles, and what it does not
+
+- **The variance is right where the model is.** In the baseline design every
+  parameter's mean SE is within 6% of its sd and coverage is .940–.955.
+- **At `L = 0`, `ρ̂` is inconsistent**, as Bai & Chen's Table 4 finds: its
+  bias stays near −.014 while its sd falls from .018 to .007, and coverage
+  falls from .82 to .40. Our coverage at `N = 500` and 1000 (.82, .78) is
+  higher than theirs (.642, .312). The pattern is reproduced, the level is
+  not; our `W` and factor path are separate draws from theirs.
+- **At `L = 1`, `ρ̂` holds to `N = 4000`**: bias at most .006, coverage
+  .926–.964. This extends the paper's evidence from two sizes to four.
+- **`β̂` is biased at both `L`, and `L` is not the cause.** `L = 2` reproduces
+  `L = 1`'s bias to four decimals. The cause is the default `Q_X`: the
+  deviations `x_it − 0.5λ_i` are an AR(1), so the best linear predictor of
+  `λ_i` from `x_i1, …, x_iT` weights the periods unequally, and the unit mean
+  leaves part of `λ_i` in `η_i`, correlated with `X`. Assumption 2 fails
+  through `Q_X`, not through `y₀`. With every period of `x` as `Q`, the bias
+  is within its Monte Carlo error (about .0012) and coverage is .955–.965.
+- **This is a property of the paper's own design, not visible at its sizes.**
+  The bias is about .009, a third to a half of an sd at `N ≤ 2000`, so at
+  `N = 500` and 1000 it costs little coverage. The docs now say when the
+  default `Q` is not enough and what to pass instead.
+- **`φ`'s SE is 5–8% below its sd in the long-running design** (0.92–0.95);
+  in the baseline it is 1.03. Its coverage stays .925–.966. Not pursued.
+- **Every fit converged** except 3 of 500 at `N = 500`, `L = 0`, and those
+  threw. No fit returned a non-solution.
