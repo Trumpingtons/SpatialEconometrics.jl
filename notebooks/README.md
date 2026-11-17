@@ -26,23 +26,37 @@ beyond the two commands above. `interactive_extensions_explorer.jl` is the
 exception: it builds a temporary environment and installs Makie and Turing,
 which takes a few minutes the first time.
 
+**Google Colab** runs the numbered notebooks with no installation: follow a
+notebook's badge in the table below. Colab's Julia runtime is Julia 1.10, the
+oldest version the package supports and one CI tests. If Colab opens the
+notebook with a Python runtime, choose *Runtime → Change runtime type →
+Julia*. The first cell then installs the package, which takes several
+minutes on a fresh Colab machine.
+
+The first cell finds out where it is running. Inside a clone of the
+repository it activates the clone. Anywhere else, such as Colab or an empty
+folder, it installs the release named by `REV` from GitHub, into a temporary
+environment. The real-data notebooks (`04`, `05`, `11`–`13`) then read
+`data/` from the clone, or download the same files from that release. So a
+notebook outside a clone runs against the release, not against `master`.
+
 ## Worked analyses
 
-| Notebook | What it covers |
-|---|---|
-| `01_getting_started.ipynb` | Weights, a first SAR and SDM, effects |
-| `02_spatial_panels.ipynb` | Static and dynamic panels, fixed effects, SEM |
-| `03_gwr_gravity.ipynb` | Geographically weighted regression, gravity models |
-| `04_columbus_crime.ipynb` | **Real data.** The Anselin (1988) Columbus analysis end to end |
-| `05_spatial_heterogeneity.ipynb` | **Real data.** Regimes, Chow tests, SKATER regionalisation |
-| `06_spatial_causal.ipynb` | Spatial DiD with exposure, synthetic control with neighbour exclusion, shift-share, peer effects and the reflection problem |
-| `07_space_time.ipynb` | STAR, spatio-temporal impulse responses, SpVAR with a causal ordering |
-| `08_networks_and_factors.ipynb` | Common factors: the CD test, the alpha exponent, CCE, spatio-temporal principal components |
-| `09_model_selection.ipynb` | Information criteria, Bayesian specification probabilities, convex combinations of weights |
-| `10_diagnostics_and_robust_inference.ipynb` | The full LM battery, and Driscoll-Kraay and Conley standard errors checked against a sampling distribution |
-| `11_portugal_municipalities.ipynb` | **Real data.** 278 Portuguese municipalities: the battery, SAR/SEM/SDM, a coastal/interior regime split that rejects, and a Conley bandwidth sweep |
-| `12_europe_regions.ipynb` | **Real data.** 223 EU NUTS-2 regions, growth 2012-2022: β-convergence that a spatial lag removes, country dummies that flip it to divergence, an old/new member-state regime split |
-| `13_europe_countries.ipynb` | **Real data.** 30 European economies, 1996-2025, from AMECO: spillovers against common shocks, with ρ̂ from −0.04 to 0.70 depending on the treatment, and a coefficient that does not move |
+| Notebook | What it covers | Colab |
+|---|---|---|
+| `01_getting_started.ipynb` | Weights, a first SAR and SDM, effects | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/01_getting_started.ipynb) |
+| `02_spatial_panels.ipynb` | Static and dynamic panels, fixed effects, SEM | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/02_spatial_panels.ipynb) |
+| `03_gwr_gravity.ipynb` | Geographically weighted regression, gravity models | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/03_gwr_gravity.ipynb) |
+| `04_columbus_crime.ipynb` | **Real data.** The Anselin (1988) Columbus analysis end to end | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/04_columbus_crime.ipynb) |
+| `05_spatial_heterogeneity.ipynb` | **Real data.** Regimes, Chow tests, SKATER regionalisation | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/05_spatial_heterogeneity.ipynb) |
+| `06_spatial_causal.ipynb` | Spatial DiD with exposure, synthetic control with neighbour exclusion, shift-share, peer effects and the reflection problem | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/06_spatial_causal.ipynb) |
+| `07_space_time.ipynb` | STAR, spatio-temporal impulse responses, SpVAR with a causal ordering | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/07_space_time.ipynb) |
+| `08_networks_and_factors.ipynb` | Common factors: the CD test, the alpha exponent, CCE, spatio-temporal principal components | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/08_networks_and_factors.ipynb) |
+| `09_model_selection.ipynb` | Information criteria, Bayesian specification probabilities, convex combinations of weights | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/09_model_selection.ipynb) |
+| `10_diagnostics_and_robust_inference.ipynb` | The full LM battery, and Driscoll-Kraay and Conley standard errors checked against a sampling distribution | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/10_diagnostics_and_robust_inference.ipynb) |
+| `11_portugal_municipalities.ipynb` | **Real data.** 278 Portuguese municipalities: the battery, SAR/SEM/SDM, a coastal/interior regime split that rejects, and a Conley bandwidth sweep | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/11_portugal_municipalities.ipynb) |
+| `12_europe_regions.ipynb` | **Real data.** 223 EU NUTS-2 regions, growth 2012-2022: β-convergence that a spatial lag removes, country dummies that flip it to divergence, an old/new member-state regime split | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/12_europe_regions.ipynb) |
+| `13_europe_countries.ipynb` | **Real data.** 30 European economies, 1996-2025, from AMECO: spillovers against common shocks, with ρ̂ from −0.04 to 0.70 depending on the treatment, and a coefficient that does not move | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/randsley/SpatialEconometrics.jl/blob/master/notebooks/13_europe_countries.ipynb) |
 
 `06` to `10` use simulated data throughout and print the data-generating
 process before each fit, so every number has a known answer to be read against.
