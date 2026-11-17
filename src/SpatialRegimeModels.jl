@@ -264,7 +264,8 @@ Anselin (1988, 1990).
     constant inside one regime collides with that regime's intercept even
     when it varies across the sample as a whole.
 
-`rho_bounds` is the search interval for `ρ`, as in [`fit_spatial`](@ref).
+`rho_bounds` is the search interval for `ρ`, as in
+[`fit_spatial`](@ref SpatialEconometrics.SpatialEconometricsPrototype.fit_spatial).
 """
 function fit_spatial_regime(
     W::M,
