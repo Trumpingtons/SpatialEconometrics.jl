@@ -61,7 +61,7 @@ import ..SpatialUtils: _normcdf, _chi2_sf, _print_coef_table,
     FixedEffectsSpec, NoFE, IndivFE, TimeFE, TwoWayFE,
     within_transform, within_transform!, panel_spatial_lag!, panel_spatial_lag,
     check_design_rank, brent_maximize,
-    LogDetMethod, ExactLU, ChebyshevApprox
+    LogDetMethod, ExactLU, ChebyshevApprox, _check_spatial_bounds, _warn_at_bound
 
 # `order_weights` itself is not called here; it is imported so that the
 # `fit_star` docstring's cross-reference to it resolves, since Documenter
@@ -777,6 +777,7 @@ function fit_interactive_fe(
         "fit_interactive_fe: n_starts must be ≥ 1, got $n_starts"))
 
     Wsp = sparse(W)
+    _check_spatial_bounds(Wsp, rho_bounds, ExactLU(); caller = "fit_interactive_fe")
     k = size(X, 2)
     names = varnames === nothing ? ["x$j" for j in 1:k] : copy(varnames)
     length(names) == k || throw(DimensionMismatch(
@@ -825,6 +826,7 @@ function fit_interactive_fe(
     end
 
     rho = best[1]
+    _warn_at_bound(rho, rho_bounds; caller = "fit_interactive_fe")
     loglik = T(best[2])
     z = yv .- rho .* Wyv
     beta, F, Lambda, ssr, iters, converged, change =

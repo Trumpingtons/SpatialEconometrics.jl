@@ -67,7 +67,8 @@ using NearestNeighbors: inrange, knn
 
 import ..SpatialUtils: LogDetMethod, ExactLU, ChebyshevApprox,
        precompute_chebyshev_traces, chebyshev_logdet, g_traces,
-       brent_maximize, check_design_rank, _normcdf, _print_coef_table
+       brent_maximize, check_design_rank, _normcdf, _print_coef_table,
+       _check_spatial_bounds, _warn_at_bound, _polish_rho
 import ..GWREstimation: _build_tree
 import ..SpatialFiltering: spatial_eigenvectors
 
@@ -420,6 +421,12 @@ function _profile(fs::_FirstStage{T}, W, method::LogDetMethod,
     c = -T(0.5) * n * (log(T(2π)) + one(T))
     ll(ρ) = c + logdet_fn(ρ) - T(0.5) * n * log((a00 - 2ρ * a01 + ρ^2 * a11) / n)
     ρ̂, llmax = brent_maximize(ll, T(rho_bounds[1]), T(rho_bounds[2]))
+    if method isa ChebyshevApprox
+        # Chebyshev locates the peak; the exact log-determinant places it (AUDIT 33c).
+        I_pol = sparse(one(T) * I, n, n)
+        logdet_fn = r -> first(logabsdet(lu(I_pol - r * W)))
+        ρ̂, llmax = _polish_rho(ll, ρ̂, (T(rho_bounds[1]), T(rho_bounds[2])))
+    end
     return ρ̂, llmax
 end
 
@@ -552,6 +559,7 @@ function fit_partially_linear_sar(
     Zs, _ = _standardise(Z)
     yv = Vector{T}(y); Xm = Matrix{T}(X)
     Wy = W * yv
+    _check_spatial_bounds(W, rho_bounds, method; caller = "fit_partially_linear_sar")
 
     h0 = T(n)^(-one(T) / (q + 4))
     if bandwidth isa Symbol
@@ -580,6 +588,7 @@ function fit_partially_linear_sar(
         ρ̂, llmax = _profile(fs, W, method, rho_bounds)
     end
 
+    _warn_at_bound(ρ̂, rho_bounds; caller = "fit_partially_linear_sar")
     β̂ = _beta(fs, ρ̂)
     u = fs.e0 .- ρ̂ .* fs.e1                  # = (I − S)(y − ρ̂Wy − Xβ̂)
     σ2 = dot(u, u) / n
@@ -941,6 +950,12 @@ function _tv_fit(Xs, y::Vector{T}, Wy::Vector{T}, N, Tp, h::T, W,
     c = -T(0.5) * NT * (log(T(2π)) + one(T))
     ll(ρ) = c + Tp * ld(ρ) - T(0.5) * NT * log((a00 - 2ρ * a01 + ρ^2 * a11) / NT)
     ρ̂, llmax = brent_maximize(ll, T(rho_bounds[1]), T(rho_bounds[2]))
+    if method isa ChebyshevApprox
+        # Chebyshev locates the peak; the exact log-determinant places it (AUDIT 33c).
+        I_pol = sparse(one(T) * I, N, N)
+        ld = r -> first(logabsdet(lu(I_pol - r * W)))
+        ρ̂, llmax = _polish_rho(ll, ρ̂, (T(rho_bounds[1]), T(rho_bounds[2])))
+    end
     α = F \ (yt .- ρ̂ .* wyt)
     return (; Sm, D, Dt, F, e0, e1, ρ̂, llmax, α)
 end
@@ -1077,6 +1092,7 @@ function fit_tv_coef_sar(
     yv = Vector{T}(y)
     Xs = [Matrix{T}(X[(t-1)*N+1:t*N, :]) for t in 1:T_per]
     Wy = vec(W * reshape(yv, N, T_per))
+    _check_spatial_bounds(W, rho_bounds, method; caller = "fit_tv_coef_sar")
 
     if bandwidth isa Symbol
         bandwidth === :cv || throw(ArgumentError("bandwidth must be a number or :cv"))
@@ -1094,6 +1110,7 @@ function fit_tv_coef_sar(
 
     f = _tv_fit(Xs, yv, Wy, N, T_per, h, W, method, rho_bounds)
     ρ̂ = f.ρ̂
+    _warn_at_bound(ρ̂, rho_bounds; caller = "fit_tv_coef_sar")
     v = yv .- ρ̂ .* Wy .- f.D * f.α                  # Y(ρ̂) − Dα̂
     B = _tv_beta(f.Sm, reshape(v, :, 1))             # d×1×T
     β = permutedims(B[:, 1, :])                      # T×d

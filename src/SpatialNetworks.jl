@@ -47,7 +47,7 @@ using StatsAPI
 import StatsAPI: coef, vcov, stderror, nobs, residuals, coefnames, dof_residual
 
 import ..SpatialUtils: check_design_rank, _print_coef_table, _normcdf,
-                       _chi2_sf, brent_maximize
+                       _chi2_sf, brent_maximize, ExactLU, _check_spatial_bounds
 import ..SpatialWeights: row_standardize
 import ..SpatialDiagnostics: MoranResult, moran_global
 import Random
@@ -1068,6 +1068,12 @@ function fit_multiplex_sar(y::AbstractVector,
         "fit_multiplex_sar: `rho_bound` must lie in (0, 1), got $rho_bound."))
 
     Wl = [sparse(T.(W)) for W in Ws]
+    # Σⱼ|ρⱼ| < rho_bound keeps I − Σⱼ ρⱼWⱼ invertible only when every Wⱼ
+    # has spectral radius at most 1; refuse a channel that provably does not.
+    for (j, W) in enumerate(Wl)
+        _check_spatial_bounds(W, (-rho_bound, rho_bound), ExactLU();
+                              name = "rho_bound", caller = "fit_multiplex_sar (channel $j)")
+    end
     yv = Vector{T}(y)
     K = size(X, 2)
     vnames = vcat(["(intercept)"],

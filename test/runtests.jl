@@ -4405,6 +4405,119 @@ vcov(m::HausMock) = m.V
             @test_throws ArgumentError fit_dynamic_gmm(SystemGMM(), Yg, Xten;
                                                        max_lag = 3)
         end
+
+        @testset "29e. the search interval for ρ against W's spectrum (AUDIT 33)" begin
+            SU = SpatialEconometrics.SpatialUtils
+            rng33 = MersenneTwister(33)
+            co33 = rand(rng33, 400, 2)
+            Wr33 = make_rook_weights(20)
+            Wq33 = make_queen_weights(20)
+            # Binary rook, r(W) ≈ 3.96. Typed explicitly: on Julia 1.10,
+            # `Float64.(W .> 0)` on a sparse matrix has eltype Any.
+            Wb33 = SparseMatrixCSC{Float64, Int}(Wr33 .> 0)
+            Wi33 = copy(Wb33); Wi33[1, :] .= 0; Wi33[:, 1] .= 0; dropzeros!(Wi33)
+            Wd33 = distance_weights(co33, 0.1; row_standardize = false)
+
+            # The bounds contain the radius computed densely, for row-standardised,
+            # bipartite, island-bearing and unscaled W alike.
+            for W in (Wr33, Wq33, knn_weights(co33, 6), Wb33, Wi33, Wd33)
+                lo, hi = SU._spectral_radius_bounds(W)
+                r = maximum(abs, eigvals(Matrix(W)))
+                @test lo - 1e-9 <= r <= hi + 1e-9
+            end
+            @test SU._spectral_radius_bounds(Wr33) == (1.0, 1.0)
+            Wneg = copy(Wb33); Wneg[1, 2] = -2.0
+            @test SU._spectral_radius_bounds(Wneg) == (0.0, maximum(sum(abs, Wneg; dims = 2)))
+
+            draw33(W, ρ, s) = (r = MersenneTwister(s); n = size(W, 1); x = randn(r, n);
+                               (reshape(x, :, 1), (I - ρ * Matrix(W)) \ (1 .+ 2 .* x .+ randn(r, n))))
+            # Brute force on the dense matrix: the profile likelihood on a grid,
+            # then refined, with no LU, no Brent and no package code.
+            function dense_rho(W, X, y, lo, hi)
+                Xa = [ones(length(y)) X]; Wy = Matrix(W) * y; Wm = Matrix(W)
+                f(ρ) = (e = (y .- ρ .* Wy) .- Xa * (Xa \ (y .- ρ .* Wy));
+                        logabsdet(I - ρ * Wm)[1] - length(y) / 2 * log(sum(abs2, e)))
+                g = range(lo, hi; length = 2001)
+                k = argmax(f.(g)); a, b = g[max(k - 1, 1)], g[min(k + 1, end)]
+                for _ in 1:200
+                    m1 = a + (b - a) / 3; m2 = b - (b - a) / 3
+                    f(m1) < f(m2) ? (a = m1) : (b = m2)
+                end
+                (a + b) / 2
+            end
+
+            # (b) An unscaled W: the default interval crosses 1/r(W), and the
+            # Chebyshev traces would extrapolate. Both refuse.
+            X33, y33 = draw33(Wb33, 0.2, 7)
+            @test_throws ArgumentError fit_spatial(SAR(), Wb33, X33, y33)
+            @test_throws ArgumentError fit_spatial(SAR(), Wb33, X33, y33; rho_bounds = (-0.25, 0.25))
+            @test_throws ArgumentError SU.precompute_chebyshev_traces(Wb33, ChebyshevApprox(order = 6))
+            m33 = fit_spatial(SAR(), Wb33, X33, y33; method = ExactLU(), rho_bounds = (-0.25, 0.25))
+            @test m33.rho ≈ dense_rho(Wb33, X33, y33, -0.25, 0.25) atol = 1e-5
+            # The Chebyshev expansion is undefined for |ρ| ≥ 1.
+            @test_throws ArgumentError fit_spatial(SAR(), Wr33, X33, y33; rho_bounds = (-1.2, 0.99))
+
+            # Every other entry point with a default interval refuses the same W.
+            @test_throws ArgumentError fit_spatial_error(Wb33, X33, y33)
+            @test_throws ArgumentError fit_sac(Wb33, Wb33, X33, y33)
+            @test_throws ArgumentError fit_sdem(Wb33, X33, y33)
+            @test_throws ArgumentError fit_spatial_regime(Wb33, X33, y33,
+                                                          ExogenousRegimes(repeat([1, 2], 200)))
+            Xp33 = randn(MersenneTwister(8), 400 * 3, 1); yp33 = randn(MersenneTwister(9), 400 * 3)
+            @test_throws ArgumentError fit_spatial_panel(SAR(), TwoWayFE(), Wb33, Xp33, yp33, 400, 3)
+
+            # (a) A row-standardised queen W at ρ = −1.2: admissible, since
+            # 1/λ_min ≈ −1.92, but below the default interval. The exact fit lands
+            # on −0.995 and says so; widened, it matches the dense maximiser.
+            Xq33, yq33 = draw33(Wq33, -1.2, 3)
+            mq = @test_logs (:warn, r"lower edge") match_mode = :any fit_spatial(SAR(), Wq33, Xq33, yq33;
+                                                                               method = ExactLU())
+            @test mq.rho ≈ -0.995 atol = 1e-5
+            lo33 = 1 / minimum(real, eigvals(Matrix(Wq33))) + 1e-3
+            mw = @test_logs min_level = Base.CoreLogging.Warn fit_spatial(SAR(), Wq33, Xq33, yq33;
+                                    method = ExactLU(), rho_bounds = (lo33, 0.995))
+            @test mw.rho ≈ dense_rho(Wq33, Xq33, yq33, lo33, 0.995) atol = 1e-5
+            @test mw.rho < -1
+
+            # A fit well inside the interval stays silent.
+            Xs33, ys33 = draw33(Wr33, 0.5, 2)
+            @test_logs min_level = Base.CoreLogging.Warn fit_spatial(SAR(), Wr33, Xs33, ys33)
+
+            # (c) The polish: a default (Chebyshev) fit reports the exact maximum.
+            # Against ExactLU, ρ̂ to 1e-6 (ten times Brent's 1e-7 tolerance) and
+            # ℓ to a relative 1e-8. Measured on 1.13 and 1.10: at most 3.4e-8 and
+            # 5e-15. With the polish disabled, every cell fails both, by at least
+            # 3.9e-4 and 7.8e-7, so a search left unpolished is caught.
+            function sem33(W, λ, s)
+                r = MersenneTwister(s); n = size(W, 1); x = randn(r, n)
+                reshape(x, :, 1), 1 .+ 2 .* x .+ (I - λ * Matrix(W)) \ randn(r, n)
+            end
+            function panel33(W, ρ, T, s)
+                r = MersenneTwister(s); n = size(W, 1); A = lu(sparse(I - ρ * W)); μ = randn(r, n)
+                X = randn(r, n * T); y = similar(X)
+                for t in 1:T
+                    idx = (t - 1) * n + 1:t * n
+                    y[idx] = A \ (μ .+ 0.3t .+ 2 .* X[idx] .+ randn(r, n))
+                end
+                reshape(X, :, 1), y
+            end
+            relgap(a, b) = abs(a - b) / abs(b)
+            for (W, ρ) in ((Wq33, -0.8), (make_rook_weights(30), 0.9))
+                X, y = draw33(W, ρ, 11)
+                a = fit_spatial(SAR(), W, X, y); b = fit_spatial(SAR(), W, X, y; method = ExactLU())
+                @test abs(a.rho - b.rho) < 1e-6
+                @test relgap(a.loglik, b.loglik) < 1e-8
+                X, y = sem33(W, ρ, 12)
+                a = fit_spatial_error(W, X, y); b = fit_spatial_error(W, X, y; method = ExactLU())
+                @test abs(a.lambda - b.lambda) < 1e-6
+                @test relgap(a.loglik, b.loglik) < 1e-8
+                X, y = panel33(W, ρ, 3, 13); n = size(W, 1)
+                a = fit_spatial_panel(SAR(), TwoWayFE(), W, X, y, n, 3)
+                b = fit_spatial_panel(SAR(), TwoWayFE(), W, X, y, n, 3; method = ExactLU())
+                @test abs(a.rho - b.rho) < 1e-6
+                @test relgap(a.loglik, b.loglik) < 1e-8
+            end
+        end
     end
 
     @testset "30. Bayesian specification comparison" begin

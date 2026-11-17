@@ -1,12 +1,12 @@
 # SpatialEconometrics.jl — Development Roadmap
 
-> **Current version:** 0.5.0, tagged `v0.5.0` on 2026-11-16. It adds #13
+> **Current version:** 0.5.0, tagged `v0.5.0` on 2026-11-17. It adds #13
 > pass 1, the two short-`T` panels of #1 and #16 to `v0.4.0` (tagged
 > 2026-11-06). Neither tag is registered.
 >
-> 32 submodules, 3,949 test assertions in 60 top-level testsets with both
-> package extensions installed and 3,914 (plus 2 broken markers) without
-> them, measured on 2026-11-16 on Julia 1.13.3, and without them on 1.10.13.
+> 32 submodules, 3,985 test assertions in 60 top-level testsets with both
+> package extensions installed and 3,950 (plus 2 broken markers) without
+> them, measured on 2026-11-17 on Julia 1.13.3, and without them on 1.10.13.
 > 33 examples, 20 notebooks, 2 package extensions, CI/CD and
 > 64 Documenter.jl pages. **Phases 4, 5, 6, 6B, 6C and 7A are complete.** Item #10 (Performance) closed on 2026-10-30 with its scope
 > reduced on measured grounds and may be revisited. Phase 6C, the GWR
@@ -119,8 +119,9 @@ attribution gap.
 Interactive fixed effects with spatial lags are the estimation counterpart
 and sit under [#12](#12-spatio-temporal-models).
 
-**Planned addition — common shocks in short panels (⬜ candidate, not
-scheduled):** everything above, and the interactive fixed effects under #12,
+**Planned addition — common shocks in short panels (✅ both rows built
+2026-11-14; the heading's original status was "⬜ candidate, not
+scheduled"):** everything above, and the interactive fixed effects under #12,
 needs large `T`. With fixed `T`, estimating `N` loading vectors one unit at a
 time is an incidental-parameters problem of the Nickell kind. The real
 panels this package now ships (Portuguese municipalities, European regions)
@@ -1258,11 +1259,12 @@ the SEs ignore the search.
 | Benchmarks vs R/Stata | Timing and accuracy comparison tables against `spdep`/`spatialreg` (R) and `spreg`/`sppack` (Stata) for SAR, SDM, GWR, and gravity models |
 | Pluto.jl reactive notebooks | Interactive versions of examples where users can adjust ρ, N, kernel and see results update live |
 | JuliaCon talk | Conference submission demonstrating the package |
-| JSS paper | Journal of Statistical Software submission: "SpatialEconometrics.jl: A Comprehensive Spatial Econometrics Suite in Julia" |
+| Paper: JOSS, then JSS | **Decided 2026-11-16: both, JOSS first, on the back burner while the companion book is written.** JOSS: a short `paper.md` / `paper.bib` in the repository, reviewed as software. JSS: the full article with a replication script. **The contribution to argue** is not the feature list, which `spatialreg` and PySAL largely share, but: (a) the breadth in one framework (short-`T` panels, spatial log-GARCH, semiparametric, causal, networks); (b) the validation discipline (null-distribution Monte Carlo for every variance, value-against-value tests, the `docs/AUDIT.md` ledger); (c) what replication found in the sources (Sato & Matsuda's unbounded likelihood and missing `Ω`, the bias Bai & Chen's design hides, Fülle & Otto's inconsistent table). **Prerequisites before submission:** installation by name, which reopens registration; the cross-language benchmarks of Phase 8; a real-data application (PortugalINE.jl data, or the Columbus data already in `notebooks/data/`); a statement of how the software was developed, including generative-AI assistance, per each journal's policy at the time; authorship settled by the author |
 | Contributing guide | `CONTRIBUTING.md` with coding conventions, testing requirements, and PR checklist |
 | CI/CD pipeline | GitHub Actions for automated testing on Julia 1.10, 1.13, nightly; code coverage via Codecov |
 | Claude skill (planned 2026-11-16, next separate pass) | A skill for Claude Code: `SKILL.md` plus reference files. **Contents:** a decision guide from data type to estimator (cross-section, panel, dynamic, variance, unknown locations); the `W` constructors and their pitfalls (row standardisation, connectivity, proxy `W`); how to read each fit's warnings and throws (e.g. no interior maximum near `λ = 1` means no `λ̂` to report); per-function reference generated from the docstrings, with a check that keeps it in sync. **Limits:** it needs Julia installed, and a persistent REPL or a system image to avoid paying compile latency on every call. Estimated at a day |
 | MCP server (after registration) | For Claude Desktop, which has no shell. **Design:** a persistent Julia process (which also removes compile latency); a few coarse tools (`load_data`, `build_weights`, `fit`, `diagnostics`, `summary`), with fits held server-side by handle; results, warnings and throws returned as structured JSON; packaged for one-click install. **Prerequisites:** the skill's decision guide, which supplies the tool descriptions, and registration, so the install does not depend on a GitHub URL. Check the maturity of the Julia MCP libraries before choosing between native Julia and a thin Python wrapper. Estimated at about a week |
+| Notebooks on Google Colab (next, after `v0.5.0` is tagged) | Decided 2026-11-17. Colab's native Julia runtime is Julia 1.10 LTS, which CI already tests. **Changes:** a shared setup cell that activates the repository when it runs inside a clone and otherwise runs `Pkg.add(url = …, rev = "v0.5.0")`; a data helper that reads `notebooks/data/` or downloads the file from `raw.githubusercontent.com` (notebooks 04, 11–13); neutral Julia kernel metadata in place of `julia-1.11`; "Open in Colab" badges in `notebooks/README.md`. **Check:** run every notebook from an empty folder on Julia 1.10 locally; the author opens one from its badge on Colab. The Pluto notebooks are out of scope |
 
 **New files/directories:** `docs/`, `notebooks/`, `benchmark/`, `.github/workflows/`, `CONTRIBUTING.md`
 
@@ -1480,7 +1482,8 @@ a measured row.
 | **master** (+ the 41b/41f optimiser-tolerance fix) | 30 | 3,866 §§ | 26,597 |
 | **master** (+ #1 common-shocks row, `CommonShockDynamicPanel`) | 31 | 3,897 ¶ | 27,293 |
 | **master** (+ #16 spatial log-GARCH, `SpatialGARCH`) | 32 | 3,949 ¶¶ | 27,865 |
-| **v0.5.0** (tagged 2026-11-16, = the row above) | 32 | 3,949 ¶¶ | 27,865 |
+| **v0.5.0** (tagged 2026-11-17, = the row above) | 32 | 3,949 ¶¶ | 27,865 |
+| **master** (+ AUDIT finding 33, the `ρ` interval and the polish) | 32 | 3,985 ¶¶¶ | 28,142 |
 | — | | | |
 | **v1.0.0** (Phases 6C–8) | 29–31 | ~4,100 | ~26,500 |
 
@@ -1547,8 +1550,24 @@ counts: 32 submodules against 29–31, and 27,865 lines against `~26,500`.
 The assertion count, 3,949 against `~4,100`, is not yet passed. The
 projection is left as written, like the earlier ones.
 
-Measured on master: 32 submodules plus the umbrella across 27,865 lines of
-`src/`, 10,417 lines of tests, 5,197 lines of examples across 33 scripts,
+¶¶¶ Measured locally on 2026-11-17. On Julia 1.13.3 with both extensions
+loaded: 3,985 passed, none broken. On 1.10.13 without them: 3,950 passed and
+2 broken. Each is the ¶¶ figure plus the 36 assertions of testset 29e
+(finding 33). Testset 29e first errored on 1.10: `Float64.(W .> 0)` on a
+sparse matrix has eltype `Any` there, so 21 of its assertions never ran. The
+test now types the matrix explicitly. Margins were measured on both
+versions:
+- the `ρ̂` and log-likelihood comparisons are 29× or more inside their
+  bounds;
+- the check that `ρ̂ < −1` on a widened interval holds by 3.3 standard
+  errors on 1.10 and 6.3 on 1.13.
+
+The suite's smallest margin is still 42c's 1.47×. The `src/` count rose by
+277: 161 lines in `SpatialUtils` for the spectral bounds, the edge warning
+and the polish, and 116 across the 11 entry points that call them.
+
+Measured on master: 32 submodules plus the umbrella across 28,142 lines of
+`src/`, 10,530 lines of tests, 5,197 lines of examples across 33 scripts,
 398 lines of package extensions, 64 documentation pages and 20 notebooks
 (13 Jupyter, 7 Pluto).
 

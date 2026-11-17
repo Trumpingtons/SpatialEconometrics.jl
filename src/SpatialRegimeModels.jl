@@ -242,7 +242,8 @@ struct SpatialRegimeModel{T<:AbstractFloat, M<:AbstractSparseMatrix{T}} <: Stats
 end
 
 """
-    fit_spatial_regime(W, X, y, regimes; spatial_lag=true, varnames=nothing, method=ChebyshevApprox())
+    fit_spatial_regime(W, X, y, regimes; spatial_lag=true, varnames=nothing, method=ChebyshevApprox(),
+                       rho_bounds=(-0.995, 0.995))
 
 Fit a spatial regime model where coefficients vary across regimes:
   y = ρWy + X_r β_r + ε   (spatial_lag=true)
@@ -263,6 +264,7 @@ Anselin (1988, 1990).
     constant inside one regime collides with that regime's intercept even
     when it varies across the sample as a whole.
 
+`rho_bounds` is the search interval for `ρ`, as in [`fit_spatial`](@ref).
 """
 function fit_spatial_regime(
     W::M,
@@ -272,6 +274,7 @@ function fit_spatial_regime(
     spatial_lag::Bool=true,
     method::LogDetMethod=ChebyshevApprox(order=6, n_probes=0),
     varnames::Union{Nothing, Vector{String}}=nothing,
+    rho_bounds::Tuple{Real, Real}=(-0.995, 0.995),
     max_exact_n::Int=1000,
     vcov_probes::Int=250,
     rng::AbstractRNG=Random.default_rng()
@@ -316,6 +319,7 @@ function fit_spatial_regime(
     push!(cnames, "ρ")
     Wy = W * y
 
+    SpatialUtils._check_spatial_bounds(W, rho_bounds, method; caller = "fit_spatial_regime")
     if method isa ChebyshevApprox
         τ = precompute_chebyshev_traces(W, method)
         logdet_fn = ρ -> chebyshev_logdet(ρ, τ)
@@ -333,7 +337,14 @@ function fit_spatial_regime(
         return const_term + logdet_fn(ρ) - T(0.5) * N * log(σ2_f)
     end
 
-    ρ_hat, max_ll = brent_maximize(concentrated_ll, T(-0.995), T(0.995))
+    ρ_hat, max_ll = brent_maximize(concentrated_ll, T(rho_bounds[1]), T(rho_bounds[2]))
+    if method isa ChebyshevApprox
+        # Chebyshev locates the peak; the exact log-determinant places it (AUDIT 33c).
+        I_pol = sparse(one(T) * I, size(W, 1), size(W, 1))
+        logdet_fn = r -> first(logabsdet(lu(I_pol - r * W)))
+        ρ_hat, max_ll = SpatialUtils._polish_rho(concentrated_ll, ρ_hat, rho_bounds)
+    end
+    SpatialUtils._warn_at_bound(ρ_hat, rho_bounds; caller = "fit_spatial_regime")
     y_f = y .- ρ_hat .* Wy
     β_hat = X_regime \ y_f
     res = y_f .- X_regime * β_hat

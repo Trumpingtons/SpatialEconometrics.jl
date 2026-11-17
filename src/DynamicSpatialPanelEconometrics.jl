@@ -242,6 +242,7 @@ function fit_dynamic_spatial_panel(
     e0_ed = dot(e0, ed)
     ed_ed = dot(ed, ed)
 
+    SpatialUtils._check_spatial_bounds(W, rho_bounds, method; name = "rho_bounds", caller = "fit_dynamic_spatial_panel")
     if method isa ChebyshevApprox
         τ = precompute_chebyshev_traces(W, method)
         logdet_fn = ρ -> chebyshev_logdet(ρ, τ)
@@ -267,6 +268,13 @@ function fit_dynamic_spatial_panel(
     end
 
     ρ_raw, max_ll = brent_maximize(concentrated_dyn_ll, rho_bounds[1], rho_bounds[2])
+    if method isa ChebyshevApprox
+        # Chebyshev locates the peak; the exact log-determinant places it (AUDIT 33c).
+        I_pol = sparse(one(T) * I, size(W, 1), size(W, 1))
+        logdet_fn = r -> first(logabsdet(lu(I_pol - r * W)))
+        ρ_raw, max_ll = SpatialUtils._polish_rho(concentrated_dyn_ll, ρ_raw, rho_bounds)
+    end
+    SpatialUtils._warn_at_bound(ρ_raw, rho_bounds; name = "rho_bounds", caller = "fit_dynamic_spatial_panel")
     δ_raw = δ0 .- ρ_raw .* δd
     res_raw = e0 .- ρ_raw .* ed
     σ2_raw = dot(res_raw, res_raw) / NT_post

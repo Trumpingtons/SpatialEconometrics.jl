@@ -153,11 +153,23 @@ alone, which is done by Brent search within `rho_bounds`.
 
 # Keywords
 - `method`: how `log|I - ρW|` is evaluated — `ExactLU` or
-  `ChebyshevApprox` (default, order 6).
+  `ChebyshevApprox` (default, order 6). With `ChebyshevApprox` the search
+  runs on the approximation, and `ρ̂` is then polished on the exact
+  log-determinant, about fifteen sparse LUs, so the reported `ρ̂` and
+  log-likelihood are the exact ones (AUDIT finding 33).
 - `varnames`: covariate names; defaults to `x1, x2, …`.
-- `rho_bounds`: search interval for `ρ`, default `(-0.995, 0.995)`. The
-  bounds stay inside `±1` because `I - ρW` is singular at the edge of the
-  stationary region.
+- `rho_bounds`: search interval for `ρ`, default `(-0.995, 0.995)`. `I - ρW`
+  is singular at `ρ = 1/λ` for each real eigenvalue `λ` of `W`, so the
+  admissible interval is `(1/λ_min, 1/λ_max)` (Ord 1975, Appendix B). For a
+  row-standardised `W`, `λ_max = 1`, but `λ_min = −1` only on a bipartite
+  graph: on a queen lattice `1/λ_min ≈ −1.92`, and on `k`-nearest-neighbour
+  weights about `−1.1` to `−1.2`. The default therefore cuts off admissible
+  values below `−0.995`, and a fit whose `ρ̂` lands on either bound warns. To
+  search below `−1`, pass `method = ExactLU()` (the Chebyshev expansion is
+  undefined for `|ρ| ≥ 1`) and a lower bound just above `1/λ_min`. A `W`
+  that is not row-standardised, such as a binary contiguity matrix, has a
+  narrower interval; bounds that provably cross `1/λ_max` throw an
+  `ArgumentError` (AUDIT finding 33).
 
 # Returns
 A [`SpatialRegressionModel`](@ref).
@@ -218,6 +230,7 @@ function fit_spatial(
     e0_ed = dot(e0, ed)
     ed_ed = dot(ed, ed)
 
+    SpatialUtils._check_spatial_bounds(W, rho_bounds, method; caller = "fit_spatial")
     if method isa ChebyshevApprox
         τ = precompute_chebyshev_traces(W, method)
         logdet_fn = ρ -> chebyshev_logdet(ρ, τ)
@@ -234,6 +247,13 @@ function fit_spatial(
     end
 
     ρ_hat, max_ll = brent_maximize(concentrated_ll, rho_bounds[1], rho_bounds[2])
+    if method isa ChebyshevApprox
+        # Chebyshev locates the peak; the exact log-determinant places it (AUDIT 33c).
+        I_pol = sparse(one(T) * I, size(W, 1), size(W, 1))
+        logdet_fn = r -> first(logabsdet(lu(I_pol - r * W)))
+        ρ_hat, max_ll = SpatialUtils._polish_rho(concentrated_ll, ρ_hat, rho_bounds)
+    end
+    SpatialUtils._warn_at_bound(ρ_hat, rho_bounds; caller = "fit_spatial")
 
     β_hat = β0 .- ρ_hat .* βd
     res = e0 .- ρ_hat .* ed

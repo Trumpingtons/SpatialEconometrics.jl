@@ -4977,3 +4977,134 @@ because the errors are a fresh draw.
 The package keeps `(−0.99, 0.99)`. A restriction lowers the RMSE only when
 the truth lies inside it. It also puts many estimates on its edge, about
 half here, where the sandwich does not apply.
+
+## Post-audit: the default search interval for `ρ`
+
+### 33. The fixed `(−0.995, 0.995)` assumes a `W` the fit never checks — FIXED
+
+Found 2026-11-16 while drafting chapter 4 of the companion book, against
+Ord (1975), Appendix B: the ML estimate lies in `(1/λ_min, 1/λ_max)`, with
+`λ_min` "always negative". It is not always `−1`.
+
+`fit_spatial` searches `rho_bounds = (−0.995, 0.995)` by default, and about
+fifteen estimators share that default: the SAR/SDM, the static and dynamic
+panels, the SEM's `lambda_bounds`, the semiparametric fits, Bai & Chen's
+panel and the formula interface. Nothing checks how `W` is scaled. The
+docstring says "`W`: conventionally row-standardized" and that `I − ρW` "is
+singular at the edge" at `±1`. Measured on Julia 1.13, `N = 400`:
+
+**(a) A row-standardised `W`: the lower bound cuts off admissible `ρ`.** For
+row-standardised `W`, `λ_max = 1`; only a bipartite graph has `λ_min = −1`.
+
+| `W` | `1/λ_min` |
+|---|---|
+| rook 20×20 | −1.000 |
+| `k`NN, `k` = 4 / 6 / 10 (random points) | −1.10 / −1.15 / −1.23 |
+| distance band, cutoff 0.1 | −1.31 |
+| queen 20×20 | −1.92 |
+
+On the queen lattice, 200 draws with `ExactLU`: at true `ρ = −1.2` all 200
+estimates sit at −0.995; at `ρ = −0.9`, 14 of 200 do. Nothing warns, and the
+reported standard error does not apply at a bound. The docstring's "singular
+at the edge" holds at `+1` for every row-standardised `W`, and at `−1` only
+for a bipartite one.
+
+**(b) A `W` that is not row-standardised: Chebyshev extrapolates.** The
+package can build one itself: `distance_weights(...; row_standardize = false)`,
+and `knn_weights` with `row_standardize = false`. The Chebyshev expansion
+fits `log(1 − ρx)` on `x ∈ [−1, 1]`; `precompute_chebyshev_traces` does not
+rescale `W` or check its spectrum. On a binary rook `W` (`λ_max = 3.96`, so
+the admissible interval is `±0.253`), order 6:
+
+| | `ρλ_max` | log-determinant error |
+|---|---|---|
+| rook, row-standardised | 0.99 | 0.19 |
+| rook, binary | 0.95 | 6.2 |
+
+Over 50 draws, Chebyshev's `ρ̂` minus the exact one: on the row-standardised
+rook at `ρ = 0.9`, at most 0.04 standard errors; on the binary rook at
+`ρ = 0.24`, up to 0.84, and positive on average (+1.0e-3 against an se of
+1.7e-3). The search interval also crosses the singularities at `±0.253`.
+Brent found the admissible peak in every draw tried, but nothing guarantees
+it.
+
+**What is not wrong.** On a row-standardised `W` with `ρ` in
+`(−0.995, 0.995)`, which is most applied use, the fit is unaffected: the
+interval lies inside the admissible one, and the Chebyshev error is the one
+measured in "The log-determinant approximation, measured against its own
+sources".
+
+**(c) Chebyshev near `ρ = −1` on a non-bipartite `W`: biased, and it hides
+(a).** Found while testing the fix for (a). Queen 20×20, 100 draws, mean `ρ̂`:
+
+| true `ρ` | Chebyshev 6 (the default) | `ExactLU`, default bounds | `ExactLU`, bounds `(1/λ_min + 0.001, 0.995)` |
+|---|---|---|---|
+| −0.5 | −0.503 | −0.504 | −0.504 (sd .061) |
+| −0.9 | −0.869 (sd .038) | −0.899, 8 at the bound | −0.901 (sd .057) |
+| −1.2 | −0.979 (sd .008), none at the bound | −0.995, all 100 at the bound | −1.199 (sd .051) |
+
+At `ρ = −0.9` the default fit is biased by +0.03, about half the exact fit's
+standard deviation. At `ρ = −1.2` it returns an interior estimate with a
+small spread, so the edge warning added for (a) cannot fire: the Chebyshev
+route makes the truncation invisible. A likely reason, not measured
+separately: the expansion is of `log(1 − ρx)` over all of `[−1, 1]`, and
+its singularity at `x = 1/ρ` approaches that interval as `ρ → −1`, whether
+or not `W` has eigenvalues near `−1`. Widened `ExactLU` bounds remove the
+bias.
+
+**What was done, 2026-11-17 (after `v0.5.0`):**
+- `SpatialUtils._spectral_radius_bounds(W)`: Collatz–Wielandt bounds on
+  `r(W)` for a non-negative `W`, at no cost when every row sums to at most
+  1, and otherwise a few sparse products; the row-sum norm for a `W` with a
+  negative entry.
+- `precompute_chebyshev_traces` throws an `ArgumentError` when `r(W)` is
+  provably above 1. Every Chebyshev route passes through it, the Turing
+  extension included.
+- `_check_spatial_bounds`, called before every search: throws when the upper
+  bound provably reaches `1/r(W)`, and when the Chebyshev route is given
+  `|ρ| ≥ 1`. Wired into `fit_spatial`, `fit_spatial_panel`,
+  `fit_dynamic_spatial_panel`, both `fit_spatial_error` methods, `fit_sac`,
+  `fit_sdem`, `fit_spatial_regime`, `fit_partially_linear_sar`,
+  `fit_tv_coef_sar`, `fit_common_shock_dynamic_panel`, `fit_interactive_fe`,
+  `fit_spvar` (one order at a time) and `fit_multiplex_sar` (per channel).
+- `_warn_at_bound`, called on every estimate those fits return except the
+  multiplex model, which already reports a fit on its boundary as not
+  converged. The warning names the cause and the remedy.
+- `fit_spatial_regime` had its interval hard-coded; it gains the
+  `rho_bounds` keyword.
+- `fit_spatial`'s docstring no longer says `I − ρW` is singular at `±1`.
+- Testset 29e, 24 assertions: the radius bounds against dense `eigvals` on
+  six `W`; the errors on the binary rook for `fit_spatial` and five other
+  entry points; the queen case at `ρ = −1.2`, which warns at the default and,
+  widened, matches a dense brute-force maximiser to `1e-5`; and silence on a
+  fit inside the interval.
+
+- **(c), decided 2026-11-17: polish `ρ̂` exactly.** After the Chebyshev
+  search, `SpatialUtils._polish_rho` re-runs Brent on the same concentrated
+  likelihood with the exact log-determinant, in `ρ̂ ± 0.02`, widening the
+  bracket fourfold while the optimum sits on its edge, until it is interior
+  or reaches a bound of the original interval. Chebyshev's traces now find
+  the peak and the exact log-determinant places it, at the cost of about
+  fifteen sparse LUs. Wired into every one-parameter Chebyshev search:
+  `fit_spatial`, `fit_spatial_panel`, `fit_dynamic_spatial_panel`, both
+  `fit_spatial_error` methods, `fit_sdem`, `fit_spatial_regime`, and the
+  internal profiles of `fit_partially_linear_sar` and `fit_tv_coef_sar`.
+  `fit_sac`, a two-parameter grid and pattern search, is not polished.
+  Measured over 30 draws per cell, the default fit now equals the `ExactLU`
+  fit to at most 5.5e-8 (queen at `ρ = −0.9` and `−1.2`, a 30×30 rook at
+  `0.5` and `0.9`). On the queen at `ρ = −1.2` the default fit now lands on
+  −0.995 and warns. **Testset 29e asserts it** for `fit_spatial`,
+  `fit_spatial_error` and `fit_spatial_panel`, on the queen at `−0.8` and the
+  30×30 rook at `0.9`:
+  - `ρ̂` must match `ExactLU` to `1e-6`, ten times Brent's tolerance. The
+    measured gap is at most `3.4e-8`, on 1.13 and 1.10 alike.
+  - `ℓ` must match to a relative `1e-8`. The measured gap is at most `5e-15`.
+
+  With `_polish_rho` replaced by the identity (measured on 1.13), every one
+  of the 12 assertions fails, by at least `3.9e-4` in `ρ̂` and `7.8e-7` in
+  `ℓ`. So a search left unpolished is caught.
+- **Consequence:** the reported `ρ̂` and log-likelihood of a default
+  (Chebyshev) fit are now those of the exact likelihood. The order-6 error
+  chapter 6 of the companion book measures, and the `mc_sdm.jl` comparison
+  of the two routes, describe the search before polishing, not what is
+  reported.

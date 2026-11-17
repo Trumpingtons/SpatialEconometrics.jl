@@ -208,6 +208,7 @@ function fit_spatial_error(
     # For each λ, compute y_λ, X_λ, then β_λ = X_λ\y_λ, σ²_λ, LL_λ.
     # Since brent_maximize only evaluates ~50 times, this is fast.
 
+    SpatialUtils._check_spatial_bounds(W, lambda_bounds, method; name = "lambda_bounds", caller = "fit_spatial_error")
     if method isa ChebyshevApprox
         τ = precompute_chebyshev_traces(W, method)
         logdet_fn = λ -> chebyshev_logdet(λ, τ)
@@ -228,6 +229,13 @@ function fit_spatial_error(
     end
 
     λ_hat, max_ll = brent_maximize(concentrated_sem_ll, lambda_bounds[1], lambda_bounds[2])
+    if method isa ChebyshevApprox
+        # Chebyshev locates the peak; the exact log-determinant places it (AUDIT 33c).
+        I_pol = sparse(one(T) * I, size(W, 1), size(W, 1))
+        logdet_fn = r -> first(logabsdet(lu(I_pol - r * W)))
+        λ_hat, max_ll = SpatialUtils._polish_rho(concentrated_sem_ll, λ_hat, lambda_bounds)
+    end
+    SpatialUtils._warn_at_bound(λ_hat, lambda_bounds; name = "lambda_bounds", caller = "fit_spatial_error")
 
     # Final estimates at λ_hat
     y_filt = y .- λ_hat .* Wy
@@ -335,6 +343,7 @@ function fit_spatial_error(
     N_eff, T_eff = effective_dims(N, T_per, fe_spec)
     NT_eff = N_eff * T_eff
 
+    SpatialUtils._check_spatial_bounds(W, lambda_bounds, method; name = "lambda_bounds", caller = "fit_spatial_error")
     if method isa ChebyshevApprox
         τ = precompute_chebyshev_traces(W, method)
         logdet_fn = λ -> chebyshev_logdet(λ, τ)
@@ -359,6 +368,13 @@ function fit_spatial_error(
     end
 
     λ_hat, max_ll = brent_maximize(concentrated_panel_sem_ll, lambda_bounds[1], lambda_bounds[2])
+    if method isa ChebyshevApprox
+        # Chebyshev locates the peak; the exact log-determinant places it (AUDIT 33c).
+        I_pol = sparse(one(T) * I, size(W, 1), size(W, 1))
+        logdet_fn = r -> first(logabsdet(lu(I_pol - r * W)))
+        λ_hat, max_ll = SpatialUtils._polish_rho(concentrated_panel_sem_ll, λ_hat, lambda_bounds)
+    end
+    SpatialUtils._warn_at_bound(λ_hat, lambda_bounds; name = "lambda_bounds", caller = "fit_spatial_error")
 
     y_filt = y_tilde .- λ_hat .* Wy_tilde
     X_filt = X_tilde .- λ_hat .* WX_tilde

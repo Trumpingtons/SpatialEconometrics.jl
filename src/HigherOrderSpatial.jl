@@ -218,6 +218,9 @@ function fit_sac(
     W2X = W_error * X_aug
     W2W1y = W_error * W1y
 
+    SpatialUtils._check_spatial_bounds(W_lag, rho_bounds, method; caller = "fit_sac")
+    SpatialUtils._check_spatial_bounds(W_error, lambda_bounds, method;
+                                       name = "lambda_bounds", caller = "fit_sac")
     if method isa ChebyshevApprox
         τ_lag = precompute_chebyshev_traces(W_lag, method)
         τ_err = precompute_chebyshev_traces(W_error, method)
@@ -268,6 +271,8 @@ function fit_sac(
     end
 
     ρ_hat = best_ρ; λ_hat = best_λ
+    SpatialUtils._warn_at_bound(ρ_hat, rho_bounds; caller = "fit_sac")
+    SpatialUtils._warn_at_bound(λ_hat, lambda_bounds; name = "lambda_bounds", caller = "fit_sac")
     y_f = y .- ρ_hat .* W1y .- λ_hat .* W2y .+ (ρ_hat * λ_hat) .* W2W1y
     X_f = X_aug .- λ_hat .* W2X
     β_hat = X_f \ y_f
@@ -508,6 +513,8 @@ function fit_sdem(
     Wy = W * y
     W_Xaug = W * X_aug
 
+    SpatialUtils._check_spatial_bounds(W, lambda_bounds, method;
+                                       name = "lambda_bounds", caller = "fit_sdem")
     if method isa ChebyshevApprox
         τ = precompute_chebyshev_traces(W, method)
         logdet_fn = λ -> chebyshev_logdet(λ, τ)
@@ -527,6 +534,13 @@ function fit_sdem(
     end
 
     λ_hat, max_ll = brent_maximize(concentrated_ll, lambda_bounds[1], lambda_bounds[2])
+    if method isa ChebyshevApprox
+        # Chebyshev locates the peak; the exact log-determinant places it (AUDIT 33c).
+        I_pol = sparse(one(T) * I, size(W, 1), size(W, 1))
+        logdet_fn = r -> first(logabsdet(lu(I_pol - r * W)))
+        λ_hat, max_ll = SpatialUtils._polish_rho(concentrated_ll, λ_hat, lambda_bounds)
+    end
+    SpatialUtils._warn_at_bound(λ_hat, lambda_bounds; name = "lambda_bounds", caller = "fit_sdem")
 
     y_f = y .- λ_hat .* Wy
     X_f = X_aug .- λ_hat .* W_Xaug

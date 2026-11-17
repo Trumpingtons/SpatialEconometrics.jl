@@ -62,7 +62,8 @@ import StatsAPI
 import StatsAPI: coef, vcov, stderror, residuals, loglikelihood, nobs,
                  coefnames
 
-import ..SpatialUtils: brent_maximize, check_design_rank, _normcdf, _chi2_sf
+import ..SpatialUtils: brent_maximize, check_design_rank, _normcdf, _chi2_sf,
+                       ExactLU, _check_spatial_bounds, _warn_at_bound
 import ..SpatialWeights: order_weights_list
 
 export SpVARModel, fit_spvar,
@@ -644,6 +645,12 @@ function fit_spvar(
 
     T_eff = T_per - p
     lo, hi = T(rho_bounds[1]), T(rho_bounds[2])
+    # One order at a time, with the others at zero. With s > 1 the joint
+    # determinant |I − Σ ρₗW⁽ˡ⁾| can still vanish inside the box; the profile
+    # returns −Inf there.
+    for l in 1:s
+        _check_spatial_bounds(Wls[l + 1], rho_bounds, ExactLU(); caller = "fit_spvar")
+    end
 
     rhos = Vector{Vector{T}}(undef, K)
     thetas = Vector{Vector{T}}(undef, K)
@@ -709,6 +716,9 @@ function fit_spvar(
             "concentrated log-likelihood at the optimum; C₀'s diagonal " *
             "block is numerically singular."))
 
+        for l in 1:s
+            _warn_at_bound(rho_k[l], rho_bounds; caller = "fit_spvar (equation $k, order $l)")
+        end
         rhos[k] = rho_k
         thetas[k] = th
         lam[:, k] .= lk

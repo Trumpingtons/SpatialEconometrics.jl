@@ -42,7 +42,8 @@ import StatsAPI
 import StatsAPI: coef, vcov, stderror, loglikelihood, nobs, coefnames, residuals
 import ForwardDiff
 
-import ..SpatialUtils: check_design_rank, _print_coef_table, _logdet_eig
+import ..SpatialUtils: check_design_rank, _print_coef_table, _logdet_eig,
+                       ExactLU, _check_spatial_bounds, _warn_at_bound
 
 export CommonShockDynamicPanelModel, fit_common_shock_dynamic_panel
 
@@ -659,12 +660,15 @@ function fit_common_shock_dynamic_panel(
     d = _CSData(N, T, K, r, size(Zs, 2), Y, Y1, WY, Xs, Zs, Wd,
                 Float64.(real.(ev)), Float64.(imag.(ev)))
     lo, hi = Float64.(rho_bounds)
+    # The log-determinant comes from the eigenvalues, so the route is exact.
+    _check_spatial_bounds(Wd, rho_bounds, ExactLU(); caller = "fit_common_shock_dynamic_panel")
 
     α̂, ok, outer, nit = _estimate(d, lo, hi; max_outer = max_outer, max_inner = max_inner, tol = tol)
     sn = maximum(abs, _score(d, α̂)) / N
     ok || throw(ErrorException("fit_common_shock_dynamic_panel: the first-order conditions " *
         "were not solved (max |∂ℓ/∂α|/N = " * @sprintf("%.2e", sn) * "); no estimate is returned"))
 
+    _warn_at_bound(α̂[1], rho_bounds; caller = "fit_common_shock_dynamic_panel")
     H = _neg_hessian(d, α̂)
     mg = _martingale(d, α̂)
     p = _np(d)

@@ -441,10 +441,26 @@ bit-identical, order 6, which is what `fit_spatial` uses, included.
 With `method.n_probes > 0` the traces are Hutchinson estimates instead
 and the question does not arise: that path has never held more than the
 probe block.
+
+`W`'s eigenvalues must lie in `[−1, 1]`, because the expansion is of
+`log(1 − ρx)` over that interval. A `W` whose spectral radius is provably
+above 1, such as a binary contiguity matrix or distance weights that are
+not row-standardised, throws an `ArgumentError`; evaluated anyway, the
+expansion extrapolates without warning (AUDIT finding 33).
 """
 function precompute_chebyshev_traces(W::AbstractSparseMatrix{T}, method::ChebyshevApprox;
                                      max_fill_bytes::Int=128 * 1024 * 1024) where {T<:AbstractFloat}
     N = size(W, 1)
+    # The expansion is of log(1 − ρx) over x in [−1, 1]. Evaluated through
+    # traces of a W whose eigenvalues lie outside that interval it is an
+    # extrapolation, and silently wrong: on a binary rook lattice (r(W) ≈ 4)
+    # the order-6 error was 6.2 at ρ·r(W) = 0.95 (AUDIT finding 33).
+    r_lo, _ = _spectral_radius_bounds(W)
+    r_lo > 1 + 1e-8 && throw(ArgumentError(
+        "the Chebyshev log-determinant needs W's eigenvalues in [−1, 1], but W's " *
+        "spectral radius is at least $(round(r_lo; sigdigits = 4)): W is not " *
+        "row-standardised. Row-standardise W, or pass `method = ExactLU()` with " *
+        "bounds inside (−1/r(W), 1/r(W))"))
     q = method.order
     τ = zeros(T, q + 1)
     τ[1] = T(N)
@@ -832,6 +848,151 @@ function brent_maximize(f::F, a::T, b::T; tol::T=T(1e-7), maxiter::Int=200) wher
         end
     end
     return x, -fx
+end
+
+# ─── The admissible interval for a spatial parameter ─────────────────
+
+"""
+    _spectral_radius_bounds(W; maxiter = 200, rtol = 1e-6) -> (lo, hi)
+
+Bounds `lo ≤ r(W) ≤ hi` on the spectral radius of `W`.
+
+For a non-negative `W` these are Collatz–Wielandt bounds: for any positive
+`x`, `r(W) ≤ maxᵢ (Wx)ᵢ/xᵢ`, and for any non-negative `z ≠ 0`,
+`r(W) ≥ min over zᵢ > 0 of (Wz)ᵢ/zᵢ`. At `x = 1` they are the smallest and
+largest row sums, so a row-standardised `W` returns `(1, 1)` (or `(0, 1)`
+with islands) without iterating. Otherwise `x` is refined by iterating
+`I + W`, whose shift keeps it positive and converges on bipartite graphs too,
+and `z` is `x` with its entries below `1e-3·max(x)` zeroed, so that islands
+and weakly connected units do not pin the lower bound at zero.
+
+A `W` with a negative entry gets `(0, ‖W‖∞)`: the row-sum norm still bounds
+the radius from above, and nothing cheap bounds it from below.
+"""
+function _spectral_radius_bounds(W::AbstractMatrix; maxiter::Int = 200,
+                                 rtol::Real = 1e-6)
+    N = size(W, 1)
+    vals = W isa AbstractSparseMatrix ? nonzeros(W) : vec(W)
+    if any(<(0), vals)
+        return (0.0, Float64(maximum(sum(abs, W; dims = 2))))
+    end
+    rs = Float64.(vec(sum(W; dims = 2)))
+    lo, hi = minimum(rs), maximum(rs)
+    hi <= 1 + 1e-12 && return (lo, hi)
+    x = ones(N)
+    for _ in 1:maxiter
+        y = W * x
+        hi = min(hi, maximum(y ./ x))
+        keep = x .> 1e-3 * maximum(x)
+        z = x .* keep
+        yz = W * z
+        lo = max(lo, minimum(yz[keep] ./ z[keep]))
+        (hi - lo <= rtol * hi || lo > 1 + 1e-8 || hi <= 1 + 1e-8) && break
+        x = y .+ x
+        x ./= maximum(x)
+    end
+    return (lo, hi)
+end
+
+"""
+    _check_spatial_bounds(W, bounds, method; name, caller)
+
+Throw before a search when `bounds` cannot be searched: when the Chebyshev
+log-determinant is asked for `|ρ| ≥ 1`, where it is undefined, or when the
+upper bound reaches `1/r(W)`, where `I − ρW` is singular. The second happens
+when `W` is not row-standardised and the default `(−0.995, 0.995)` is used:
+a binary rook `W` has `r(W) ≈ 4`, so its interval is about `±0.25`.
+
+Only the upper side is checked. For a non-negative `W` the singularity at
+`1/r(W)` is the first one above zero; the first below zero is at `1/λ_min`,
+which no cheap bound locates. Returns the bounds on `r(W)`.
+"""
+function _check_spatial_bounds(W::AbstractMatrix, bounds, method;
+                               name::AbstractString = "rho_bounds",
+                               caller::AbstractString = "fit")
+    lo_b, hi_b = Float64(bounds[1]), Float64(bounds[2])
+    lo_b < hi_b || throw(ArgumentError(
+        "$caller: `$name` = $bounds is empty; the lower bound must be below the upper"))
+    if method isa ChebyshevApprox && (lo_b <= -1 || hi_b >= 1)
+        throw(ArgumentError(
+            "$caller: `$name` = $bounds reaches |ρ| ≥ 1, where the Chebyshev " *
+            "log-determinant is undefined: it expands log(1 − ρx) over x in [−1, 1]. " *
+            "Pass `method = ExactLU()` to search beyond ±1"))
+    end
+    r_lo, r_hi = _spectral_radius_bounds(W)
+    if r_lo > 0 && hi_b * r_lo >= 1
+        throw(ArgumentError(
+            "$caller: `I − ρW` is singular at ρ = 1/r(W) ≤ $(round(1 / r_lo; sigdigits = 4)), " *
+            "inside `$name` = $bounds. W's spectral radius is at least " *
+            "$(round(r_lo; sigdigits = 4)), so W is not row-standardised. Row-standardise " *
+            "W, or pass `$name` inside (−1/r(W), 1/r(W))"))
+    end
+    return (r_lo, r_hi)
+end
+
+"""
+    _polish_rho(f, ρ0, bounds; δ0 = 0.02) -> (ρ̂, f(ρ̂))
+
+Re-locate the maximum of `f`, a concentrated likelihood now evaluated with
+the exact log-determinant, starting from `ρ0`, the Chebyshev optimum. Brent
+searches `ρ0 ± δ` inside `bounds`; if the optimum lands on an edge of that
+bracket which is not an edge of `bounds`, the bracket is re-centred and
+widened fourfold. It ends at an interior optimum or at a bound of the
+original interval, where [`_warn_at_bound`](@ref) then reports it.
+
+The Chebyshev approximation places `ρ̂` to about `1e-3` on a
+row-standardised lattice (chapter 6 of the companion book), so one bracket
+of ±0.02 usually suffices: some fifteen sparse LUs. Near `ρ = −1` on a
+non-bipartite `W` it is off by up to 0.2 and confidently interior (AUDIT
+finding 33c), which the widening handles.
+"""
+function _polish_rho(f::F, ρ0::Real, bounds; δ0::Real = 0.02) where {F}
+    lo, hi = promote(bounds[1], bounds[2])
+    ρ = oftype(lo, ρ0)
+    δ = oftype(lo, δ0)
+    while true
+        a = max(lo, ρ - δ); b = min(hi, ρ + δ)
+        x, fx = brent_maximize(f, a, b)
+        edge = 1e-4 * (b - a)
+        if (a > lo && x - a <= edge) || (b < hi && b - x <= edge)
+            ρ, δ = x, 4δ
+            continue
+        end
+        return x, fx
+    end
+end
+
+"""
+    _warn_at_bound(est, bounds; name, caller)
+
+Warn when a spatial parameter's estimate lies on an edge of its search
+interval. The likelihood is still rising there, so the estimate is not an
+interior maximum and its standard error does not apply. The usual cause on
+the lower side is that `(−0.995, …)` cuts off admissible values: for a
+row-standardised `W` the interval is `(1/λ_min, 1)`, and `1/λ_min` is below
+`−1` unless the graph is bipartite (−1.92 on a queen lattice). Returns
+whether it warned.
+"""
+function _warn_at_bound(est::Real, bounds; name::AbstractString = "rho_bounds",
+                        caller::AbstractString = "fit")
+    lo, hi = Float64(bounds[1]), Float64(bounds[2])
+    tol = 1e-5 * (hi - lo)
+    if est - lo <= tol
+        @warn "$caller: the estimate $(round(est; sigdigits = 6)) is at the lower " *
+              "edge of `$name` = $bounds, so it is not an interior maximum and its " *
+              "standard error does not apply. For a row-standardised W the admissible " *
+              "interval is (1/λ_min, 1), and 1/λ_min is below −1 unless the graph is " *
+              "bipartite. To search further, pass `method = ExactLU()` and a lower bound " *
+              "just above 1/minimum(real(eigvals(Matrix(W))))."
+        return true
+    elseif hi - est <= tol
+        @warn "$caller: the estimate $(round(est; sigdigits = 6)) is at the upper " *
+              "edge of `$name` = $bounds, so it is not an interior maximum and its " *
+              "standard error does not apply. The admissible interval ends at 1/λ_max, " *
+              "which is 1 for a row-standardised W."
+        return true
+    end
+    return false
 end
 
 # ─── Panel spatial lag ────────────────────────────────────────────────
