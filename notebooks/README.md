@@ -35,8 +35,9 @@ minutes on a fresh Colab machine.
 
 The first cell finds out where it is running. Inside a clone of the
 repository it activates the clone. Anywhere else, such as Colab or an empty
-folder, it installs the release named by `REV` from GitHub, into a temporary
-environment. The real-data notebooks (`04`, `05`, `11`–`13`) then read
+folder, it installs the release named by `REV` from GitHub: under Jupyter into
+the kernel's own environment, so that packages the kernel has already loaded
+keep their versions, and otherwise into a temporary environment. The real-data notebooks (`04`, `05`, `11`–`13`) then read
 `data/` from the clone, or download the same files from that release. So a
 notebook outside a clone runs against the release, not against `master`.
 
