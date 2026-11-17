@@ -12,9 +12,9 @@ semiparametric spatial models, short-panel dynamic models with correlated
 random effects or common shocks, spatial log-GARCH for the variance, Monte Carlo simulation and publication-ready output — with a
 unified formula interface and optional Bayesian and visualization extensions.
 
-> **Version 0.5.0** — 3,985 test assertions across 60 top-level testsets
+> **Version 0.5.0** — 3,988 test assertions across 61 top-level testsets
 > with both package extensions installed, measured on Julia 1.13.3. Without
-> them, 3,950 pass and two broken markers stand in for the extension testsets,
+> them, 3,953 pass and two broken markers stand in for the extension testsets,
 > measured on Julia 1.10.13. See [Validation Status](#validation-status) for
 > Monte Carlo results.
 
@@ -139,6 +139,19 @@ exported name.
 
 ---
 
+## Using it with Claude Code
+
+`skills/spatial-econometrics/` is a skill for
+[Claude Code](https://docs.claude.com/en/docs/claude-code/skills). Once it is
+linked into `~/.claude/skills/`, Claude follows the package's own workflow
+when asked about spatial data: it checks `W`, runs the LM battery, reports
+effects rather than raw coefficients for lag models, and reads each fit's
+warnings before reporting. Its function reference is generated from the
+docstrings and checked by the test suite. See
+[`skills/README.md`](skills/README.md) to install it.
+
+---
+
 ## Modules
 
 The package exports functions, result types and specification tags — **not**
@@ -233,7 +246,8 @@ our own because:
 SpatialEconometrics/
 ├── src/            # 33 modules: the umbrella plus 32 submodules
 ├── ext/            # Makie and Turing package extensions (see ext/README.md)
-├── test/           # runtests.jl — 60 top-level testsets (see test/README.md)
+├── test/           # runtests.jl — 61 top-level testsets (see test/README.md)
+├── skills/         # a Claude Code skill for the package (see skills/README.md)
 ├── examples/       # 33 runnable examples, one per topic
 ├── docs/           # Documenter source for the manual and API reference
 ├── validation/     # Monte Carlo studies and their output (see validation/README.md)

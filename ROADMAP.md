@@ -4,8 +4,8 @@
 > pass 1, the two short-`T` panels of #1 and #16 to `v0.4.0` (tagged
 > 2026-11-06). Neither tag is registered.
 >
-> 32 submodules, 3,985 test assertions in 60 top-level testsets with both
-> package extensions installed and 3,950 (plus 2 broken markers) without
+> 32 submodules, 3,988 test assertions in 61 top-level testsets with both
+> package extensions installed and 3,953 (plus 2 broken markers) without
 > them, measured on 2026-11-17 on Julia 1.13.3, and without them on 1.10.13.
 > 33 examples, 20 notebooks, 2 package extensions, CI/CD and
 > 64 Documenter.jl pages. **Phases 4, 5, 6, 6B, 6C and 7A are complete.** Item #10 (Performance) closed on 2026-10-30 with its scope
@@ -1262,7 +1262,7 @@ the SEs ignore the search.
 | Paper: JOSS, then JSS | **Decided 2026-11-16: both, JOSS first, on the back burner while the companion book is written.** JOSS: a short `paper.md` / `paper.bib` in the repository, reviewed as software. JSS: the full article with a replication script. **The contribution to argue** is not the feature list, which `spatialreg` and PySAL largely share, but: (a) the breadth in one framework (short-`T` panels, spatial log-GARCH, semiparametric, causal, networks); (b) the validation discipline (null-distribution Monte Carlo for every variance, value-against-value tests, the `docs/AUDIT.md` ledger); (c) what replication found in the sources (Sato & Matsuda's unbounded likelihood and missing `Ω`, the bias Bai & Chen's design hides, Fülle & Otto's inconsistent table). **Prerequisites before submission:** installation by name, which reopens registration; the cross-language benchmarks of Phase 8; a real-data application (PortugalINE.jl data, or the Columbus data already in `notebooks/data/`); a statement of how the software was developed, including generative-AI assistance, per each journal's policy at the time; authorship settled by the author |
 | Contributing guide | `CONTRIBUTING.md` with coding conventions, testing requirements, and PR checklist |
 | CI/CD pipeline | GitHub Actions for automated testing on Julia 1.10, 1.13, nightly; code coverage via Codecov |
-| Claude skill (planned 2026-11-16, next separate pass) | A skill for Claude Code: `SKILL.md` plus reference files. **Contents:** a decision guide from data type to estimator (cross-section, panel, dynamic, variance, unknown locations); the `W` constructors and their pitfalls (row standardisation, connectivity, proxy `W`); how to read each fit's warnings and throws (e.g. no interior maximum near `λ = 1` means no `λ̂` to report); per-function reference generated from the docstrings, with a check that keeps it in sync. **Limits:** it needs Julia installed, and a persistent REPL or a system image to avoid paying compile latency on every call. Estimated at a day |
+| Claude skill — ✅ **built 2026-11-17** (`skills/`; see `skills/README.md`) | A skill for Claude Code: `SKILL.md` plus reference files. **Contents:** a decision guide from data type to estimator (cross-section, panel, dynamic, variance, unknown locations); the `W` constructors and their pitfalls (row standardisation, connectivity, proxy `W`); how to read each fit's warnings and throws (e.g. no interior maximum near `λ = 1` means no `λ̂` to report); per-function reference generated from the docstrings, with a check that keeps it in sync. **Limits:** it needs Julia installed, and a persistent REPL or a system image to avoid paying compile latency on every call. Estimated at a day |
 | MCP server (after registration) | For Claude Desktop, which has no shell. **Design:** a persistent Julia process (which also removes compile latency); a few coarse tools (`load_data`, `build_weights`, `fit`, `diagnostics`, `summary`), with fits held server-side by handle; results, warnings and throws returned as structured JSON; packaged for one-click install. **Prerequisites:** the skill's decision guide, which supplies the tool descriptions, and registration, so the install does not depend on a GitHub URL. Check the maturity of the Julia MCP libraries before choosing between native Julia and a thin Python wrapper. Estimated at about a week |
 | Notebooks on Google Colab — ✅ **built 2026-11-17**; your check on Colab itself is still open | Decided 2026-11-17. Colab's native Julia runtime is Julia 1.10 LTS, which CI already tests. **Changes:** a shared setup cell that activates the repository when it runs inside a clone and otherwise runs `Pkg.add(url = …, rev = "v0.5.0")`; a data helper that reads `notebooks/data/` or downloads the file from `raw.githubusercontent.com` (notebooks 04, 11–13); neutral Julia kernel metadata in place of `julia-1.11`; "Open in Colab" badges in `notebooks/README.md`. **Check:** run every notebook from an empty folder on Julia 1.10 locally; the author opens one from its badge on Colab. The Pluto notebooks are out of scope. **Done 2026-11-17:** the setup cell finds the clone by walking up from `pwd()` to a `Project.toml` named `SpatialEconometrics`; outside one it installs `REV` into a temporary environment, with `StatsAPI`, which notebooks import. Notebook 05 also reads data, so the helper covers 04, 05 and 11–13. **Checked:** all 13 run from an empty folder on Julia 1.10.13 against `v0.5.0` from GitHub, with the data downloaded, and the folder stays empty; all 13 run inside the clone on 1.13.3 against `master`, with no finding-33 warning. The 1.10 run found three notebook bugs, now fixed: 02 used `coefnames` without importing it; 06 assigned to `eps` after calling `Base.eps`, which 1.10 refuses; 12 built `W` with `Float64.(W .> 0)`, whose eltype is `Any` on 1.10. **When a release is tagged, set `REV` in all 13 notebooks to it**, or a notebook on `master` runs against the older release |
 
@@ -1484,6 +1484,7 @@ a measured row.
 | **master** (+ #16 spatial log-GARCH, `SpatialGARCH`) | 32 | 3,949 ¶¶ | 27,865 |
 | **v0.5.0** (tagged 2026-11-17, = the row above) | 32 | 3,949 ¶¶ | 27,865 |
 | **master** (+ AUDIT finding 33, the `ρ` interval and the polish) | 32 | 3,985 ¶¶¶ | 28,142 |
+| **master** (+ the Claude Code skill, #14) | 32 | 3,988 ¶⁴ | 28,143 |
 | — | | | |
 | **v1.0.0** (Phases 6C–8) | 29–31 | ~4,100 | ~26,500 |
 
@@ -1566,8 +1567,17 @@ The suite's smallest margin is still 42c's 1.47×. The `src/` count rose by
 277: 161 lines in `SpatialUtils` for the spectral bounds, the edge warning
 and the polish, and 116 across the 11 entry points that call them.
 
-Measured on master: 32 submodules plus the umbrella across 28,142 lines of
-`src/`, 10,530 lines of tests, 5,197 lines of examples across 33 scripts,
+¶⁴ Measured locally on 2026-11-17: 3,988 passed on Julia 1.13.3 with both
+extensions, and 3,953 plus 2 broken on 1.10.13 without them. Each is the ¶¶¶
+figure plus the 3 assertions of testset 45, which checks the skill's
+generated function reference against the docstrings: one that it is current,
+and two that show the check has power (a changed, a missing and an extra
+file are each caught). The reference is the same on both versions because it
+is built from the raw docstring text. The `src/` count rose by 1, from the
+docstring fix in `1d0f206`.
+
+Measured on master: 32 submodules plus the umbrella across 28,143 lines of
+`src/`, 10,550 lines of tests, 5,197 lines of examples across 33 scripts,
 398 lines of package extensions, 64 documentation pages and 20 notebooks
 (13 Jupyter, 7 Pluto).
 

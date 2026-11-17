@@ -1,12 +1,12 @@
 # Test suite
 
-The whole suite is one file, `runtests.jl`: 60 top-level testsets inside a
+The whole suite is one file, `runtests.jl`: 61 top-level testsets inside a
 single outer testset, "SpatialEconometrics.jl Full Suite Verification".
 
 | Run | Result (2026-11-17) |
 |---|---|
-| Julia 1.13.3, both extensions loaded | 3,985 passed, none broken |
-| Julia 1.10.13, no extensions | 3,950 passed, 2 broken |
+| Julia 1.13.3, both extensions loaded | 3,988 passed, none broken |
+| Julia 1.10.13, no extensions | 3,953 passed, 2 broken |
 
 The two broken entries are markers that stand in for the Makie and Turing
 testsets when those packages are absent (see below). A local run takes about
@@ -34,7 +34,8 @@ julia -e 'using Pkg; Pkg.add(["CairoMakie", "Turing", "Distributions"])'
 
 Run the suite from the repository: testset 11b reads
 `notebooks/data/columbus.csv` and skips six assertions if the file is not
-there. So a copy of `src/` and `test/` alone gives a lower count.
+there. So a copy of `src/` and `test/` alone gives a lower count. Testset 45
+reads `skills/`, and without it errors.
 
 ## What the testsets cover
 
@@ -53,6 +54,7 @@ The numbers follow the order in which the features were added.
 | 34–37 | Causal inference, synthetic control, shift-share, networks |
 | 38–40 | Cross-sectional dependence, spatio-temporal models, spatial VAR |
 | 41–44 | Semiparametric SAR; Li & Yang; Bai & Chen; the spatial log-GARCH |
+| 45 | The Claude skill's function reference against the docstrings |
 
 A lettered testset (`4b`, `11c`, …) was added later to its area, usually by
 an audit finding that `docs/AUDIT.md` records.
