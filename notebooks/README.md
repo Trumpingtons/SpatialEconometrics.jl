@@ -27,8 +27,8 @@ exception: it builds a temporary environment and installs Makie and Turing,
 which takes a few minutes the first time.
 
 **Google Colab** runs the numbered notebooks with no installation: follow a
-notebook's badge in the table below. Colab's Julia runtime is Julia 1.10, the
-oldest version the package supports and one CI tests. If Colab opens the
+notebook's badge in the table below. Colab's Julia runtime was Julia 1.12 in
+November 2026; the package supports 1.10 and later. If Colab opens the
 notebook with a Python runtime, choose *Runtime → Change runtime type →
 Julia*. The first cell then installs the package, which takes several
 minutes on a fresh Colab machine.
@@ -37,7 +37,10 @@ The first cell finds out where it is running. Inside a clone of the
 repository it activates the clone. Anywhere else, such as Colab or an empty
 folder, it installs the release named by `REV` from GitHub: under Jupyter into
 the kernel's own environment, so that packages the kernel has already loaded
-keep their versions, and otherwise into a temporary environment. The real-data notebooks (`04`, `05`, `11`–`13`) then read
+keep their versions, and otherwise into a temporary environment. It turns off
+Pkg's automatic precompilation for the install: Colab's environment holds
+hundreds of packages that were never precompiled, and compiling them all takes
+over 20 minutes. `using SpatialEconometrics` then compiles only what it needs. The real-data notebooks (`04`, `05`, `11`–`13`) then read
 `data/` from the clone, or download the same files from that release. So a
 notebook outside a clone runs against the release, not against `master`.
 
