@@ -1,0 +1,65 @@
+law=normal het=true ρ0=0.4 K=92 R=20
+  mean g:            z = 1.18
+  var g vs exact:    ratio 1.601, z = 1.23
+  E[robust V̂] / V:   ratio 1.038, z = 0.76
+  E[homo V̂] / V:     ratio 0.67, z = -13.79   (power check)
+  TC-CFE: bias 0.0252, sd 0.1035, mean se 0.088, coverage 0.85
+  plain CFE: bias -0.2716, sd 0.1115, mean se 0.0593, coverage 0.1
+warm-up done in 3.4 s
+
+law=normal het=true ρ0=0.0 K=92 R=2000
+  mean g:            z = -1.44
+  var g vs exact:    ratio 0.982, z = -0.58
+  E[robust V̂] / V:   ratio 0.998, z = -0.43
+  E[homo V̂] / V:     ratio 0.639, z = -159.93   (power check)
+  TC-CFE: bias -0.0068, sd 0.1038, mean se 0.1046, coverage 0.948
+  plain CFE: bias -0.36, sd 0.1081, mean se 0.0653, coverage 0.014
+law=normal het=true ρ0=0.4 K=92 R=2000
+  mean g:            z = -1.44
+  var g vs exact:    ratio 0.982, z = -0.58
+  E[robust V̂] / V:   ratio 0.998, z = -0.43
+  E[homo V̂] / V:     ratio 0.639, z = -159.93   (power check)
+  TC-CFE: bias -0.006, sd 0.0883, mean se 0.0888, coverage 0.95
+  plain CFE: bias -0.3013, sd 0.0925, mean se 0.0593, coverage 0.017
+law=normal het=false ρ0=0.0 K=92 R=2000
+  mean g:            z = -0.92
+  var g vs exact:    ratio 0.98, z = -0.66
+  E[robust V̂] / V:   ratio 1.008, z = 3.98
+  E[homo V̂] / V:     ratio 1.025, z = 12.98   (power check)
+  TC-CFE: bias -0.0038, sd 0.0658, mean se 0.067, coverage 0.949
+  plain CFE: bias -0.2396, sd 0.0704, mean se 0.0587, coverage 0.034
+law=normal het=false ρ0=0.4 K=92 R=2000
+  mean g:            z = -0.92
+  var g vs exact:    ratio 0.98, z = -0.66
+  E[robust V̂] / V:   ratio 1.008, z = 3.98
+  E[homo V̂] / V:     ratio 1.025, z = 12.98   (power check)
+  TC-CFE: bias -0.0035, sd 0.0551, mean se 0.0561, coverage 0.95
+  plain CFE: bias -0.1988, sd 0.0597, mean se 0.0532, coverage 0.049
+law=chisq het=true ρ0=0.0 K=92 R=2000
+  mean g:            z = 1.08
+  var g vs exact:    ratio 0.937, z = -1.94
+  E[robust V̂] / V:   ratio 1.023, z = 2.4
+  E[homo V̂] / V:     ratio 0.643, z = -91.22   (power check)
+  TC-CFE: bias -0.001, sd 0.0999, mean se 0.104, coverage 0.957
+  plain CFE: bias -0.3516, sd 0.108, mean se 0.0651, coverage 0.016
+law=chisq het=true ρ0=0.4 K=92 R=2000
+  mean g:            z = 1.08
+  var g vs exact:    ratio 0.937, z = -1.94
+  E[robust V̂] / V:   ratio 1.023, z = 2.4
+  E[homo V̂] / V:     ratio 0.643, z = -91.22   (power check)
+  TC-CFE: bias -0.001, sd 0.0849, mean se 0.0884, coverage 0.958
+  plain CFE: bias -0.2941, sd 0.092, mean se 0.0592, coverage 0.02
+law=chisq het=false ρ0=0.0 K=92 R=2000
+  mean g:            z = 1.52
+  var g vs exact:    ratio 0.971, z = -0.95
+  E[robust V̂] / V:   ratio 1.026, z = 7.01
+  E[homo V̂] / V:     ratio 1.03, z = 9.16   (power check)
+  TC-CFE: bias -0.0001, sd 0.0655, mean se 0.0672, coverage 0.957
+  plain CFE: bias -0.2355, sd 0.0701, mean se 0.0587, coverage 0.034
+law=chisq het=false ρ0=0.4 K=92 R=2000
+  mean g:            z = 1.52
+  var g vs exact:    ratio 0.971, z = -0.95
+  E[robust V̂] / V:   ratio 1.026, z = 7.01
+  E[homo V̂] / V:     ratio 1.03, z = 9.16   (power check)
+  TC-CFE: bias -0.0003, sd 0.055, mean se 0.0563, coverage 0.956
+  plain CFE: bias -0.1954, sd 0.0593, mean se 0.0531, coverage 0.054

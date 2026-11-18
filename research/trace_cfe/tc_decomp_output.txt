@@ -1,0 +1,8 @@
+het=true  Vq share 0.896
+  quadratic: E[q̂]/Vq = 1.0011
+  linear:    E[â'Σ̂â]/Va = 1.6678;  predicted (Va + noise)/Va = 1.6613
+  total ratio 1.0707
+het=false  Vq share 0.661
+  quadratic: E[q̂]/Vq = 1.0122
+  linear:    E[â'Σ̂â]/Va = 1.0646;  predicted (Va + noise)/Va = 1.0594
+  total ratio 1.0299

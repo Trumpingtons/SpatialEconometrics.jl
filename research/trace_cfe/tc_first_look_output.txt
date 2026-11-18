@@ -1,0 +1,6 @@
+d=6 K=29 ρ0=0.0  plain bias -0.0678 sd 0.057  |  corrected bias -0.0003 sd 0.0552
+d=6 K=29 ρ0=0.4  plain bias -0.0535 sd 0.0451  |  corrected bias -0.0005 sd 0.0436
+d=12 K=92 ρ0=0.0  plain bias -0.2241 sd 0.0718  |  corrected bias -0.0014 sd 0.065
+d=12 K=92 ρ0=0.4  plain bias -0.1864 sd 0.0611  |  corrected bias -0.0015 sd 0.0546
+d=18 K=191 ρ0=0.0  plain bias -0.5314 sd 0.0947  |  corrected bias 0.0001 sd 0.0804
+d=18 K=191 ρ0=0.4  plain bias -0.4703 sd 0.0875  |  corrected bias -0.0003 sd 0.0734

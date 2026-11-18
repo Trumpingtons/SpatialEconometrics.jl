@@ -1,0 +1,17 @@
+ω=0.1 ρ0=0.4 het=false K=100 | oracle -0.005 (0.0184) | free plain -0.191 (0.0264) | pooled τ -0.0023 (0.0287) | TC exact -0.007 (0.0349), se 0.0547, cov 1.0
+ω=1.0 ρ0=0.0 het=false K=100 | oracle -0.0007 (0.0441) | free plain -0.1888 (0.065) | pooled τ 0.002 (0.0602) | TC exact 0.0014 (0.0604), se 0.059, cov 0.946
+ω=1.0 ρ0=0.4 het=false K=100 | oracle -0.0007 (0.0332) | free plain -0.1561 (0.0548) | pooled τ 0.0014 (0.0504) | TC exact 0.001 (0.0506), se 0.0493, cov 0.944
+ω=0.3 ρ0=0.0 het=false K=100 | oracle -0.0017 (0.0421) | free plain -0.216 (0.0708) | pooled τ 0.0013 (0.0653) | TC exact 0.0006 (0.0658), se 0.0633, cov 0.948
+ω=0.3 ρ0=0.4 het=false K=100 | oracle -0.0013 (0.0304) | free plain -0.1783 (0.0598) | pooled τ 0.0008 (0.0547) | TC exact 0.0002 (0.0551), se 0.0529, cov 0.95
+ω=0.1 ρ0=0.0 het=false K=100 | oracle -0.004 (0.0472) | free plain -0.2264 (0.0722) | pooled τ 0.0009 (0.0662) | TC exact 0.0002 (0.0667), se 0.0645, cov 0.942
+ω=0.1 ρ0=0.4 het=false K=100 | oracle -0.0031 (0.0352) | free plain -0.186 (0.0607) | pooled τ 0.0004 (0.0553) | TC exact -0.0001 (0.0557), se 0.0538, cov 0.94
+ω=0.0 ρ0=0.0 het=false K=100 | oracle -0.0048 (0.0483) | free plain -0.2458 (0.0749) | pooled τ 0.001 (0.0681) | TC exact 0.0005 (0.0686), se 0.0656, cov 0.95
+ω=0.0 ρ0=0.4 het=false K=100 | oracle -0.0037 (0.0363) | free plain -0.2022 (0.0632) | pooled τ 0.0005 (0.0571) | TC exact 0.0001 (0.0575), se 0.0549, cov 0.95
+ω=1.0 ρ0=0.0 het=true K=100 | oracle -0.0064 (0.0743) | free plain -0.2846 (0.0996) | pooled τ -0.0298 (0.0922) | TC exact -0.0034 (0.0934), se 0.0913, cov 0.94
+ω=1.0 ρ0=0.4 het=true K=100 | oracle -0.0052 (0.0557) | free plain -0.2354 (0.0841) | pooled τ -0.0253 (0.0772) | TC exact -0.0032 (0.0782), se 0.0765, cov 0.936
+ω=0.3 ρ0=0.0 het=true K=100 | oracle -0.0061 (0.0696) | free plain -0.3107 (0.1061) | pooled τ -0.0332 (0.0985) | TC exact -0.0037 (0.0999), se 0.0967, cov 0.94
+ω=0.3 ρ0=0.4 het=true K=100 | oracle -0.0046 (0.0507) | free plain -0.2566 (0.0896) | pooled τ -0.0282 (0.0826) | TC exact -0.0035 (0.0839), se 0.0811, cov 0.94
+ω=0.1 ρ0=0.0 het=true K=100 | oracle -0.0097 (0.0787) | free plain -0.3198 (0.1076) | pooled τ -0.0333 (0.1) | TC exact -0.0041 (0.1014), se 0.098, cov 0.938
+ω=0.1 ρ0=0.4 het=true K=100 | oracle -0.0076 (0.0587) | free plain -0.2632 (0.0906) | pooled τ -0.0282 (0.0837) | TC exact -0.0038 (0.0849), se 0.082, cov 0.936
+ω=0.0 ρ0=0.0 het=true K=100 | oracle -0.0107 (0.0806) | free plain -0.3428 (0.11) | pooled τ -0.0321 (0.1015) | TC exact -0.003 (0.1028), se 0.0991, cov 0.942
+ω=0.0 ρ0=0.4 het=true K=100 | oracle -0.0084 (0.0604) | free plain -0.2827 (0.093) | pooled τ -0.0273 (0.0853) | TC exact -0.0029 (0.0864), se 0.0832, cov 0.94
