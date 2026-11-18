@@ -40,7 +40,8 @@ the kernel's own environment, so that packages the kernel has already loaded
 keep their versions, and otherwise into a temporary environment. It turns off
 Pkg's automatic precompilation for the install: Colab's environment holds
 hundreds of packages that were never precompiled, and compiling them all takes
-over 20 minutes. `using SpatialEconometrics` then compiles only what it needs. The real-data notebooks (`04`, `05`, `11`–`13`) then read
+over 20 minutes. `Pkg.precompile` then compiles only this package and its
+dependencies, in parallel. The real-data notebooks (`04`, `05`, `11`–`13`) then read
 `data/` from the clone, or download the same files from that release. So a
 notebook outside a clone runs against the release, not against `master`.
 
