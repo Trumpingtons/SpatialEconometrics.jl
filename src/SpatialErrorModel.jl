@@ -13,7 +13,8 @@ import ..SpatialUtils: precompute_chebyshev_traces, chebyshev_logdet,
        precompute_neumann_traces, g_traces,
        brent_maximize, panel_spatial_lag!, panel_spatial_lag,
        within_transform!, within_transform, effective_dims, has_indiv_fe, has_time_fe,
-       check_design_rank, _normcdf, _print_coef_table
+       check_design_rank, _normcdf, _print_coef_table,
+       _gm_B1, _gm_B2, _gm_moments, _gm_m, _gm_psi, _gm_solve
 
 const LogDetMethod = SpatialUtils.LogDetMethod
 const ExactLU = SpatialUtils.ExactLU
@@ -521,55 +522,8 @@ end
 # demeaned data. That is the package's extension, not the paper's: see the
 # notes at `_gm_psi`.
 
-# The bilinear forms behind the two moments, summed over periods:
-# a′A₁b = (Wa)′(Wb) − Σᵢ dᵢaᵢbᵢ with dᵢ = (W′W)ᵢᵢ, and a′A₂b = a′Wb.
-_gm_B1(a, Wa, b, Wb, dd) = dot(Wa, Wb) - sum(dd .* a .* b)
-_gm_B2(a, Wb) = dot(a, Wb)
-
-# g and G of Kelejian & Prucha's eq. (8): m(λ) = g − G[λ, λ²]′ is the sample
-# moment n⁻¹ε(λ)′Aᵣε(λ) with ε(λ) = u − λWu, exactly, for every λ.
-function _gm_moments(u::Vector{T}, W, N::Int, T_per::Int, dd::Vector{T}) where {T}
-    n = T(length(u))
-    ub = panel_spatial_lag(W, reshape(u, :, 1), N, T_per)[:, 1]
-    ubb = panel_spatial_lag(W, reshape(ub, :, 1), N, T_per)[:, 1]
-    g = [_gm_B1(u, ub, u, ub, dd), _gm_B2(u, ub)] ./ n
-    G = [2 * _gm_B1(u, ub, ub, ubb, dd)   -_gm_B1(ub, ubb, ub, ubb, dd);
-         (_gm_B2(u, ubb) + _gm_B2(ub, ub))  -_gm_B2(ub, ubb)] ./ n
-    return g, G
-end
-
-_gm_m(g, G, λ) = g .- G * [λ, λ^2]
-
-# Ψ, the covariance of √n times the moments, Kelejian & Prucha's eq. (13)
-# with no first-stage term (the regressors are exogenous, so their aᵣ = 0):
-#
-#     ψᵣₛ = (2n)⁻¹ Σᵢⱼ Sᵣ,ᵢⱼ Sₛ,ᵢⱼ σᵢ² σⱼ²,   Sᵣ = Aᵣ + Aᵣ′.
-#
-# The zero diagonals are why no third or fourth moment enters. Over T
-# periods the moment is Σ_{i<j} Sᵢⱼ (eᵢ·eⱼ), eᵢ unit i's T residuals, so
-# σᵢ²σⱼ² becomes E[(eᵢ·eⱼ)²] = tr(CᵢCⱼ), Cᵢ the covariance of unit i's
-# errors over time, estimated by (êᵢ·êⱼ)². That is robust to the serial
-# correlation the unit demeaning induces, and at T = 1 it is the paper's
-# diag(ε̂²) estimator exactly. Time demeaning correlates units at O(1/N),
-# which this ignores.
-function _gm_psi(e::Vector{T}, S1, S2, N::Int, T_per::Int) where {T}
-    E = reshape(e, N, T_per)
-    K(i, j) = dot(view(E, i, :), view(E, j, :))^2
-    acc(S) = (s = zero(T); (I_, J_, V_) = findnz(S);
-              for k in eachindex(V_); I_[k] == J_[k] && continue
-                  s += V_[k] * K(I_[k], J_[k]); end; s)
-    n2 = 2 * T(N * T_per)
-    return [acc(S1 .* S1) acc(S1 .* S2); acc(S1 .* S2) acc(S2 .* S2)] ./ n2
-end
-
-function _gm_solve(g, G, Υ, bounds::Tuple{T, T}) where {T}
-    f(λ) = (m = _gm_m(g, G, λ); dot(m, Υ * m))
-    grid = range(bounds[1], bounds[2], length = 199)
-    k = argmin(f.(grid))
-    lo = grid[max(1, k - 1)]; hi = grid[min(length(grid), k + 1)]
-    λ, _ = brent_maximize(x -> -f(x), T(lo), T(hi); tol = T(1e-10))
-    return T(λ)
-end
+# The moment helpers `_gm_moments`, `_gm_m`, `_gm_psi` and `_gm_solve` live in
+# `SpatialUtils`, shared with the heteroskedasticity-robust GS2SLS.
 
 """
     _sem_gmm_het(W, X, y, N, T_per; fe, bounds) -> NamedTuple

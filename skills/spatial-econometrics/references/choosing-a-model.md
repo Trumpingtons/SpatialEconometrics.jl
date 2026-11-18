@@ -76,7 +76,7 @@ One observation per unit. Run the LM battery first (SKILL.md, step 2).
   `LeeYuTransformation()` removes the incidental-parameter bias that
   individual effects cause in `σ²` and `ρ` when `T` is short.
 - **SEM panel:** the panel method of `fit_spatial_error`.
-- **Endogenous regressors, or SARAR in a panel:** `fit_gs2sls_panel`.
+- **Endogenous regressors, or SARAR in a panel:** `fit_gs2sls_panel`. If the error variance may differ across units (by size, or by neighbour count), pass `errors = :heteroskedastic` (Kelejian & Prucha 2010 moments, cluster-robust covariance, Hansen's J).
 - **Testing:** `panel_lm_tests`, `panel_moran`, `spatial_hausman_test` (FE
   against RE), `spatial_chow_test`.
 

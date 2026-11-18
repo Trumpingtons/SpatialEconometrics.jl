@@ -4,6 +4,7 @@
 #
 # Demonstrates:
 #   - SARAR panel estimation with instrumental variables
+#   - The same fit robust to unequal error variances (errors = :heteroskedastic)
 #   - System GMM for dynamic panels (Blundell-Bond)
 #   - Difference GMM (Arellano-Bond)
 #   - Hansen J-test and AR serial correlation tests
@@ -46,6 +47,18 @@ m_gs = fit_gs2sls_panel(TwoWayFE(), W,
     X_exog, reshape(tax, NT, 1), hcat(z1, z2), y, N, T_tot;
     exog_names=["investment", "openness"], endog_names=["tax_rate"])
 println(m_gs)
+println()
+
+# If the error variance may differ across units (by size, or by number of
+# neighbours), `errors = :heteroskedastic` estimates λ from Kelejian &
+# Prucha's (2010) moments, which hold for any variances, clusters every
+# covariance by unit, and reports Hansen's J in place of Sargan's test.
+# These errors have equal variances, so the two fits should agree closely.
+m_het = fit_gs2sls_panel(TwoWayFE(), W,
+    X_exog, reshape(tax, NT, 1), hcat(z1, z2), y, N, T_tot;
+    exog_names=["investment", "openness"], endog_names=["tax_rate"],
+    errors=:heteroskedastic)
+println(m_het)
 println()
 
 # Formula interface

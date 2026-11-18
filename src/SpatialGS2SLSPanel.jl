@@ -12,7 +12,8 @@ import ..SpatialUtils
 import ..SpatialUtils: _chi2_sf,
        panel_spatial_lag!, panel_spatial_lag,
        within_transform!, within_transform, check_design_rank,
-       _normcdf, _print_coef_table
+       _normcdf, _print_coef_table, _gm_moments, _gm_psi, _gm_solve,
+       effective_dims, has_indiv_fe
 
 const FixedEffectsSpec = SpatialUtils.FixedEffectsSpec
 const IndivFE = SpatialUtils.IndivFE
@@ -33,8 +34,11 @@ A fitted GS2SLS / SARAR panel, returned by
 interface.
 
 Carries `coef` and `vcov`, both spatial parameters `rho` and `lambda`,
-`sigma2`, the Sargan over-identification statistic with its p-value, the
-weight matrix, residuals, `coefnames` and the panel dimensions.
+`sigma2`, the over-identification statistic with its p-value (Sargan's, or
+Hansen's robust `J` when `errors = :heteroskedastic`; both are stored in
+`sargan_stat` and `sargan_pval`), the weight matrix, residuals,
+`coefnames`, the panel dimensions and `errors`, the error assumption it was
+fitted under.
 
 Estimated by instrumental variables rather than maximum likelihood, which
 is what lets it handle endogenous regressors alongside spatial dependence
@@ -64,6 +68,7 @@ struct GS2SLSModel{
     W::M
     residuals::Vector{T}
     coefnames::Vector{String}
+    errors::Symbol
 end
 
 """
@@ -175,7 +180,9 @@ function _lambda_gmm_se(lambda::T, u::Vector{T}, Wu::Vector{T},
                         W::AbstractSparseMatrix{T}, N::Int,
                         T_post::Int;
                         Psi_full::Union{Nothing, AbstractMatrix{T}}=nothing,
-                        Psi_raw::Union{Nothing, AbstractMatrix{T}}=nothing
+                        Psi_raw::Union{Nothing, AbstractMatrix{T}}=nothing,
+                        n_eff::Union{Nothing, Int}=nothing,
+                        kappa::T=one(T)
                         ) where {T<:AbstractFloat}
     NT = N * T_post
     c = sum(abs2, W) / N                       # tr(W′W)/N
@@ -200,11 +207,15 @@ function _lambda_gmm_se(lambda::T, u::Vector{T}, Wu::Vector{T},
     G = (mv(lambda + h) .- mv(lambda - h)) ./ (2h)
 
     e = u .- lambda .* Wu
-    σ2 = dot(e, e) / NT
-    # Independent across the T_post periods, so the per-period covariance
-    # 2σ⁴tr(AₛBₛ) adds up and the NT normalisation squares:
-    #   Var(m) = 2σ⁴ tr(AₛBₛ) · T_post / (NT)².
-    Ω = (2 * σ2^2 * T_post / NT^2) .*
+    σ2 = dot(e, e) / (isnothing(n_eff) ? NT : n_eff)
+    # With T_post independent periods the per-period covariance 2σ⁴tr(AₛBₛ)
+    # adds up and the NT normalisation squares:
+    #   Var(m) = 2σ⁴ tr(AₛBₛ) · T_post · κ / (NT)².
+    # Unit demeaning correlates the periods; it scales the variance by
+    # κ = (T−1)/T. The caller passes κ and `n_eff`, the degrees of freedom
+    # the transform leaves for σ̂². The defaults, κ = 1 and n_eff = NT, are
+    # the independent-periods formula.
+    Ω = (2 * σ2^2 * T_post * kappa / NT^2) .*
         [tr_A1s2 tr_A1sA2s; tr_A1sA2s tr_A2s2]
 
     # ── First-stage correction ──
@@ -344,9 +355,186 @@ function estimate_lambda_gmm(u::Vector{T}, Wu::Vector{T}, WWu::Vector{T},
     return T(x)
 end
 
+# The columns of H that are linearly independent, in their original order.
+# Kelejian & Prucha take the instruments to be "a subset of the linearly
+# independent columns" of [X, WX, W²X, …]: with an intercept and a
+# row-standardised W, WX repeats the intercept column, and H′H is singular.
+function _independent_columns(H::AbstractMatrix{T}) where {T<:AbstractFloat}
+    size(H, 2) == 0 && return H
+    F = qr(H, ColumnNorm())
+    d = abs.(diag(F.R))
+    tol = max(size(H)...) * eps(T) * (isempty(d) ? zero(T) : d[1])
+    r = count(>(tol), d)
+    r == size(H, 2) && return H
+    return H[:, sort(F.p[1:r])]
+end
+
+# GS2SLS of the filtered model `ys = Zs θ + ε` with instruments `Q`:
+# θ̂ = BẐ′ys, B = (Ẑ′Zs)⁻¹, Ẑ the fitted Zs. Returns (θ̂, B, Ẑ, ε̂).
+function _gs2sls_filtered(ys::AbstractVector{T}, Zs::AbstractMatrix{T},
+                          Q::AbstractMatrix{T}) where {T<:AbstractFloat}
+    Ẑ = Q * (Q \ Zs)
+    B = inv(Symmetric(Ẑ' * Zs))
+    θ = B * (Ẑ' * ys)
+    return θ, Matrix(B), Ẑ, ys .- Zs * θ
+end
+
+# Ψ̂ at λ for residuals û = y − Zθ̂ of a GS2SLS fit with weights B and Ẑ:
+# the quadratic part (`_gm_psi`) plus the linear part n⁻¹Σᵢ(aᵢ′eᵢ)(aᵢ′eᵢ)′,
+# aᵣ = nẐBαᵣ, αᵣ = −n⁻¹Z(λ)′Sᵣe, e = û − λWû, Sᵣ = Aᵣ + Aᵣ′.
+# Returns (Ψ, a, e, α); α is the P × 2 derivative of the moments in θ.
+function _gs2sls_psi(λ::T, û::Vector{T}, Wû::Vector{T}, Z::AbstractMatrix{T},
+                     WZ::AbstractMatrix{T}, Ẑ::AbstractMatrix{T}, B::AbstractMatrix{T},
+                     S1, S2, N::Int, T_per::Int) where {T<:AbstractFloat}
+    n = length(û)
+    e = û .- λ .* Wû
+    Zλ = Z .- λ .* WZ
+    S1e = panel_spatial_lag(S1, reshape(e, :, 1), N, T_per)[:, 1]
+    S2e = panel_spatial_lag(S2, reshape(e, :, 1), N, T_per)[:, 1]
+    α = -hcat(Zλ' * S1e, Zλ' * S2e) ./ n
+    a = n .* (Ẑ * (B * α))
+    Ψlin = zeros(T, 2, 2)
+    for i in 1:N
+        r = [i + (t - 1) * N for t in 1:T_per]
+        v = a[r, :]' * e[r]
+        Ψlin .+= v * v'
+    end
+    return _gm_psi(e, S1, S2, N, T_per) .+ Ψlin ./ n, a, e, α
+end
+
+"""
+    _gs2sls_het(W, y, Wy, X_ex, X_en, H, N, T_per; bounds) -> NamedTuple
+
+Kelejian & Prucha's (2010) estimator for the SARAR model with endogenous
+regressors and heteroskedasticity of unknown form, on data already
+within-transformed and stacked `N` rows per period:
+
+1. 2SLS of `y` on `Z = [Wy, X_ex, X_en]` with instruments `H`; `λ₀` by
+   the unweighted GM on its residuals.
+2. GS2SLS at `λ₀`: the filtered model, instrumented by the filtered `H`,
+   as the homoskedastic path does it. `θ̂` comes from this step.
+3. GM again on the step-2 residuals `û = y − Zθ̂`: unweighted, then
+   with the weight `Ψ̂⁻¹`. `λ̂` comes from this step.
+
+`Ψ̂` is the covariance of √n times the moments. The paper's eq. (13) has
+two parts: the quadratic part, as for the spatial-error model, and a
+linear part `n⁻¹aᵣ′Σaₛ`, because `û` carries the estimation error of `θ̂`
+and `Z` holds `Wy`, which is correlated with `ε`. With `θ̂ − θ ≈ BẐ′ε`,
+`B = (Ẑ′Z*)⁻¹`, `Ẑ` the fitted `Z*` from the instruments,
+
+    aᵣ = n Ẑ B αᵣ,   αᵣ = −n⁻¹ Z(λ)′(Aᵣ + Aᵣ′) ε(λ),
+
+`αᵣ` being the derivative of the sample moment in `θ` (their Lemma 4 for
+GS2SLS residuals, where no `(I − λW′)⁻¹` enters). The linear part is
+estimated as a cluster sum by unit, `n⁻¹ Σᵢ (aᵢ′eᵢ)(aᵢ′eᵢ)′`, which at
+`T_per = 1` is the paper's `n⁻¹ a′diag(ε̂²)a`. With zero-diagonal `Aᵣ` the
+linear and quadratic parts are uncorrelated.
+
+Covariance of `(θ̂, λ̂)` (their eq. 25 and Theorem 4):
+- `θ̂`: `N/(N−1) · B Σᵢ Ẑᵢ′ε̂ᵢε̂ᵢ′Ẑᵢ B`, the cluster sandwich by unit;
+- `λ̂`: `(J′Ψ̂⁻¹J)⁻¹/n`, `J = G[1, 2λ̂]′`;
+- the cross block: `N/(N−1) · n⁻¹ B Σᵢ (Ẑᵢ′ε̂ᵢ)(aᵢ′eᵢ)′ c′` with
+  `c = (J′Ψ̂⁻¹J)⁻¹J′Ψ̂⁻¹`, since `λ̂ − λ ≈ c·m(λ)` and only the linear
+  part of the moments is correlated with `θ̂`.
+
+The over-identification statistic is Hansen's `J`, which allows the
+heteroskedasticity, in place of Sargan's.
+"""
+function _gs2sls_het(W::AbstractSparseMatrix{T}, y::Vector{T}, Wy::Vector{T},
+                     X_ex::AbstractMatrix{T}, X_en::AbstractMatrix{T},
+                     H::AbstractMatrix{T}, N::Int, T_per::Int;
+                     bounds::Tuple{T, T} = (T(-0.995), T(0.995)),
+                     n_eff::Int = length(y)) where {T<:AbstractFloat}
+    n = length(y)
+    all(iszero, diag(W)) || throw(ArgumentError(
+        "`errors = :heteroskedastic` needs `W` with a zero diagonal: its moments are " *
+        "valid for any error variances only because the diagonal is zero"))
+    lagM(M) = panel_spatial_lag(W, Matrix(M), N, T_per)
+    lagv(v) = panel_spatial_lag!(similar(v), W, v, N, T_per)
+    WtW = W' * W
+    dd = repeat(Vector(diag(WtW)), T_per)
+    A1 = WtW - spdiagm(0 => diag(WtW))
+    S1 = A1 + A1'
+    S2 = W + W'
+    I2 = Matrix{T}(I, 2, 2)
+    Z = hcat(Wy, X_ex, X_en)
+    WZ = lagM(Z)
+    P = size(Z, 2)
+    proj(Q, M) = Q * (Q \ M)
+
+    # Step 1: 2SLS, then λ₀.
+    Ẑ1 = proj(H, Z)
+    θ1 = (Ẑ1' * Z) \ (Ẑ1' * y)
+    ũ = y .- Z * θ1
+    g1, G1 = _gm_moments(ũ, W, N, T_per, dd)
+    λ0 = _gm_solve(g1, G1, I2, bounds)
+
+    # Step 2: GS2SLS at λ₀.
+    ys = y .- λ0 .* lagv(y)
+    Zs = Z .- λ0 .* WZ
+    Q = _independent_columns(H .- λ0 .* lagM(H))
+    θ, B, Ẑ, ε̂ = _gs2sls_filtered(ys, Zs, Q)
+
+    # Step 3: GM on the GS2SLS residuals, unweighted, then efficient.
+    û = y .- Z * θ
+    g, G = _gm_moments(û, W, N, T_per, dd)
+    Wû = lagv(û)
+    rows(i) = [i + (t - 1) * N for t in 1:T_per]
+    psi(λ) = _gs2sls_psi(λ, û, Wû, Z, WZ, Ẑ, B, S1, S2, N, T_per)
+    λ1 = _gm_solve(g, G, I2, bounds)
+    Ψ1 = psi(λ1)[1]
+    λ̂ = _gm_solve(g, G, inv(Symmetric(Ψ1)), bounds)
+    Ψ̂, a, e, _ = psi(λ̂)
+    J = G * [one(T), 2λ̂]
+    Ψi = inv(Symmetric(Ψ̂))
+    vλ = inv(dot(J, Ψi * J))
+    c = vλ .* (Ψi * J)                                   # λ̂ − λ ≈ c′m
+
+    # Covariances, cluster sums by unit.
+    meat = zeros(T, P, P); cross = zeros(T, P)
+    for i in 1:N
+        r = rows(i)
+        s = Ẑ[r, :]' * ε̂[r]
+        meat .+= s * s'
+        cross .+= s .* dot(a[r, :]' * e[r], c)
+    end
+    adj = T(N) / T(N - 1)
+    Vθ = adj .* (B * meat * B)
+    Cθλ = adj .* (B * cross) ./ n
+    V = zeros(T, P + 1, P + 1)
+    V[1:P, 1:P] .= (Vθ .+ Vθ') ./ 2
+    V[1:P, P + 1] .= Cθλ; V[P + 1, 1:P] .= Cθλ
+    V[P + 1, P + 1] = vλ / n
+
+    # Hansen's J, robust to the heteroskedasticity. It is χ² only at the
+    # efficient GMM estimate for the weight it uses, so it is computed there:
+    # S from the GS2SLS residuals, then the two-step GMM fit of the filtered
+    # model and J at its residuals. That fit is used for this statistic only.
+    Sq = zeros(T, size(Q, 2), size(Q, 2))
+    for i in 1:N
+        v = Q[rows(i), :]' * ε̂[rows(i)]
+        Sq .+= v * v'
+    end
+    # With fewer units than instruments `Sq` is singular and J undefined.
+    df = size(Q, 2) - P
+    Sf = cholesky(Symmetric(Sq); check = false)
+    Jstat = if issuccess(Sf) && df > 0
+        QZ = Q' * Zs; Qy = Q' * ys
+        θg = (QZ' * (Sf \ QZ)) \ (QZ' * (Sf \ Qy))
+        q = Qy .- QZ * θg
+        dot(q, Sf \ q)
+    else
+        T(NaN)
+    end
+
+    return (theta = θ, vcov = V, lambda = λ̂, lambda_initial = λ0, residuals = ε̂,
+            sigma2 = dot(ε̂, ε̂) / n_eff, Psi = Ψ̂, J = J, a = a, Zhat = Ẑ, Zs = Zs, B = B,
+            Q = Q, hansen_j = Jstat, hansen_df = df)
+end
+
 """
     fit_gs2sls_panel(fe_spec, W, X_exog, X_endog, Z_iv, y, N, T_total;
-                     varnames, exog_names, endog_names)
+                     varnames, exog_names, endog_names, errors = :homoskedastic)
 
 Fit a SARAR panel with endogenous regressors by generalized spatial
 two-stage least squares.
@@ -369,6 +557,11 @@ assumption, unlike the likelihood-based panel estimators.
 
 # Keywords
 - `varnames`, `exog_names`, `endog_names`: names for the output table.
+- `errors`: `:homoskedastic` (default) or `:heteroskedastic`. The default
+  estimates `λ` from Kelejian & Prucha's (1998) moments, which assume every
+  unit's errors have the same variance. `:heteroskedastic` uses their 2010
+  moments, which do not, and reports a covariance robust to unequal
+  variances; see below.
 
 # Returns
 A [`GS2SLSModel`](@ref).
@@ -383,6 +576,10 @@ A [`GS2SLSModel`](@ref).
 m = fit_gs2sls_panel(TwoWayFE(), W, X_exog, X_endog, Z_iv, y, N, T_total)
 m.sargan_pval
 m.rho, m.lambda
+
+# Errors whose variance differs across units:
+m = fit_gs2sls_panel(TwoWayFE(), W, X_exog, X_endog, Z_iv, y, N, T_total;
+                     errors = :heteroskedastic)
 ```
 
 A formula interface is available, which derives `N`, `T_total` and the
@@ -409,9 +606,73 @@ See also `endo`, `extract_panel_permutation`.
     The excluded instruments are checked the same way, and before `H` is
     assembled — `inv(H'H)` comes first and would otherwise fail there.
 
+    The assembled instrument matrix `H = [X, WX, W²X, Z, WZ]` itself keeps
+    only its linearly independent columns, as Kelejian & Prucha specify.
+    With an intercept and a row-standardised `W`, `WX` repeats the
+    intercept; that repeat used to make `H′H` singular, so an intercept
+    under `NoFE()` could not be fitted.
+
+# Unequal error variances: `errors = :heteroskedastic`
+
+The default `λ̂` rests on `E[ε′ε] = nσ²` and `E[ε′W′Wε] = σ²tr(W′W)`, which
+hold only if every variance is `σ²`. When the variance moves with a unit's
+place in `W` (with its neighbour count, say), `λ̂` is biased and its
+standard error is wrong. Kelejian & Prucha (2010) replace those moments
+with two built on zero-diagonal matrices, `W′W − diag(W′W)` and `W`, whose
+expectations are zero whatever the variances.
+
+The fit then runs in three steps: 2SLS and an initial `λ`; GS2SLS at that
+`λ`, which gives `θ̂ = (ρ̂, β̂)`; and `λ̂` from the GS2SLS residuals, by GM
+weighted by the inverse of the moments' estimated covariance. That
+covariance includes the term the paper derives for residuals that carry
+`θ̂`'s estimation error, which `Wy` among the regressors makes first-order.
+The covariance of `(θ̂, λ̂)` is the paper's, including the `θ̂`–`λ̂` block,
+with every sum taken by unit so that it is also robust to the serial
+correlation the fixed-effects transform introduces. The over-identification
+test is Hansen's `J`, computed at the efficient two-step GMM fit of the
+filtered model; it is stored in `sargan_stat` and `sargan_pval`.
+
+Kelejian & Prucha's theory is for a cross-section, which here is
+`NoFE()` with `T_total = 2`, since the first period is dropped. Pooling the
+moments over periods on within-transformed data is this package's
+extension. Time demeaning correlates units at `O(1/N)`, and that is
+ignored.
+
+Measured (`validation/mc_gs2sls_het.jl`, 2,000 replications per cell,
+AUDIT finding 36), error sd proportional to the
+neighbour count on an irregular map, against constant sd; `hom` is the
+default, `het` is `errors = :heteroskedastic`.
+
+| Design | mean `λ̂` hom / het | `λ` coverage hom / het | `ρ` coverage hom / het | over-id. size hom / het |
+|---|---|---|---|---|
+| cross-section, N = 1,200, λ = 0.4, sd ∝ neighbours | 0.241 / 0.376 | 0.701 / 0.950 | 0.903 / 0.933 | 0.007 / 0.055 |
+| cross-section, N = 1,200, λ = 0.8, sd ∝ neighbours | 0.683 / 0.778 | 0.719 / 0.948 | 0.878 / 0.909 | 0.016 / 0.076 |
+| cross-section, N = 1,200, λ = 0.4, constant sd | 0.372 / 0.379 | 0.946 / 0.942 | 0.937 / 0.936 | 0.055 / 0.052 |
+| panel, `IndivFE`, T = 6, sd ∝ neighbours | 0.278 / 0.387 | 0.771 / 0.946 | 0.910 / 0.939 | 0.005 / 0.044 |
+| panel, `IndivFE`, T = 6, constant sd | 0.380 / 0.388 | 0.954 / 0.948 | 0.934 / 0.933 | 0.049 / 0.047 |
+| panel, `TwoWayFE`, T = 6, sd ∝ neighbours | 0.249 / 0.367 | 0.704 / 0.947 | 0.903 / 0.930 | 0.007 / 0.061 |
+
+With constant variance the two agree. Under `TwoWayFE`
+`λ̂` is about 0.03 low on both paths. At N = 300 both paths under-cover `ρ`
+(0.70–0.89), and at λ = 0.8 the over-identification test over-rejects
+(0.18–0.21). That is the sample size, not the variances.
+
+`W` must have a zero diagonal, or the fit throws: the moments are valid for
+any variances only because the diagonal is zero.
+
+Under either setting the coefficients' covariance is clustered by unit, and
+`σ̂²` uses the degrees of freedom the within transform leaves. Until AUDIT
+finding 36 the default used HC0 and the mean squared transformed residual.
+In six-period panels with constant variance its intervals then covered at
+0.89–0.92, and Sargan's test rejected 13% of true nulls.
+
 # References
 Kelejian, H. & Prucha, I. (1998). *Journal of Real Estate Finance and
 Economics*, 17(1).
+
+Kelejian, H. H. & Prucha, I. R. (2010). Specification and estimation of
+spatial autoregressive models with autoregressive and heteroskedastic
+disturbances. *Journal of Econometrics*, 157(1), 53–67.
 """
 function fit_gs2sls_panel(
     fe_spec::FE,
@@ -424,8 +685,12 @@ function fit_gs2sls_panel(
     T_total::Int;
     varnames::Union{Nothing, Vector{String}}=nothing,
     exog_names::Union{Nothing, Vector{String}}=nothing,
-    endog_names::Union{Nothing, Vector{String}}=nothing
+    endog_names::Union{Nothing, Vector{String}}=nothing,
+    errors::Symbol=:homoskedastic
 ) where {FE<:FixedEffectsSpec, T<:AbstractFloat, M<:AbstractSparseMatrix{T}}
+
+    errors in (:homoskedastic, :heteroskedastic) || throw(ArgumentError(
+        "`errors` must be :homoskedastic or :heteroskedastic; got :$errors"))
 
     NT_total = length(y)
     T_post = T_total - 1
@@ -463,7 +728,24 @@ function fit_gs2sls_panel(
     WWX_ex = panel_spatial_lag(W, WX_ex, N, T_post)
     WZ_iv  = panel_spatial_lag(W, Z_iv_t, N, T_post)
 
-    H = hcat(X_ex_t, WX_ex, WWX_ex, Z_iv_t, WZ_iv)
+    H = _independent_columns(hcat(X_ex_t, WX_ex, WWX_ex, Z_iv_t, WZ_iv))
+
+    K_ex = size(X_ex_t, 2)
+    K_en = size(X_en_t, 2)
+    ex_names = isnothing(exog_names) ? ["exog_$i" for i in 1:K_ex] : exog_names
+    en_names = isnothing(endog_names) ? ["endog_$i" for i in 1:K_en] : endog_names
+    cnames = vcat(["ρ (Wy)"], ex_names, en_names, ["λ (Wu)"])
+
+    if errors === :heteroskedastic
+        Ne_h, Te_h = effective_dims(N, T_post, fe_spec)
+        o = _gs2sls_het(W, y_t, Wy_t, X_ex_t, X_en_t, H, N, T_post; n_eff = Ne_h * Te_h)
+        jp = o.hansen_df > 0 && isfinite(o.hansen_j) ?
+             T(_chi2_sf(Float64(o.hansen_j), o.hansen_df)) : T(NaN)
+        return GS2SLSModel{FE, T, M}(
+            fe_spec, N, T_total, T_post,
+            vcat(o.theta, o.lambda), o.vcov, o.theta[1], o.lambda, o.sigma2,
+            o.hansen_j, jp, W, o.residuals, cnames, :heteroskedastic)
+    end
 
     Psi_endog = hcat(Wy_t, X_en_t)
     HH_inv = inv(Symmetric(H' * H))
@@ -502,18 +784,37 @@ function fit_gs2sls_panel(
 
     P_struct_count = length(theta_fgs2sls)
     u_final = y_star .- Psi_star * theta_fgs2sls
-    sigma2 = dot(u_final, u_final) / NT_post
+    # σ² on the degrees of freedom the within transform leaves: the mean
+    # squared transformed residual estimates σ²(T−1)/T under unit effects,
+    # which inflated Sargan's statistic by T/(T−1) (AUDIT finding 36).
+    Ne, Te = effective_dims(N, T_post, fe_spec)
+    sigma2 = dot(u_final, u_final) / (Ne * Te)
 
-    omega = Diagonal(u_final .^ 2)
-    middle = Psi_full_star' * omega * Psi_full_star
+    # The coefficients' covariance, clustered by unit. The transformed
+    # residuals are correlated within a unit (−σ²/T off the diagonal under
+    # unit effects), which White's HC0 ignored: with constant variance its
+    # intervals covered at 0.90–0.92 in six-period panels (finding 36). At
+    # T_post = 1 this is HC0 times N/(N−1).
     left_inv = inv(Psi_full_star' * Psi_star)
-    vcov_struct = left_inv * middle * left_inv'
+    middle = zeros(T, size(Psi_full_star, 2), size(Psi_full_star, 2))
+    for i in 1:N
+        r = [i + (t - 1) * N for t in 1:T_post]
+        sc = Psi_full_star[r, :]' * u_final[r]
+        middle .+= sc * sc'
+    end
+    vcov_struct = (T(N) / T(N - 1)) .* (left_inv * middle * left_inv')
 
     P_struct = length(theta_fgs2sls)
     vcov_mat = zeros(T, P_struct + 1, P_struct + 1)
     vcov_mat[1:P_struct, 1:P_struct] .= vcov_struct
+    # λ's variance: σ² on the same degrees of freedom, and the factor
+    # (T−1)/T by which unit demeaning shrinks the pooled quadratic forms'
+    # variance relative to T independent periods (finding 35's panel
+    # result). Both were missing, and λ's interval covered at 0.89–0.92.
+    κ = has_indiv_fe(fe_spec) ? T(T_post - 1) / T(T_post) : one(T)
     λ_se = _lambda_gmm_se(lambda_hat, u, Wu, W, N, T_post;
-                         Psi_full=Psi_full, Psi_raw=Psi_raw)
+                         Psi_full=Psi_full, Psi_raw=Psi_raw,
+                         n_eff=Ne * Te, kappa=κ)
     vcov_mat[P_struct + 1, P_struct + 1] = isnan(λ_se) ? T(NaN) : λ_se^2
 
     P_H_e = H_star * (HH_star_inv * (H_star' * u_final))
@@ -528,32 +829,33 @@ function fit_gs2sls_panel(
                   T(NaN)
 
     rho = theta_fgs2sls[1]
-    K_ex = size(X_ex_t, 2)
-    K_en = size(X_en_t, 2)
     beta_ex = theta_fgs2sls[2:(1 + K_ex)]
     beta_en = theta_fgs2sls[(2 + K_ex):end]
     full_coef = vcat(rho, beta_ex, beta_en, lambda_hat)
 
-    ex_names = isnothing(exog_names) ? ["exog_$i" for i in 1:K_ex] : exog_names
-    en_names = isnothing(endog_names) ? ["endog_$i" for i in 1:K_en] : endog_names
-    cnames = vcat(["ρ (Wy)"], ex_names, en_names, ["λ (Wu)"])
-
     return GS2SLSModel{FE, T, M}(
         fe_spec, N, T_total, T_post,
         full_coef, vcov_mat, rho, lambda_hat, sigma2,
-        sargan_stat, sargan_pval, W, u_final, cnames
+        sargan_stat, sargan_pval, W, u_final, cnames, :homoskedastic
     )
 end
 
 function Base.show(io::IO, m::GS2SLSModel{FE}) where {FE}
-    fname = FE === IndivFE ? "Individual" : "Two-Way"
+    fname = FE === IndivFE ? "Individual" : FE === TwoWayFE ? "Two-Way" :
+            FE === SpatialUtils.TimeFE ? "Time" : "None"
+    het = m.errors === :heteroskedastic
     println(io, "═══════════════════════════════════════════════════════════════════════")
     println(io, "GS2SLS SARAR Panel Model — FE: $fname")
+    het && println(io, "Robust to heteroskedasticity (Kelejian & Prucha 2010); SEs clustered by unit")
     println(io, "───────────────────────────────────────────────────────────────────────")
     _print_coef_table(io, m.coefnames, m.coef, sqrt.(max.(0.0, diag(m.vcov))))
     println(io, "───────────────────────────────────────────────────────────────────────")
     @printf(io, "ρ = %.4f    λ = %.4f    σ² = %.4f    N = %d    T = %d\n", m.rho, m.lambda, m.sigma2, m.N, m.T_total)
-    @printf(io, "Sargan stat = %.4f    Sargan p-val = %.4f\n", m.sargan_stat, m.sargan_pval)
+    if het
+        @printf(io, "Hansen J = %.4f    Hansen J p-val = %.4f\n", m.sargan_stat, m.sargan_pval)
+    else
+        @printf(io, "Sargan stat = %.4f    Sargan p-val = %.4f\n", m.sargan_stat, m.sargan_pval)
+    end
     println(io, "═══════════════════════════════════════════════════════════════════════")
 end
 

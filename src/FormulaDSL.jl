@@ -317,14 +317,14 @@ function DynamicPanel.fit_dynamic_spatial_panel(f::StatsModels.FormulaTerm, tabl
     end
 end
 
-function GS2SLSPanel.fit_gs2sls_panel(f::StatsModels.FormulaTerm, table, W::AbstractSparseMatrix{T}; panel::Symbol, time::Symbol, fe::Union{Nothing, GS2SLSPanel.FixedEffectsSpec}=nothing) where {T<:AbstractFloat}
+function GS2SLSPanel.fit_gs2sls_panel(f::StatsModels.FormulaTerm, table, W::AbstractSparseMatrix{T}; panel::Symbol, time::Symbol, fe::Union{Nothing, GS2SLSPanel.FixedEffectsSpec}=nothing, errors::Symbol=:homoskedastic) where {T<:AbstractFloat}
     perm, N, T_total = extract_panel_permutation(table, panel, time)
     parsed = parse_spatial_formula(f, table; perm=perm, T=T)
     @assert !isempty(parsed.endog_names) "`fit_gs2sls_panel` formula requires `endo(tax, z1 + z2)`."
     fe_spec = isnothing(fe) ? _resolve_gs2sls_fe(parsed.fe_symbols, panel, time) : fe
     X_exog = parsed.has_slag ? hcat(parsed.X_exog, GS2SLSPanel.panel_spatial_lag(W, parsed.X_slag_source, N, T_total)) : parsed.X_exog
     exog_names = parsed.has_slag ? vcat(parsed.exog_names, ["W_" * n for n in parsed.slag_names]) : parsed.exog_names
-    return GS2SLSPanel.fit_gs2sls_panel(fe_spec, W, X_exog, parsed.X_endog, parsed.Z_iv, parsed.y, N, T_total; exog_names=exog_names, endog_names=parsed.endog_names)
+    return GS2SLSPanel.fit_gs2sls_panel(fe_spec, W, X_exog, parsed.X_endog, parsed.Z_iv, parsed.y, N, T_total; exog_names=exog_names, endog_names=parsed.endog_names, errors=errors)
 end
 
 function SystemGMMMod.fit_dynamic_gmm(variant::SystemGMMMod.GMMVariant, f::StatsModels.FormulaTerm, table; panel::Symbol, time::Symbol, max_lag::Int=4, collapsed::Bool=false)

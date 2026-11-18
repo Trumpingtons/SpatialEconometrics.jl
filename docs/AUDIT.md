@@ -5260,3 +5260,137 @@ GMM's root mean square error is within about 1% of ML's.
 lags of `y` (Kelejian & Prucha's SARAR, with its first-stage term `aᵣ`) are
 not built; the existing `fit_gs2sls_panel` still uses the 1998 moments.
 
+
+### 36. `fit_gs2sls_panel`'s `λ̂` assumed equal error variances — BUILT; three faults found in the default path's panel inference — FIXED
+
+Finding 35 left SARAR open: `fit_gs2sls_panel` estimated `λ` from Kelejian &
+Prucha's (1998) moments, which need every unit's errors to have the same
+variance, and its `λ` standard error assumed it too.
+
+**Built, 2026-11-18:** `fit_gs2sls_panel(...; errors = :heteroskedastic)`,
+Kelejian & Prucha (2010) with endogenous regressors (their Remark 6). The
+estimator is `_gs2sls_het` in `SpatialGS2SLSPanel`, and it runs in three
+steps:
+
+1. 2SLS, and `λ₀` by the unweighted GM on its residuals.
+2. GS2SLS at `λ₀`, instrumented as the default path instruments. `θ̂` comes
+   from this step.
+3. `λ̂` by GM on the GS2SLS residuals: unweighted, then weighted by `Ψ̂⁻¹`.
+
+`Ψ̂` (eq. 13) has two parts:
+- **Quadratic part:** `_gm_psi`, shared with finding 35. The moment helpers
+  moved to `SpatialUtils`.
+- **Linear part:** `n⁻¹Σᵢ(aᵢ′eᵢ)(aᵢ′eᵢ)′`, with `aᵣ = nẐBαᵣ` and
+  `αᵣ = −n⁻¹Z(λ)′(Aᵣ + Aᵣ′)e`. For GS2SLS residuals no `(I − λW′)⁻¹` enters
+  (Lemma 4). Because `Z` holds `Wy`, this part is first-order. In the suite's
+  design it is about two-thirds of the second moment's variance.
+
+The covariance follows Theorem 4:
+- `θ̂`'s block is the cluster sandwich by unit, times `N/(N−1)`;
+- `λ̂`'s variance is `(J′Ψ̂⁻¹J)⁻¹/n`;
+- the `θ̂`–`λ̂` block comes from the linear part.
+
+The over-identification test is Hansen's `J`, robust to unequal variances.
+It is computed at the efficient two-step GMM fit of the filtered model, since
+`J` is χ² only there. Evaluated at the GS2SLS residuals it rejected 9–14% of
+true nulls in the pilot.
+
+As in finding 35, the panel version is the package's extension: the moments
+are pooled over periods on within-transformed data, and every sum runs by unit.
+
+**Also fixed: instrument columns.** `H = [X, WX, W²X, Z, WZ]` now keeps only
+its linearly independent columns, as the paper specifies. Before, an
+intercept with a row-standardised `W` made `H′H` singular. Under `NoFE()` the
+fit threw `SingularException` (checked against the previous code). A
+full-rank `H` is returned unchanged, so no existing fit moves.
+
+**Checks (testset 4d, and one line in testset 8).**
+- `αᵣ` equals the central-difference derivative of the sample moments in `θ`
+  (rtol `1e-6`; the moments are quadratic in `θ`).
+- `aᵣ′v/n = αᵣ′BẐ′v` for an arbitrary `v`.
+- **The null distribution, simulated.** The design is 196 rook cells, four
+  periods after unit demeaning, `ρ = 0.5`, `λ = 0.4`, one endogenous
+  regressor, sd doubled where `dᵢ` is above its median, skewed innovations,
+  and 1,500 draws.
+  - At the true `λ` the moments' means are zero.
+  - Their simulated covariance matches the mean of `Ψ̂`.
+  - Over 20 seeds, `|z|` was at most 2.36 for the means and 3.28 for `Ψ̂`,
+    against a bound of 4.
+  - **Power:** `Ψ̂` without its linear part fails, with `z` at least 11.9
+    (bound 8).
+  - `Ψ̂` overstates by 5–14% in cross-sections of 196–576 cells, shrinking
+    with `n`. That is an omitted higher-order term, and it is conservative.
+- **The steps by hand:** `λ₀` and `λ̂` minimise their objectives, `θ̂` is
+  2SLS of the model filtered at `λ₀`, and the three covariance blocks match
+  their formulas. Hansen's `J` and its p-value are checked the same way, and
+  the public route returns exactly `_gs2sls_het`.
+- **Coverage power check:** an irregular map, with sd proportional to the
+  neighbour count, 300 replications. Over 20 seeds on each version, the
+  default path covered `λ` at 0.723–0.847 and the robust path at
+  0.907–0.980. The bounds are ≤ 0.875 and 0.885–0.995. Before the fix below
+  the default covered at 0.650–0.740 (200 replications, Julia 1.13).
+- **The null check on Julia 1.10:** over 20 seeds, `|z|` was at most 2.51
+  for the means and 2.96 for `Ψ̂`, and the quadratic-only `z` was at least
+  15.5.
+
+**Measured** (`validation/mc_gs2sls_het.jl`, 2,000 replications, Julia
+1.13.4). The map is irregular, with neighbour counts from 1 to 42; `ρ = 0.3`.
+
+| Design | mean `λ̂` hom / het | `λ` coverage | `ρ` coverage | over-id. size |
+|---|---|---|---|---|
+| cross-section, N = 1,200, λ = 0.4, sd ∝ neighbours | 0.241 / 0.376 | 0.701 / 0.950 | 0.903 / 0.933 | 0.007 / 0.055 |
+| cross-section, N = 1,200, λ = 0.8, sd ∝ neighbours | 0.683 / 0.778 | 0.719 / 0.948 | 0.878 / 0.909 | 0.016 / 0.076 |
+| cross-section, N = 1,200, λ = 0.4, constant sd | 0.372 / 0.379 | 0.946 / 0.942 | 0.937 / 0.936 | 0.055 / 0.052 |
+| panel `IndivFE`, T = 6, sd ∝ neighbours | 0.278 / 0.387 | 0.771 / 0.946 | 0.910 / 0.939 | 0.005 / 0.044 |
+| panel `IndivFE`, T = 6, constant sd | 0.380 / 0.388 | 0.954 / 0.948 | 0.934 / 0.933 | 0.049 / 0.047 |
+| panel `TwoWayFE`, T = 6, sd ∝ neighbours | 0.249 / 0.367 | 0.704 / 0.947 | 0.903 / 0.930 | 0.007 / 0.061 |
+
+- **Cross-section, 1,200 units:** with constant variance the two paths agree.
+- **Cross-section, 300 units:** both paths under-cover `ρ` (0.70–0.89 for
+  either). At `λ = 0.8` both over-identification tests over-reject
+  (0.18–0.21). Both effects are present with constant variance, so they come
+  from the sample size, not the variances.
+- **Panel, `TwoWayFE`:** `λ̂` is about 0.03 low on both paths. The time
+  demeaning's `O(1/N)` cross-unit correlation is the likely source, as in
+  finding 35.
+
+**Found and fixed: the default path's panel inference.** The first run of
+the Monte Carlo above also showed the default path failing under constant
+variance, which is its own assumption. In six-period panels:
+- **Coefficients:** `ρ`, `β` and `γ` covered at 0.898–0.923.
+- **`λ`:** its interval covered at 0.917 (`IndivFE`) and 0.890 (`TwoWayFE`).
+- **Sargan test:** it rejected 13.4% and 13.6% of true nulls.
+
+There were three causes, and each is now fixed:
+- **Coefficient covariance.** It was White's HC0 on within-transformed
+  residuals. Those residuals are serially correlated within a unit
+  (`−σ²/T` off the diagonal), and HC0 does not allow for that. It is now
+  the cluster sandwich by unit, times `N/(N−1)`; at `T_post = 1` that is
+  HC0 times `N/(N−1)`.
+- **`σ̂²`.** It was the mean squared transformed residual, which estimates
+  `σ²(T−1)/T` under unit effects. With `T_post = 5` that inflated Sargan's
+  statistic by 5/4, and it shrank `λ`'s variance by the square of that.
+  It now uses the degrees of freedom the transform leaves
+  (`effective_dims`), and `sigma2` reports it.
+- **`λ`'s variance.** It summed per-period covariances as if the periods
+  were independent. Unit demeaning scales the pooled quadratic forms'
+  variance by `κ = (T−1)/T` (finding 35's panel result, checked there by
+  simulation). `_lambda_gmm_se` takes `κ` and `n_eff`, and their defaults
+  keep the old formula, so finding 24's checks still run on it.
+
+After the fix, in the same cells (same draws), the default path covers
+`λ` at 0.954 and 0.928, `ρ` at 0.934 and 0.930, and `β` at 0.950 and 0.945.
+Sargan's test rejects at 0.049 and 0.061. The robust path is unchanged by
+the fix: 0.948 and 0.928, 0.933 and 0.931, 0.950 and 0.945, and Hansen's
+`J` at 0.047 and 0.061. In the cross-sections the default path's numbers
+move only in the third decimal.
+
+The checks are in testset 4d and its 4c update: the cluster sandwich and
+Sargan's `σ̂²` by hand, and the fit's `λ` standard error against
+`_lambda_gmm_se` with `κ` and `n_eff`. Finding 24's calibration test in
+4c still passes with the wider interval. With `errors = :homoskedastic`
+the standard errors and p-values of panel fits change. That is intended,
+and the docstring says so.
+
+**Not settled.** The panel extension has no proof. The `TwoWayFE` bias in
+`λ̂` is not removed.

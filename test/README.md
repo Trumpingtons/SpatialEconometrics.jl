@@ -1,12 +1,12 @@
 # Test suite
 
-The whole suite is one file, `runtests.jl`: 61 top-level testsets inside a
+The whole suite is one file, `runtests.jl`: 62 top-level testsets inside a
 single outer testset, "SpatialEconometrics.jl Full Suite Verification".
 
 | Run | Result (2026-11-18) |
 |---|---|
-| Julia 1.13.4, both extensions loaded | 4,099 passed, none broken |
-| Julia 1.10.13, no extensions | 4,064 passed, 2 broken |
+| Julia 1.13.4, both extensions loaded | 4,139 passed, none broken |
+| Julia 1.10.13, no extensions | 4,104 passed, 2 broken |
 
 The two broken entries are markers that stand in for the Makie and Turing
 testsets when those packages are absent (see below). A local run takes about

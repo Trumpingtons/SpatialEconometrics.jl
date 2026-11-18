@@ -11,8 +11,11 @@ A fitted GS2SLS / SARAR panel, returned by
 interface.
 
 Carries `coef` and `vcov`, both spatial parameters `rho` and `lambda`,
-`sigma2`, the Sargan over-identification statistic with its p-value, the
-weight matrix, residuals, `coefnames` and the panel dimensions.
+`sigma2`, the over-identification statistic with its p-value (Sargan's, or
+Hansen's robust `J` when `errors = :heteroskedastic`; both are stored in
+`sargan_stat` and `sargan_pval`), the weight matrix, residuals,
+`coefnames`, the panel dimensions and `errors`, the error assumption it was
+fitted under.
 
 Estimated by instrumental variables rather than maximum likelihood, which
 is what lets it handle endogenous regressors alongside spatial dependence
@@ -26,7 +29,7 @@ and avoids assuming normal errors.
 ## `fit_gs2sls_panel`
 
     fit_gs2sls_panel(fe_spec, W, X_exog, X_endog, Z_iv, y, N, T_total;
-                     varnames, exog_names, endog_names)
+                     varnames, exog_names, endog_names, errors = :homoskedastic)
 
 Fit a SARAR panel with endogenous regressors by generalized spatial
 two-stage least squares.
@@ -49,6 +52,11 @@ assumption, unlike the likelihood-based panel estimators.
 
 ### Keywords
 - `varnames`, `exog_names`, `endog_names`: names for the output table.
+- `errors`: `:homoskedastic` (default) or `:heteroskedastic`. The default
+  estimates `λ` from Kelejian & Prucha's (1998) moments, which assume every
+  unit's errors have the same variance. `:heteroskedastic` uses their 2010
+  moments, which do not, and reports a covariance robust to unequal
+  variances; see below.
 
 ### Returns
 A [`GS2SLSModel`](@ref).
@@ -63,6 +71,10 @@ A [`GS2SLSModel`](@ref).
 m = fit_gs2sls_panel(TwoWayFE(), W, X_exog, X_endog, Z_iv, y, N, T_total)
 m.sargan_pval
 m.rho, m.lambda
+
+# Errors whose variance differs across units:
+m = fit_gs2sls_panel(TwoWayFE(), W, X_exog, X_endog, Z_iv, y, N, T_total;
+                     errors = :heteroskedastic)
 ```
 
 A formula interface is available, which derives `N`, `T_total` and the
@@ -89,7 +101,71 @@ See also `endo`, `extract_panel_permutation`.
     The excluded instruments are checked the same way, and before `H` is
     assembled — `inv(H'H)` comes first and would otherwise fail there.
 
+    The assembled instrument matrix `H = [X, WX, W²X, Z, WZ]` itself keeps
+    only its linearly independent columns, as Kelejian & Prucha specify.
+    With an intercept and a row-standardised `W`, `WX` repeats the
+    intercept; that repeat used to make `H′H` singular, so an intercept
+    under `NoFE()` could not be fitted.
+
+### Unequal error variances: `errors = :heteroskedastic`
+
+The default `λ̂` rests on `E[ε′ε] = nσ²` and `E[ε′W′Wε] = σ²tr(W′W)`, which
+hold only if every variance is `σ²`. When the variance moves with a unit's
+place in `W` (with its neighbour count, say), `λ̂` is biased and its
+standard error is wrong. Kelejian & Prucha (2010) replace those moments
+with two built on zero-diagonal matrices, `W′W − diag(W′W)` and `W`, whose
+expectations are zero whatever the variances.
+
+The fit then runs in three steps: 2SLS and an initial `λ`; GS2SLS at that
+`λ`, which gives `θ̂ = (ρ̂, β̂)`; and `λ̂` from the GS2SLS residuals, by GM
+weighted by the inverse of the moments' estimated covariance. That
+covariance includes the term the paper derives for residuals that carry
+`θ̂`'s estimation error, which `Wy` among the regressors makes first-order.
+The covariance of `(θ̂, λ̂)` is the paper's, including the `θ̂`–`λ̂` block,
+with every sum taken by unit so that it is also robust to the serial
+correlation the fixed-effects transform introduces. The over-identification
+test is Hansen's `J`, computed at the efficient two-step GMM fit of the
+filtered model; it is stored in `sargan_stat` and `sargan_pval`.
+
+Kelejian & Prucha's theory is for a cross-section, which here is
+`NoFE()` with `T_total = 2`, since the first period is dropped. Pooling the
+moments over periods on within-transformed data is this package's
+extension. Time demeaning correlates units at `O(1/N)`, and that is
+ignored.
+
+Measured (`validation/mc_gs2sls_het.jl`, 2,000 replications per cell,
+AUDIT finding 36), error sd proportional to the
+neighbour count on an irregular map, against constant sd; `hom` is the
+default, `het` is `errors = :heteroskedastic`.
+
+| Design | mean `λ̂` hom / het | `λ` coverage hom / het | `ρ` coverage hom / het | over-id. size hom / het |
+|---|---|---|---|---|
+| cross-section, N = 1,200, λ = 0.4, sd ∝ neighbours | 0.241 / 0.376 | 0.701 / 0.950 | 0.903 / 0.933 | 0.007 / 0.055 |
+| cross-section, N = 1,200, λ = 0.8, sd ∝ neighbours | 0.683 / 0.778 | 0.719 / 0.948 | 0.878 / 0.909 | 0.016 / 0.076 |
+| cross-section, N = 1,200, λ = 0.4, constant sd | 0.372 / 0.379 | 0.946 / 0.942 | 0.937 / 0.936 | 0.055 / 0.052 |
+| panel, `IndivFE`, T = 6, sd ∝ neighbours | 0.278 / 0.387 | 0.771 / 0.946 | 0.910 / 0.939 | 0.005 / 0.044 |
+| panel, `IndivFE`, T = 6, constant sd | 0.380 / 0.388 | 0.954 / 0.948 | 0.934 / 0.933 | 0.049 / 0.047 |
+| panel, `TwoWayFE`, T = 6, sd ∝ neighbours | 0.249 / 0.367 | 0.704 / 0.947 | 0.903 / 0.930 | 0.007 / 0.061 |
+
+With constant variance the two agree. Under `TwoWayFE`
+`λ̂` is about 0.03 low on both paths. At N = 300 both paths under-cover `ρ`
+(0.70–0.89), and at λ = 0.8 the over-identification test over-rejects
+(0.18–0.21). That is the sample size, not the variances.
+
+`W` must have a zero diagonal, or the fit throws: the moments are valid for
+any variances only because the diagonal is zero.
+
+Under either setting the coefficients' covariance is clustered by unit, and
+`σ̂²` uses the degrees of freedom the within transform leaves. Until AUDIT
+finding 36 the default used HC0 and the mean squared transformed residual.
+In six-period panels with constant variance its intervals then covered at
+0.89–0.92, and Sargan's test rejected 13% of true nulls.
+
 ### References
 Kelejian, H. & Prucha, I. (1998). *Journal of Real Estate Finance and
 Economics*, 17(1).
+
+Kelejian, H. H. & Prucha, I. R. (2010). Specification and estimation of
+spatial autoregressive models with autoregressive and heteroskedastic
+disturbances. *Journal of Econometrics*, 157(1), 53–67.
 

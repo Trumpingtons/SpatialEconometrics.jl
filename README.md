@@ -12,9 +12,9 @@ semiparametric spatial models, short-panel dynamic models with correlated
 random effects or common shocks, spatial log-GARCH for the variance, Monte Carlo simulation and publication-ready output — with a
 unified formula interface and optional Bayesian and visualization extensions.
 
-> **Version 0.5.0** — 4,099 test assertions across 61 top-level testsets
+> **Version 0.5.0** — 4,139 test assertions across 62 top-level testsets
 > with both package extensions installed, measured on Julia 1.13.4. Without
-> them, 4,064 pass and two broken markers stand in for the extension testsets,
+> them, 4,104 pass and two broken markers stand in for the extension testsets,
 > measured on Julia 1.10.13. See [Validation Status](#validation-status) for
 > Monte Carlo results.
 
@@ -183,7 +183,7 @@ want an internal helper:
 | `CREDynamicSpatialPanel` | Short-`T` dynamic spatial panel with correlated random effects | Li & Yang (2021) |
 | `CommonShockDynamicPanel` | Short-`T` dynamic spatial panel with common shocks | Bai & Chen (2026) |
 | `SpatialGARCH` | Spatial log-GARCH: two-step QML with a derived sandwich | Sato & Matsuda (2021) |
-| `SpatialGS2SLSPanel` | SARAR panels with endogenous regressors | Kelejian & Prucha (1998) |
+| `SpatialGS2SLSPanel` | SARAR panels with endogenous regressors | Kelejian & Prucha (1998, 2010) |
 | `DynamicPanelSystemGMM` | Arellano-Bond & Blundell-Bond GMM | Roodman (2009) |
 | `StructuralMacroCalibration` | GRAS & cross-entropy SAM/MRIO balancing | Junius & Oosterhaven (2003) |
 | `SpatialHAC` | Driscoll-Kraay & Conley HAC covariances | Conley (1999) |
@@ -246,7 +246,7 @@ our own because:
 SpatialEconometrics/
 ├── src/            # 33 modules: the umbrella plus 32 submodules
 ├── ext/            # Makie and Turing package extensions (see ext/README.md)
-├── test/           # runtests.jl — 61 top-level testsets (see test/README.md)
+├── test/           # runtests.jl — 62 top-level testsets (see test/README.md)
 ├── skills/         # a Claude Code skill for the package (see skills/README.md)
 ├── examples/       # 33 runnable examples, one per topic
 ├── docs/           # Documenter source for the manual and API reference
