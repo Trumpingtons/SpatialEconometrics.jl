@@ -20,7 +20,7 @@
 > and mostly done:** items #1 (common factors) and #12 (spatio-temporal)
 > closed together on 2026-11-04, and row 22's **SpVAR** closed the same day
 > in a second pass, with time-varying `ρ` re-filed under #13 where its
-> published method belongs; #13 remains (pass 2 on hold since 2026-11-18), and #16 (spatial log-GARCH) was
+> published method belongs; #13 remains (pass 2 on hold since 2026-11-18; a research item on a projection-corrected closed-form `ρ` was opened the same day), and #16 (spatial log-GARCH) was
 > built on 2026-11-16. Tier 3 is otherwise untouched,
 > and the correctness audit in `docs/AUDIT.md` is closed — findings 1–25,
 > with 29–32 added afterwards from the benchmark suite and Phase 6C, and 33–36 since.
@@ -1085,6 +1085,56 @@ Not built, and why:
 - `ρ_t`: unsourced.
 - Quantile, varying-coefficient, penalised and additive rows: not in pass 1.
 
+**Research: a projection-corrected closed-form `ρ` for a growing basis**
+(opened 2026-11-18; research only, not scheduled for the package). The
+scripts, their outputs and the method are in `research/trace_cfe/`.
+- **The problem.** With a projection first stage `P_B`, the closed form's
+  moment has mean `−σ² tr(P_B W)/n` at the true `ρ`. That is O(K/n), and a
+  free surface makes K large. In the Monte Carlo it biases `ρ̂` by −0.07 at
+  K = 29 and by −0.5 at K = 191, and the plain closed form covers at
+  0.01–0.05. In those designs this is the bias Geniaux removes by
+  cross-fitting.
+- **The correction is not new** (read 2026-11-18). Jin & Lee (2012) give
+  the closed-form root of `y′S(ρ)′PMS(ρ)y = 0`:
+  - with `tr(PM) = 0` (their §3.1, footnote 12, which is our pooled `τ`
+    exactly);
+  - with `PM` zero-diagonal under heteroskedasticity (§3.2).
+
+  Liu & Yang (2015) apply the per-unit version to the QML score. Both
+  assume a regressor matrix of fixed dimension, with `PM` bounded in row and
+  column sums.
+- **What may be new.** Our zero-diagonal matrix, `MW + MDM` with `d` solving
+  `(M∘M)d = −diag(MW)`, has `M` on both sides; Jin & Lee's `(W − Δ)M` has it
+  on one. In `tc_jinlee.jl`:
+  - both are unbiased;
+  - ours has 0.58–0.77 of Jin & Lee's variance in all 20 cells, and the
+    gain holds at K = 199;
+  - ours covers at 0.936–0.950, theirs at 0.91–0.94.
+
+  The robust variance also needs a noise term for the estimated `P_B y₀`.
+  Without it the variance ran 3–10% high. It is negligible when the
+  dimension is fixed.
+- **The theory to work out,** in order:
+  1. Why the two-sided projection is more efficient: compare the two
+     variances analytically, as a function of `K/n`, and find whether the
+     gain vanishes when the dimension is fixed.
+  2. Whether `MW + MDM` is optimal within the zero-diagonal class, or how
+     far it is from the best `P`.
+  3. A CLT for the linear-quadratic moment when `M` is dense. The Kelejian &
+     Prucha (2010) theorem needs bounded row sums, which a growing `P_B`
+     breaks. This step sets the rate at which K may grow with `n`.
+  4. The consistency of the robust variance, including the noise term.
+- **Checks still owed** by the null-distribution rule:
+  - a null-distribution check of the robust variance for Jin & Lee's `C`,
+    since their slightly low coverage may come from the variance and not
+    the estimator;
+  - a penalised smoother, where `M = I − S_λ` is not idempotent;
+  - Geniaux's own E3 design.
+- **Outcome if the theory holds:** a short paper (a note on Geniaux, or a
+  methods note on the two-sided zero-diagonal moment). The candidate
+  package feature is a `correction = :zero_diagonal` option on
+  `closed_form_rho`. It is not to be built before steps 1 and 3.
+
 **New file:** `src/SemiparametricSpatial.jl` (1,136 lines against the ~500
 estimated; the four estimators with their variances, two bandwidth selectors
 and the overlap measure)
@@ -1871,7 +1921,9 @@ development line rather than across three releases.
 - Griffith, D. A. (2003). *Spatial Autocorrelation and Spatial Filtering*. Springer.
 - Halleck Vega, S., & Elhorst, J. P. (2015). The SLX model. *Journal of Regional Science*, 55(3), 339–363.
 - Hastie, T., & Tibshirani, R. (1993). Varying-coefficient models. *Journal of the Royal Statistical Society B*, 55(4), 757–796.
+- Jin, F., & Lee, L.-F. (2012). Approximated likelihood and root estimators for spatial interaction in spatial autoregressive models. *Regional Science and Urban Economics*, 42(3), 446–458. doi:10.1016/j.regsciurbeco.2011.12.004. **Read** (§§2–3, Propositions 1, 2 and 5) 2026-11-18. Held in `ExtRef/`.
 - Kelejian, H. H., & Piras, G. (2014). Estimation of spatial models with endogenous weighting matrices, and an application to a demand model for cigarettes. *Regional Science and Urban Economics*, 46, 140–149. **Read in part** in the accepted manuscript.
+- Kelejian, H. H., & Prucha, I. R. (2010). Specification and estimation of spatial autoregressive models with autoregressive and heteroskedastic disturbances. *Journal of Econometrics*, 157(1), 53–67. doi:10.1016/j.jeconom.2009.10.025
 - Klier, T., & McMillen, D. P. (2008). Clustering of auto supplier plants in the United States. *Journal of Business & Economic Statistics*, 26(4), 460–471.
 - Koley, M., & Bera, A. (2023). To use, or not to use the spatial Durbin model? — that is the question. *Spatial Economic Analysis*, 19(1), 30–56.
 - Kopczewska, K., & Elhorst, J. P. (2023). New developments in spatial econometric modelling. *Spatial Economic Analysis*, 19(1), 1–7.
@@ -1890,6 +1942,7 @@ development line rather than across three releases.
 - Li, K. (2022). Threshold spatial autoregressive model. MPRA Paper 113568 (working paper, 26 Jun 2022). **Read.** Not Li & Lin (2024).
 - Li, L., & Yang, Z. (2021). Spatial dynamic panel data models with correlated random effects. *Journal of Econometrics*, 221(2), 424–454. doi:10.1016/j.jeconom.2020.05.016. **Verified, read in part** (2026-11-13), from an SMU-repository author version held in `ExtRef/`: §§1–6 read; the proofs (Appendices B–C) and the online Supplementary Appendix not. Journal pagination is not in the file.
 - Liang, X., Gao, J., & Gong, X. (2022). Semiparametric spatial autoregressive panel data model with fixed effects and time-varying coefficients. *Journal of Business & Economic Statistics*, 40(4), 1784–1802. doi:10.1080/07350015.2021.1979564. **Verified and read**, from MPRA Paper 108497 — which is the same document as Monash Econometrics and Business Statistics Working Paper 05/21, both cover pages being in the one deposit, so the "two open versions" listed here previously were one. The model is eq (2.1): the **time-varying coefficients are the regressor coefficients `β₀(τ)`, while `ρ₀` is a scalar constant.** This reference therefore supports a time-varying-`β` row and **not** the time-varying-`ρ` row it was briefly attached to; see `docs/AUDIT.md`.
+- Liu, S. F., & Yang, Z. (2015). Modified QML estimation of spatial autoregressive models with unknown heteroskedasticity and nonnormality. *Regional Science and Urban Economics*. doi:10.1016/j.regsciurbeco.2015.02.003. **Read in part** (§3.1 and the assumptions) 2026-11-18. Held in `ExtRef/` (accepted manuscript).
 - Liu, X., & Yang, Z. (2020). Variable selection in spatial autoregressive models. *Journal of Econometrics*, 218(1), 85–109.
 - Manski, C. F. (1993). Identification of endogenous social effects: The reflection problem. *Review of Economic Studies*, 60(3), 531–542.
 - Murakami, D., & Griffith, D. A. (2015). Random effects specifications in eigenvector spatial filtering. *Journal of Geographical Systems*, 17(4), 311–331.
