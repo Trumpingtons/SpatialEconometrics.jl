@@ -1,8 +1,11 @@
 # SpatialEconometrics.jl — Development Roadmap
 
-> **Current version:** 0.5.0, tagged `v0.5.0` on 2026-11-17. It adds #13
-> pass 1, the two short-`T` panels of #1 and #16 to `v0.4.0` (tagged
-> 2026-11-06). Neither tag is registered.
+> **Current version:** 0.6.0, tagged `v0.6.0` on 2026-11-18. It adds to
+> `v0.5.0` (tagged 2026-11-17): the check of the `ρ` search interval
+> against `W`'s spectrum (AUDIT 33); #15's two-channel spatial DiD; the
+> heteroskedasticity-robust spatial-error GMM and GS2SLS, with the fixes to
+> the default GS2SLS's panel inference (AUDIT 34–36); the Claude Code skill
+> (#14); and the notebooks on Google Colab. No tag is registered.
 >
 > 32 submodules, 4,139 test assertions in 62 top-level testsets with both
 > package extensions installed and 4,104 (plus 2 broken markers) without
@@ -1270,7 +1273,7 @@ the SEs ignore the search.
 | CI/CD pipeline | GitHub Actions for automated testing on Julia 1.10, 1.13, nightly; code coverage via Codecov |
 | Claude skill — ✅ **built 2026-11-17** (`skills/`; see `skills/README.md`) | A skill for Claude Code: `SKILL.md` plus reference files. **Contents:** a decision guide from data type to estimator (cross-section, panel, dynamic, variance, unknown locations); the `W` constructors and their pitfalls (row standardisation, connectivity, proxy `W`); how to read each fit's warnings and throws (e.g. no interior maximum near `λ = 1` means no `λ̂` to report); per-function reference generated from the docstrings, with a check that keeps it in sync. **Limits:** it needs Julia installed, and a persistent REPL or a system image to avoid paying compile latency on every call. Estimated at a day |
 | MCP server (after registration) | For Claude Desktop, which has no shell. **Design:** a persistent Julia process (which also removes compile latency); a few coarse tools (`load_data`, `build_weights`, `fit`, `diagnostics`, `summary`), with fits held server-side by handle; results, warnings and throws returned as structured JSON; packaged for one-click install. **Prerequisites:** the skill's decision guide, which supplies the tool descriptions, and registration, so the install does not depend on a GitHub URL. Check the maturity of the Julia MCP libraries before choosing between native Julia and a thin Python wrapper. Estimated at about a week |
-| Notebooks on Google Colab — ✅ **built 2026-11-17**; your check on Colab itself is still open | Decided 2026-11-17. Colab's native Julia runtime was assumed to be Julia 1.10 LTS; on 2026-11-18 it was 1.12, which the package also supports. **Changes:** a shared setup cell that activates the repository when it runs inside a clone and otherwise runs `Pkg.add(url = …, rev = "v0.5.0")`; a data helper that reads `notebooks/data/` or downloads the file from `raw.githubusercontent.com` (notebooks 04, 11–13); neutral Julia kernel metadata in place of `julia-1.11`; "Open in Colab" badges in `notebooks/README.md`. **Check:** run every notebook from an empty folder on Julia 1.10 locally; the author opens one from its badge on Colab. The Pluto notebooks are out of scope. **Done 2026-11-17:** the setup cell finds the clone by walking up from `pwd()` to a `Project.toml` named `SpatialEconometrics`; outside one it installs `REV` into a temporary environment, with `StatsAPI`, which notebooks import. Notebook 05 also reads data, so the helper covers 04, 05 and 11–13. **Checked:** all 13 run from an empty folder on Julia 1.10.13 against `v0.5.0` from GitHub, with the data downloaded, and the folder stays empty; all 13 run inside the clone on 1.13.3 against `master`, with no finding-33 warning. The 1.10 run found three notebook bugs, now fixed: 02 used `coefnames` without importing it; 06 assigned to `eps` after calling `Base.eps`, which 1.10 refuses; 12 built `W` with `Float64.(W .> 0)`, whose eltype is `Any` on 1.10. **Fixed 2026-11-18:** installing into Colab's kernel environment made `Pkg.add` precompile every package Colab ships (over 20 minutes on the author's run: Makie, Lux, GPUCompiler, DataFrames…), although it changed no versions. The install now runs with `JULIA_PKG_PRECOMPILE_AUTO=0`, and `Pkg.precompile(["SpatialEconometrics", "StatsAPI"])` then compiles only their dependency tree, in parallel (leaving it to `using` compiled the tree one package at a time, and IJulia on 1.12 printed `caught exception of type :MethodError while trying to print a failed Task notice` meanwhile); checked locally on 1.10 against an environment holding an unprecompiled package, which stays unprecompiled (the old cell compiled it). **When a release is tagged, set `REV` in all 13 notebooks to it**, or a notebook on `master` runs against the older release |
+| Notebooks on Google Colab — ✅ **built 2026-11-17, checked on Colab 2026-11-18** (notebook 02 on a fresh session: only the package's dependencies precompiled, and the run was clean) | Decided 2026-11-17. Colab's native Julia runtime was assumed to be Julia 1.10 LTS; on 2026-11-18 it was 1.12, which the package also supports. **Changes:** a shared setup cell that activates the repository when it runs inside a clone and otherwise runs `Pkg.add(url = …, rev = REV)`, `REV` being the latest tag (bumped at each release); a data helper that reads `notebooks/data/` or downloads the file from `raw.githubusercontent.com` (notebooks 04, 11–13); neutral Julia kernel metadata in place of `julia-1.11`; "Open in Colab" badges in `notebooks/README.md`. **Check:** run every notebook from an empty folder on Julia 1.10 locally; the author opens one from its badge on Colab. The Pluto notebooks are out of scope. **Done 2026-11-17:** the setup cell finds the clone by walking up from `pwd()` to a `Project.toml` named `SpatialEconometrics`; outside one it installs `REV` into a temporary environment, with `StatsAPI`, which notebooks import. Notebook 05 also reads data, so the helper covers 04, 05 and 11–13. **Checked:** all 13 run from an empty folder on Julia 1.10.13 against `v0.5.0` from GitHub, with the data downloaded, and the folder stays empty; all 13 run inside the clone on 1.13.3 against `master`, with no finding-33 warning. The 1.10 run found three notebook bugs, now fixed: 02 used `coefnames` without importing it; 06 assigned to `eps` after calling `Base.eps`, which 1.10 refuses; 12 built `W` with `Float64.(W .> 0)`, whose eltype is `Any` on 1.10. **Fixed 2026-11-18:** installing into Colab's kernel environment made `Pkg.add` precompile every package Colab ships (over 20 minutes on the author's run: Makie, Lux, GPUCompiler, DataFrames…), although it changed no versions. The install now runs with `JULIA_PKG_PRECOMPILE_AUTO=0`, and `Pkg.precompile(["SpatialEconometrics", "StatsAPI"])` then compiles only their dependency tree, in parallel (leaving it to `using` compiled the tree one package at a time, and IJulia on 1.12 printed `caught exception of type :MethodError while trying to print a failed Task notice` meanwhile); checked locally on 1.10 against an environment holding an unprecompiled package, which stays unprecompiled (the old cell compiled it). **When a release is tagged, set `REV` in all 13 notebooks to it**, or a notebook on `master` runs against the older release |
 
 **New files/directories:** `docs/`, `notebooks/`, `benchmark/`, `.github/workflows/`, `CONTRIBUTING.md`
 
@@ -1460,8 +1463,8 @@ reopened and re-sourced rather than executed from its own summary.
 Rows above the rule are measured; rows below are estimates. v0.4.0 has
 crossed the rule: it is not a projection any more but a tagged release
 (2026-11-06), and the figures it once projected — ~1,200 assertions and
-~13,800 lines — were passed some time ago. v0.5.0 (2026-11-16) is likewise
-a measured row.
+~13,800 lines — were passed some time ago. v0.5.0 (2026-11-16) and v0.6.0
+(2026-11-18) are likewise measured rows.
 
 | Milestone | Modules | Test assertions | Lines of `src/` |
 |---|---|---|---|
@@ -1494,6 +1497,7 @@ a measured row.
 | **master** (+ #15's two-channel spatial DiD and `errors = :spatial`, AUDIT 34) | 32 | 4,055 ¶⁵ | 28,391 |
 | **master** (+ the heteroskedasticity-robust spatial error, `:spatial_gmm` / `estimator = :gmm`, AUDIT 35) | 32 | 4,099 ¶⁶ | 28,694 |
 | **master** (+ the heteroskedasticity-robust GS2SLS and the default path's panel fixes, AUDIT 36) | 32 | 4,139 ¶⁷ | 29,005 |
+| **v0.6.0** (tagged 2026-11-18, = the row above) | 32 | 4,139 ¶⁷ | 29,005 |
 | — | | | |
 | **v1.0.0** (Phases 6C–8) | 29–31 | ~4,100 | ~26,500 |
 
