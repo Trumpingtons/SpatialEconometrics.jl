@@ -34,9 +34,25 @@ where:
 
 `ρ̂`'s standard error is that square root divided by `|b − 2ρ̂a|`.
 
-Su (2012) is not prior art for this. It estimates `ρ` with linear moments
-only, and its §7 leaves quadratic moments for `ρ` to future work (see
-`ExtRef/README.md`).
+**Prior art (checked 2026-11-18; see `ExtRef/README.md`).** Both corrections
+are Jin & Lee (2012):
+- the pooled `τ` is their homoskedastic root estimator with
+  `P = W − tr(W M)/(n − d)·I` (§3.1, footnote 12);
+- the zero diagonal under heteroskedasticity is their §3.2, which builds it
+  more simply, as `P = A − Diag(AM)Diag(M)⁻¹M`, without solving `(M∘M)d`.
+
+Liu & Yang (2015) apply the same per-unit idea to the QML score. All of these
+take a regressor matrix of fixed dimension, with `PM` bounded in row and
+column sums.
+
+What these papers do not cover:
+- a basis whose size `K` grows with `n`, where `M` is dense and the trace term
+  is first-order. The spline GMM papers (Chen, Song & Yu 2025; Lu, Tian &
+  Yang 2024) avoid this regime with rate conditions such as `k²/n → 0`;
+- the noise term in the robust variance, which is negligible at fixed `d`;
+- the link to Geniaux's own-observation bias.
+
+Su (2012) estimates `ρ` with linear moments only.
 
 ## Scripts
 
@@ -112,6 +128,12 @@ channel".
 - Lee, L.-F. (2007). GMM and 2SLS estimation of mixed regressive, spatial
   autoregressive models. *Journal of Econometrics*, 137(2), 489–514.
   doi:10.1016/j.jeconom.2005.10.004
+- Jin, F., & Lee, L.-F. (2012). Approximated likelihood and root estimators
+  for spatial interaction in spatial autoregressive models. *Regional Science
+  and Urban Economics*, 42(3), 446–458. doi:10.1016/j.regsciurbeco.2011.12.004
+- Liu, S. F., & Yang, Z. (2015). Modified QML estimation of spatial
+  autoregressive models with unknown heteroskedasticity and nonnormality.
+  *Regional Science and Urban Economics*. doi:10.1016/j.regsciurbeco.2015.02.003
 - Su, L. (2012). Semiparametric GMM estimation of spatial autoregressive
   models. *Journal of Econometrics*, 167(2), 543–560.
   doi:10.1016/j.jeconom.2011.09.034
