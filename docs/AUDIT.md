@@ -5108,3 +5108,74 @@ bias.
   chapter 6 of the companion book measures, and the `mc_sdm.jl` comparison
   of the two routes, describe the search before polishing, not what is
   reported.
+
+## The two-channel spatial DiD, and what its Monte Carlo found in the pooled one
+
+### 34. `fit_spatial_did`'s spillover intervals under-cover with spatially correlated errors — DOCUMENTED, with a remedy for constant variance
+
+Found 2026-11-18 while validating `channels = :split` (Chagas, Azzoni &
+Almeida 2016, eq. 7; ROADMAP #15). The docstring's coverage table, and the
+`:cluster` default it justifies, measure **`att_direct` alone**. Nothing
+had measured the other three effects. Measured on Julia 1.13.4, a 20 × 20
+rook lattice, a contiguous treated block of 64 units, errors
+`(I − 0.6W)⁻¹ε` in each period
+(`validation/mc_spatial_did_channels_diagnostics.jl`, 1,000 replications;
+`validation/mc_spatial_did_channels.jl`, 2,000):
+
+| Fit | `att_direct` | `att_spill_control` | `att_total_treated` | equality test, size |
+|---|---|---|---|---|
+| pooled, `:cluster` (the default) | 0.950 | 0.905 | **0.689** | — |
+| split, `:cluster` | 0.855 | 0.831 | 0.673 | 0.220 |
+| split, `errors = :spatial` | 0.948 | 0.951 | 0.937 | 0.060 |
+
+**What separates the causes.** With uncorrelated errors every model and
+every `vcov` covers at 0.93–0.96, so neither the split nor the estimator is
+at fault: the spatial correlation is. **No `vcov` repairs it.** Conley at a
+cutoff of 2.5 brings the pooled total effect to 0.81, wider cutoffs lower it
+again (0.73 at 9, the reported SE then 0.59 of the estimate's sd), and
+Driscoll–Kraay with `T = 10` covers at 0.83 even with no spatial correlation.
+The explanation the docstring gives for `att_direct`, that the exposure
+column differences out the error the treated and their neighbours share,
+does not extend to the exposure coefficient: it is identified off the
+contrast between more and less exposed units, and that contrast is
+spatially smooth, as the error is. With the treated scattered at random the
+shortfall is smaller (total 0.87).
+
+**The remedy built: `errors = :spatial`.** The same design, with the
+disturbance `u = λWu + ε` fitted by maximum likelihood through
+`fit_spatial_error`: the cross-section on the differences in the two-period
+design (differencing keeps the error's form), and the two-way
+fixed-effects panel SEM in the staggered one. This is what Chagas et al.
+fit (their SDEM). It restores coverage in both layouts, and in their own
+simulation design (`N = 200`, `k`NN 10, `T = 10`, `λ = 0.5`) it covers `α`,
+`b₁`, `b₂` at 0.949, 0.947, 0.949 against 0.921, 0.873, 0.878 for OLS, with
+the equality test at 0.049 against 0.086. Testset 34l checks it against
+`fit_spatial_error` called on the same design, exactly, and that OLS
+under-covers where ML does not (over 20 seeds at `N = 144`: OLS 0.64–0.75,
+ML 0.90–0.95).
+
+**What it does not fix.** Its covariance is the inverse information matrix
+and assumes a constant error variance. With the error sd doubled on the
+treated, in the block design, coverage falls to 0.773 (`att_direct`) and
+0.761 (`att_total_treated`), with the test at 0.151, and OLS is no better.
+A heteroskedasticity-robust spatial-error estimator (Arraiz, Drukker,
+Kelejian & Prucha 2010) is filed as a ROADMAP row, not built.
+
+**Also changed by this pass.** A staggered design whose every unit is
+treated in some period threw "every unit is treated, so there is no
+comparison group", because the interference report was built from the
+ever-treated indicator. The regression identifies off timing and never
+needed a never-treated unit; Chagas et al.'s treatment switches on and off.
+The staggered report is now taken over the unit-period rows the regression
+uses, as the exposure means already were, so `m.interference` counts
+unit-periods in a staggered fit.
+
+**Split channels, measured.** Unbiased in every cell (control-spillover
+bias at most 0.0024, against −0.08 for the pooled model when the channels
+differ). The direct effect is the effect at zero treated-neighbour exposure,
+and in the block layout its sd is 5.3 times that of `att_total_treated`
+(1.4 scattered). Testset 34k checks the fit against OLS on the hand-built
+design, the Wald statistic against the restricted-against-unrestricted sum
+of squares (exact under `:ols`), exact recovery in both designs, the refusal
+when exposure does not vary among the treated, and the test's size and power
+(over 20 seeds at `N = 144`: size 0.053–0.088, power 0.85–0.89).

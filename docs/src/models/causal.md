@@ -89,6 +89,34 @@ means and are not interchangeable:
 effect. Each quantity is a fixed linear combination of the coefficient
 vector, so its standard error is exact rather than approximated.
 
+## Two spillover channels
+
+By default one exposure coefficient serves both spillovers (Delgado & Florax
+2015). Chagas, Azzoni & Almeida (2016, eq. 7) let the spillover differ by
+the receiving unit's own status, with free coefficients on ``D \circ WD``
+(treated neighbours of a treated unit) and ``(1 - D) \circ WD`` (treated
+neighbours of a control):
+
+```julia
+m = fit_spatial_did(y, D, W; channels = :split)
+m.att_spill_control              # δ_C times the controls' mean exposure
+m.spillover_equality             # Wald test of δ_T = δ_C, the pooled model
+```
+
+When the channels differ, the pooled model's control spillover is biased:
+in the validation study, by −0.08 against a true 0.23, where the split's
+bias is under 0.003. Two things to read before reporting a split fit:
+
+- `att_direct` is now the effect on a treated unit with **no** treated
+  neighbours, and it is separated from the treated channel only by
+  variation in exposure among the treated
+  (`m.interference.exposure_var_treated`). With a contiguous treated block
+  its sd was 5.3 times that of `att_total_treated`, so report the total.
+- In a staggered design the split uses the treatment in force in each
+  period, and a unit treated in some periods is a comparison in the others:
+  treatment that switches on and off, as in Chagas et al.'s data, is
+  accepted even when every unit is treated at some time.
+
 ## Staggered rollout
 
 Pass the full treatment path as an ``N \times T`` matrix and the estimator
@@ -142,6 +170,29 @@ m = fit_spatial_did(y, D, W; vcov = :conley, coords = coords, dist_cutoff = 2.5)
 If you use it, report more than one cutoff and prefer the narrow end. Full
 figures, including the nine configurations the ordering was checked across,
 are in the [`fit_spatial_did`](@ref) docstring.
+
+### The spillovers under spatially correlated errors
+
+The coverage figures above are for `att_direct`. The spillovers and the
+total effect on the treated lean on the exposure coefficient, and with
+spatially correlated errors no `vcov` covers them. With a contiguous block
+of 64 treated units on a 20 × 20 lattice and errors ``(I - 0.6W)^{-1}\varepsilon``,
+the default fit covers `att_total_treated` 69% of the time, and Conley at
+any cutoff does no better than 82%.
+
+`errors = :spatial` fits the disturbance ``u = \lambda W u + \varepsilon``
+by maximum likelihood instead, as Chagas et al.'s SDEM does:
+
+```julia
+m = fit_spatial_did(y, D, W; channels = :split, errors = :spatial)
+m.lambda, m.lambda_se
+```
+
+In the same design it covers `att_total_treated` at 94% and holds the
+equality test at 6%. Its standard errors assume a constant error variance:
+with the error sd doubled on the treated, coverage falls to 76%, and there
+is no heteroskedasticity-robust alternative in the package yet. The
+measured tables are in the [`fit_spatial_did`](@ref) docstring.
 
 ## Synthetic control
 

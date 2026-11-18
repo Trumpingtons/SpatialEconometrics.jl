@@ -130,6 +130,15 @@ factor absorbs the factor into `ρ̂`. Check before trusting `ρ̂` in a panel:
   (`exposure`, `ring_exposure`), run `check_interference` first (it says
   whether the design can identify a spillover at all), then
   `fit_spatial_did(y, treat, W)`.
+  - `channels = :split` gives the treated and the controls separate
+    spillover coefficients (Chagas et al. 2016); `spillover_equality`
+    tests whether one would do. In a split fit report
+    `att_total_treated`, not `att_direct`, which is imprecise when the
+    treated are clustered.
+  - If the outcome's errors are likely spatially correlated (they usually
+    are), the default OLS intervals for the spillovers and the total effect
+    under-cover, whatever `vcov`. Use `errors = :spatial`, and say that its
+    SEs assume a constant error variance.
 - **One or a few treated units:** `fit_synthetic_control(Y, treated, T0;
   W or coords)`, which screens donors for spillover contamination;
   `placebo_test`, `spillover_gaps`.

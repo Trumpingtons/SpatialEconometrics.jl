@@ -44,6 +44,10 @@ What an exposure design can and cannot identify, returned by
   carry the identification of the spillover.
 - `n_treated_unexposed`: treated units with no treated neighbour.
 - `exposure_var_control`: variance of exposure among controls.
+- `exposure_var_treated`: variance of exposure among the treated. With
+  `channels = :split` in [`fit_spatial_did`](@ref) it is what separates the
+  treated-onto-treated spillover from the direct effect: at zero, `D×WD` is
+  a multiple of `D`.
 - `exposure_cor`: correlation between `D` and first-order exposure.
 - `mean_exposure_treated`, `mean_exposure_control`: the two means the
   reported spillovers are evaluated at.
@@ -98,7 +102,8 @@ A spatial difference-in-differences fit, returned by
 | `att_total_treated` | `att_direct + att_spill_treated` |
 
 The two spillovers are evaluated at different exposure means and are not
-interchangeable. `att_spill_control` is the policy's reach beyond its
+interchangeable. With `channels = :split` they also come from different
+coefficients. `att_spill_control` is the policy's reach beyond its
 target — the quantity a spillover design exists to measure.
 `att_spill_treated` is part of what a naive DiD would report *as* the
 direct effect, which is the bias this estimator removes.
@@ -111,10 +116,22 @@ standard errors are exact rather than approximations: `Var(a'θ̂) = a'Σa`.
   `att_total_treated` and their `*_se` counterparts.
 - `coef`, `vcov`, `coefnames`, `residuals`: the underlying regression.
 - `exposure_map`: the [`ExposureMap`](@ref) the spillovers are relative to.
-- `interference`: the [`InterferenceReport`](@ref) for that design.
+- `interference`: the [`InterferenceReport`](@ref) for that design. Its
+  rows are units in the two-period design. In the staggered design they are
+  the unit-periods the regression uses, treated or not in that period, so
+  a design where every unit is treated at some time is accepted: the fit
+  then identifies off timing.
 - `vcov_name`: which covariance estimator produced `vcov`.
 - `design`: `:two_period` or `:staggered`.
 - `n_units`, `n_periods`.
+- `channels`: `:pooled` (one exposure coefficient per order) or `:split`
+  (one for the treated and one for the controls).
+- `spillover_equality`: `(stat, df, p_value)`, the Wald test that the two
+  channels' coefficients are equal, against `χ²(order)`, under `vcov`.
+  `NaN` with `df = 0` when `channels = :pooled`, which imposes it.
+- `errors`: `:iid` (OLS with `vcov`) or `:spatial` (spatial-error maximum
+  likelihood), and `lambda`, `lambda_se`: the spatial error parameter and
+  its standard error, `NaN` under `:iid`.
 
 ## `SpilloverGaps`
 
@@ -232,7 +249,8 @@ em = exposure(D, W; order = 2)      # first and second rings separately
     fit_spatial_did(y, treat, W; X = nothing, vcov = :cluster,
                     coords = nothing,
                     dist_cutoff = nothing, order = 1, standardize = true,
-                    cluster_groups = nothing)
+                    cluster_groups = nothing, channels = :pooled,
+                    errors = :iid)
 
 Difference-in-differences with spatial spillovers: decompose a policy
 effect into what it did to the treated and what it did to their
@@ -266,19 +284,51 @@ the restriction `β₄ = λβ₃`, which this estimator does **not** impose —
 rather than assumed. Their `ATE(wd) = β₃ + β₄·wd` is what
 `att_total_treated` reports.
 
-`att_spill_treated` and `att_spill_control` come from **one** exposure
-coefficient per order, scaled by the mean exposure of the treated and of
-the controls. The two differ because the groups have different average
-exposure, not because two coefficients were estimated.
+With the default `channels = :pooled`, `att_spill_treated` and
+`att_spill_control` come from **one** exposure coefficient per order,
+scaled by the mean exposure of the treated and of the controls. The two
+differ because the groups have different average exposure, not because
+two coefficients were estimated.
 
-**Chagas, Azzoni and Almeida (2016) eq. (7) is a different estimator and
-is not implemented here.** They split exposure into two channels with
-separate free coefficients — `W_{T,T}b₁` from treated onto treated and
-`W_{NT,T}b₂` from treated onto controls — and their footnote 4 states
-that "Delgado and Florax (2015) consider only the restricted case".
-That generalisation is a roadmap row, not a feature of this function.
-Cite that paper here for the applied design and for the two-channel
-idea, not for the estimator this code fits.
+### Two channels: `channels = :split`
+
+**Chagas, Azzoni and Almeida (2016), eq. (7)**, read in the paper, lets
+the spillover differ by the receiving unit's own status. The exposure
+column `E = WD` is split into `D∘E`, their `W_{T,T}D` (treated neighbours
+of a treated unit), and `(1 − D)∘E`, their `W_{NT,T}D` (treated neighbours
+of a control). Each gets a free coefficient:
+
+```
+y_it = μ_i + γ_t + τ·D_it + δ_T·(D∘E)_it + δ_C·((1 − D)∘E)_it + ε_it
+```
+
+The two columns sum to `E`, so the pooled model is the restriction
+`δ_T = δ_C`, which their footnote 4 calls the restricted case. Then
+`att_spill_treated = δ_T·Ē_T` and `att_spill_control = δ_C·Ē_C`, summed
+over orders. In the staggered design the split uses the treatment in force
+in each period, as their `W_{T,T} = D_t W D_t` does.
+`spillover_equality` tests the restriction.
+
+Reading the split:
+
+- **`τ` becomes the effect on a treated unit with no treated neighbours.**
+  It is separated from `δ_T` only by variation in exposure among the
+  treated. Without that variation the fit refuses the design by name;
+  with little, `τ̂` and `δ̂_T` are strongly negatively correlated and each
+  is imprecise. `att_total_treated = τ + δ_T·Ē_T` is the better-determined
+  number: in the validation study's contiguous block (64 treated units,
+  none without a treated neighbour) the sd of `τ̂` is 5.3 times that of
+  `att_total_treated`, and with the treated scattered at random, 1.4 times.
+  Chagas et al.'s own Table 5 shows the pattern: with the split,
+  their direct effect moves from 0.72 to 1.49 and their treated-channel
+  coefficient is −0.67 (SE 0.58), while `cor(D, D∘WD)` is 0.93 in their
+  data (Table 4). Check `interference.exposure_var_treated` and
+  `n_treated_unexposed` before reading `τ̂` alone.
+- **`δ_C` is identified exactly as in the pooled model**, by controls that
+  differ in exposure.
+- **Their SLX and SDEM versions** add `WX`, which goes in `X`, and their
+  SDEM fits a spatial error by maximum likelihood, which is
+  `errors = :spatial`.
 
 ### Arguments
 - `y`: `N x T` outcomes, units by periods.
@@ -296,6 +346,14 @@ idea, not for the estimator this code fits.
 - `coords`, `dist_cutoff`: required by `:conley`.
 - `cluster_groups`: required by `:cluster`. Unit index is the usual choice.
 - `order`, `standardize`: passed to [`exposure`](@ref).
+- `channels`: `:pooled` (default; Delgado & Florax) or `:split` (Chagas
+  et al. eq. 7). See above.
+- `errors`: `:iid` (default) fits by OLS and takes its covariance from
+  `vcov`. `:spatial` fits the same design with a spatial error
+  `u = λWu + ε` by maximum likelihood, on the row-standardised `W`, through
+  [`fit_spatial_error`](@ref): the cross-section on the differences in the
+  two-period design, the two-way fixed-effects panel in the staggered one.
+  It does not take `vcov`. See "Spatially correlated errors" below.
 
 ### Which covariance, and why the default is not the spatial one
 
@@ -352,6 +410,50 @@ report more than one cutoff, and prefer the narrow end.
     design with `T > 2` the clusters are genuine and it absorbs
     within-unit serial correlation as usual.
 
+### Spatially correlated errors: `errors = :spatial`
+
+The table above measures `att_direct` alone. The other three effects lean
+on the exposure coefficient, and when the errors are spatially correlated
+no `vcov` covers them. 20 × 20 rook lattice, a contiguous treated block of
+64 units, errors `(I − 0.6W)⁻¹ε` in each period, coverage of nominal 95%
+(`validation/mc_spatial_did_channels.jl`, 2,000 replications; the pooled
+row is from `validation/mc_spatial_did_channels_diagnostics.jl`, 1,000):
+
+| Fit | `att_direct` | `att_spill_control` | `att_total_treated` | equality test, size |
+|---|---|---|---|---|
+| OLS, `:cluster`, pooled | 0.950 | 0.905 | 0.689 | — |
+| OLS, `:cluster`, split | 0.855 | 0.831 | 0.673 | 0.220 |
+| `errors = :spatial`, split | 0.948 | 0.951 | 0.937 | 0.060 |
+
+With the treated units scattered (30% at random) the OLS shortfall is
+smaller (`att_total_treated` 0.873, test size 0.103) and
+`errors = :spatial` again covers (0.943, 0.057).
+
+No `vcov` repairs it. Conley at a cutoff of 2.5 raises the pooled total
+effect's coverage to 0.81, and wider cutoffs lower it again (0.73 at 9,
+where the reported SE is 0.59 of the estimate's sd); Driscoll-Kraay with
+`T = 10` covers at 0.83 even with no spatial correlation
+(`validation/mc_spatial_did_channels_diagnostics.jl`). With uncorrelated
+errors every option covers.
+
+`errors = :spatial` models the dependence instead of correcting for it.
+It is what Chagas et al. fit (their SDEM), and in their own simulation
+design (`N = 200`, `k = 10` nearest neighbours, `T = 10`, `λ = 0.5`,
+treatment redrawn each period) it covers `α`, `b₁` and `b₂` at 0.949,
+0.947 and 0.949, against 0.921, 0.873 and 0.878 for OLS with `:cluster`,
+and the equality test's size is 0.049 against 0.086. It is also more
+precise there (the sd of `b̂₂` is 0.207 against 0.239). With `λ = 0` the
+two agree.
+
+**It assumes a constant error variance.** Its covariance is the inverse
+information matrix. With the error sd doubled on the treated, in the block
+design, coverage falls to 0.773 for `att_direct` and 0.761 for
+`att_total_treated`, and the test's size is 0.151; OLS with `:cluster` is
+no better (0.859, 0.667, 0.210). In the scattered design the ML figures are
+0.896 and 0.912. The package has no heteroskedasticity-robust spatial-error
+estimator yet, so when the variance differs between treated and controls
+in a contiguous design, neither option's intervals are reliable.
+
 ### Examples
 ```julia
 m = fit_spatial_did(y, D, W; coords = coords, dist_cutoff = 3.0)
@@ -362,6 +464,10 @@ m = fit_spatial_did(y, D_path, W; coords = coords, dist_cutoff = 3.0)
 
 # the conventional standard errors, chosen deliberately
 m = fit_spatial_did(y, D, W; vcov = :cluster, cluster_groups = 1:N)
+
+# two spillover channels (Chagas et al. eq. 7), with a spatial error
+m = fit_spatial_did(y, D, W; channels = :split, errors = :spatial)
+m.att_spill_control, m.spillover_equality.p_value
 ```
 
 !!! warning "Staggered adoption with heterogeneous effects"
@@ -409,8 +515,8 @@ Institute Discussion Paper 2015-091/VIII. Eq. (6) is the design above.
 Chagas, A. L. S., Azzoni, C. R. & Almeida, A. N. (2016). A spatial
 difference-in-differences analysis of the impact of sugarcane production
 on respiratory diseases. *Regional Science and Urban Economics*, 59,
-24–36. **Read.** Its eq. (7), the unrestricted two-channel SDID, is
-**not** what this function fits; see above.
+24–36. **Read.** Its eq. (7), the unrestricted two-channel SDID, is what
+`channels = :split` fits.
 Goodman-Bacon, A. (2021). Difference-in-differences with variation in
 treatment timing. *Journal of Econometrics*, 225(2).
 

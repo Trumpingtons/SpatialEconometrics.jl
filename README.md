@@ -12,9 +12,9 @@ semiparametric spatial models, short-panel dynamic models with correlated
 random effects or common shocks, spatial log-GARCH for the variance, Monte Carlo simulation and publication-ready output — with a
 unified formula interface and optional Bayesian and visualization extensions.
 
-> **Version 0.5.0** — 3,988 test assertions across 61 top-level testsets
-> with both package extensions installed, measured on Julia 1.13.3. Without
-> them, 3,953 pass and two broken markers stand in for the extension testsets,
+> **Version 0.5.0** — 4,055 test assertions across 61 top-level testsets
+> with both package extensions installed, measured on Julia 1.13.4. Without
+> them, 4,020 pass and two broken markers stand in for the extension testsets,
 > measured on Julia 1.10.13. See [Validation Status](#validation-status) for
 > Monte Carlo results.
 

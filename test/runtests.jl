@@ -5745,6 +5745,8 @@ vcov(m::HausMock) = m.V
             @test rep.mean_exposure_treated > rep.mean_exposure_control
 
             E = em.E[:, 1]
+            @test rep.exposure_var_treated ≈ var(E[D .== 1.0]) rtol = 1e-14
+            @test rep.exposure_var_control ≈ var(E[D .== 0.0]) rtol = 1e-14
             @test rep.mean_exposure_treated ≈ mean(E[D .== 1.0]) rtol = 1e-14
             @test rep.mean_exposure_control ≈ mean(E[D .== 0.0]) rtol = 1e-14
             @test rep.exposure_cor ≈ cor(D, E) rtol = 1e-12
@@ -6290,6 +6292,230 @@ vcov(m::HausMock) = m.V
                                                            vcov = :ols)
             @test_throws ArgumentError fit_spatial_did(ys, Dp, W;
                                                        X = randn(rng, N, 2), vcov = :ols)
+        end
+
+        @testset "34k. two spillover channels (Chagas et al. eq. 7)" begin
+            side = 12
+            N, coords, D = block_design(side, 3, 6)
+            W = make_rook_weights(side)
+            Wt = row_standardize(W)
+            E = Wt * D
+            ET, EC = D .* E, (1 .- D) .* E
+            γ, τ, δT, δC = 0.7, 2.5, -0.6, 1.3
+            μ = collect(range(-1.0, 1.0, length = N))
+            Ē_T, Ē_C = mean(E[D .== 1.0]), mean(E[D .== 0.0])
+
+            # Noiseless: the generating values, to machine precision.
+            y = hcat(μ, μ .+ γ .+ τ .* D .+ δT .* ET .+ δC .* EC)
+            m = fit_spatial_did(y, D, W; vcov = :ols, channels = :split)
+            @test m.coefnames == ["(Intercept)", "D", "D×WD", "(1-D)×WD"]
+            @test m.coef ≈ [γ, τ, δT, δC] rtol = 1e-12
+            @test m.att_direct ≈ τ rtol = 1e-12
+            @test m.att_spill_treated ≈ δT * Ē_T rtol = 1e-12
+            @test m.att_spill_control ≈ δC * Ē_C rtol = 1e-12
+            @test m.att_total_treated == m.att_direct + m.att_spill_treated
+            @test m.channels === :split
+            @test norm(m.residuals) < 1e-10
+            # The pooled fit on the same data is misspecified, and its
+            # control spillover is not δ_C·Ē_C: this is what the split is for.
+            mp = fit_spatial_did(y, D, W; vcov = :ols)
+            @test mp.channels === :pooled
+            @test abs(mp.att_spill_control - δC * Ē_C) > 0.2 * δC * Ē_C
+            @test isnan(mp.spillover_equality.stat) && mp.spillover_equality.df == 0
+
+            # With noise: the fit is OLS on [1, D, D∘E, (1−D)∘E], and the
+            # effects are the stated linear forms in it.
+            rng = MersenneTwister(34011)
+            yn = hcat(μ .+ randn(rng, N), μ .+ γ .+ τ .* D .+ δT .* ET .+ δC .* EC .+ randn(rng, N))
+            ms = fit_spatial_did(yn, D, W; vcov = :ols, channels = :split)
+            Z = hcat(ones(N), D, ET, EC)
+            Δy = yn[:, 2] .- yn[:, 1]
+            θ = Z \ Δy
+            r = Δy .- Z * θ
+            s2 = dot(r, r) / (N - 4)
+            @test ms.coef ≈ θ rtol = 1e-10
+            @test ms.vcov ≈ s2 .* inv(Z' * Z) rtol = 1e-10
+            @test ms.att_spill_treated ≈ θ[3] * Ē_T rtol = 1e-10
+            @test ms.att_spill_control ≈ θ[4] * Ē_C rtol = 1e-10
+            @test ms.att_spill_control_se ≈ Ē_C * sqrt(ms.vcov[4, 4]) rtol = 1e-10
+            a = [0.0, 1.0, Ē_T, 0.0]
+            @test ms.att_total_treated_se ≈ sqrt(dot(a, ms.vcov, a)) rtol = 1e-10
+
+            # The Wald test. Under the homoskedastic vcov it equals the
+            # restricted-against-unrestricted sum-of-squares statistic
+            # exactly, the pooled fit being the restricted model.
+            t = ms.spillover_equality
+            rp = fit_spatial_did(yn, D, W; vcov = :ols).residuals
+            @test t.df == 1
+            @test t.stat ≈ (dot(rp, rp) - dot(r, r)) / s2 rtol = 1e-9
+            @test t.p_value ≈ ccdf(Chisq(1), t.stat) rtol = 1e-9
+            # Under another vcov it is (δ̂_T − δ̂_C)² over its variance.
+            mc = fit_spatial_did(yn, D, W; channels = :split)
+            V = vcov(mc)
+            @test mc.spillover_equality.stat ≈
+                  (mc.coef[3] - mc.coef[4])^2 / (V[3, 3] + V[4, 4] - 2V[3, 4]) rtol = 1e-10
+            @test occursin("split", sprint(show, mc))
+            @test occursin("equal channels", sprint(show, mc))
+            @test !occursin("equal channels", sprint(show, fit_spatial_did(yn, D, W)))
+
+            # Order 2: one coefficient per order and channel, and a joint
+            # test with two degrees of freedom.
+            m2 = fit_spatial_did(yn, D, W; channels = :split, order = 2)
+            @test m2.coefnames == ["(Intercept)", "D", "D×WD", "D×W2D", "(1-D)×WD", "(1-D)×W2D"]
+            @test m2.spillover_equality.df == 2
+            E2 = Wt * E
+            @test m2.att_spill_control ≈ m2.coef[5] * Ē_C + m2.coef[6] * mean(E2[D .== 0.0]) rtol = 1e-10
+
+            # Staggered, with treatment switching on and off so that every
+            # unit is treated in some period, as in Chagas et al.'s data:
+            # the regression identifies off timing, and the report counts
+            # unit-periods.
+            T_per = 6
+            rngs = MersenneTwister(34012)
+            Dp = zeros(N, T_per)
+            for t in 2:T_per, i in 1:N
+                Dp[i, t] = rand(rngs) < 0.5 ? 1.0 : 0.0
+            end
+            Dp[:, 2] .= 1.0                         # everyone treated at least once
+            λ = randn(rngs, T_per)
+            ys = [μ[i] + λ[t] + τ * Dp[i, t] +
+                  (Dp[i, t] * δT + (1 - Dp[i, t]) * δC) * dot(view(Wt, i, :), view(Dp, :, t))
+                  for i in 1:N, t in 1:T_per]
+            mst = fit_spatial_did(ys, Dp, W; vcov = :ols, channels = :split)
+            @test mst.design === :staggered
+            @test mst.coefnames == ["D", "D×WD", "(1-D)×WD"]
+            @test mst.coef ≈ [τ, δT, δC] rtol = 1e-11
+            @test mst.interference.n_treated == count(isone, Dp)
+            @test mst.interference.n_treated + mst.interference.n_control == N * T_per
+            @test occursin("unit-periods", sprint(show, mst))
+            # Pooled works on the same all-ever-treated design too.
+            @test fit_spatial_did(ys, Dp, W; vcov = :ols).design === :staggered
+            @test_throws ArgumentError fit_spatial_did(ys, zeros(N, T_per), W)
+            @test_throws ArgumentError fit_spatial_did(ys, ones(N, T_per), W)
+
+            # The treated channel needs exposure to vary among the treated.
+            # Isolated treated units (no treated neighbour) leave D∘E = 0:
+            # pooled fits, split is refused with the reason.
+            Diso = zeros(N)
+            for i in 1:N
+                r_, c_ = Int(coords[i, 1]), Int(coords[i, 2])
+                (mod(r_, 4) == 1 && mod(c_, 4) == 1) && (Diso[i] = 1.0)
+            end
+            @test check_interference(exposure(Diso, W)).exposure_var_treated == 0
+            yi = hcat(μ .+ randn(rng, N), μ .+ γ .+ τ .* Diso .+ randn(rng, N))
+            @test fit_spatial_did(yi, Diso, W; vcov = :ols).channels === :pooled
+            err = nothing
+            try
+                fit_spatial_did(yi, Diso, W; vcov = :ols, channels = :split)
+            catch e
+                err = e
+            end
+            @test err isa ArgumentError
+            @test occursin("channels = :split", err.msg)
+            @test_throws ArgumentError fit_spatial_did(yn, D, W; channels = :bogus)
+
+            # Size and power of the equality test, measured. Two-period,
+            # heteroskedastic errors, default vcov; the null and alternative
+            # share draws. Over 20 other seeds: size 0.053 to 0.088 on Julia
+            # 1.13.4 and 0.050 to 0.098 on 1.10.13 (means 0.069 and 0.075:
+            # HC1 is slightly oversized at N = 144); power 0.85 to 0.89 and
+            # 0.79 to 0.88.
+            nrep = 400
+            rej0 = 0; rej1 = 0
+            Dsc = (rr = MersenneTwister(77); [rand(rr) < 0.3 ? 1.0 : 0.0 for _ in 1:N])
+            Esc = Wt * Dsc
+            sdv = 1 .+ Dsc
+            rngm = MersenneTwister(34013)
+            for _ in 1:nrep
+                u = sdv .* randn(rngm, N)
+                base = μ .+ γ .+ τ .* Dsc .+ u
+                y0 = hcat(μ, base .+ 1.0 .* Esc)                                    # δ_T = δ_C
+                y1 = hcat(μ, base .+ (-2.0) .* Dsc .* Esc .+ 2.0 .* (1 .- Dsc) .* Esc) # δ_T ≠ δ_C
+                rej0 += fit_spatial_did(y0, Dsc, W; channels = :split).spillover_equality.p_value < 0.05
+                rej1 += fit_spatial_did(y1, Dsc, W; channels = :split).spillover_equality.p_value < 0.05
+            end
+            @test 0.03 <= rej0 / nrep <= 0.12
+            @test rej1 / nrep >= 0.7
+        end
+
+        @testset "34l. spatial-error ML (errors = :spatial)" begin
+            side = 12
+            N, coords, D = block_design(side, 3, 6)
+            W = make_rook_weights(side)
+            Wt = row_standardize(W)
+            E = Wt * D
+            rng = MersenneTwister(34021)
+            A = lu(sparse(1.0I, N, N) - 0.5 * W)
+            y = hcat(A \ randn(rng, N),
+                     0.7 .+ 2.5 .* D .- 0.6 .* D .* E .+ 1.3 .* (1 .- D) .* E .+ A \ randn(rng, N))
+
+            # Two-period: the cross-section SEM on the differenced design,
+            # exactly, for both channel settings.
+            for (ch, Xd) in ((:split, hcat(D, D .* E, (1 .- D) .* E)), (:pooled, hcat(D, E)))
+                m = fit_spatial_did(y, D, W; channels = ch, errors = :spatial)
+                h = fit_spatial_error(Wt, Xd, y[:, 2] .- y[:, 1])
+                p = size(Xd, 2) + 1
+                @test m.coef == coef(h)[1:p]
+                @test m.vcov == vcov(h)[1:p, 1:p]
+                @test m.lambda == h.lambda && m.lambda_se == h.lambda_se
+                @test m.errors === :spatial
+                @test occursin("spatial error ML", m.vcov_name)
+                Ē_C = mean(E[D .== 0.0])
+                @test m.att_spill_control ≈ m.coef[end] * Ē_C rtol = 1e-12
+            end
+            ms = fit_spatial_did(y, D, W; channels = :split, errors = :spatial)
+            @test occursin("spatial error: λ", sprint(show, ms))
+            mi = fit_spatial_did(y, D, W)
+            @test mi.errors === :iid && isnan(mi.lambda) && isnan(mi.lambda_se)
+
+            # Staggered: the two-way fixed-effects panel SEM on the stacked
+            # levels of the same design.
+            T_per = 5
+            Dp = Float64.(rand(rng, N, T_per) .< 0.5)
+            ys = [randn(rng) + 1.0 * Dp[i, t] + 0.4 * dot(view(Wt, i, :), view(Dp, :, t))
+                  for i in 1:N, t in 1:T_per]
+            mst = fit_spatial_did(ys, Dp, W; channels = :split, errors = :spatial)
+            Xs = zeros(N * T_per, 3); yv = zeros(N * T_per)
+            for t in 1:T_per, i in 1:N
+                r = (t - 1) * N + i
+                e = dot(view(Wt, i, :), view(Dp, :, t))
+                Xs[r, :] .= (Dp[i, t], Dp[i, t] * e, (1 - Dp[i, t]) * e)
+                yv[r] = ys[i, t]
+            end
+            hs = fit_spatial_error(TwoWayFE(), Wt, Xs, yv, N, T_per)
+            @test mst.coef == coef(hs)[1:3]
+            @test mst.vcov == vcov(hs)[1:3, 1:3]
+            @test mst.lambda == hs.lambda
+
+            # What it refuses: a vcov it would ignore, an unknown error
+            # model, and an unstandardised W.
+            @test_throws ArgumentError fit_spatial_did(y, D, W; errors = :spatial, vcov = :ols)
+            @test_throws ArgumentError fit_spatial_did(y, D, W; errors = :bogus)
+            @test_throws ArgumentError fit_spatial_did(y, D, W; errors = :spatial,
+                                                       standardize = false)
+
+            # Coverage of the total effect on the treated, measured, under
+            # spatially correlated errors and a contiguous treated block:
+            # OLS with the default vcov under-covers here and the ML fit
+            # does not. The two share draws. Over 20 other seeds: OLS 0.64
+            # to 0.75 on Julia 1.13.4 and 0.64 to 0.74 on 1.10.13; ML 0.90 to
+            # 0.95 on both (mean 0.93: ML is slightly short of nominal at
+            # N = 144).
+            nrep = 300
+            cov_iid = 0; cov_sp = 0
+            τ, δ = 1.0, 0.8
+            truth = τ + δ * mean(E[D .== 1.0])
+            A6 = lu(sparse(1.0I, N, N) - 0.6 * W)
+            rngm = MersenneTwister(34022)
+            for _ in 1:nrep
+                yy = hcat(A6 \ randn(rngm, N), 0.5 .+ τ .* D .+ δ .* E .+ A6 \ randn(rngm, N))
+                a = fit_spatial_did(yy, D, W; channels = :split)
+                b = fit_spatial_did(yy, D, W; channels = :split, errors = :spatial)
+                cov_iid += abs(a.att_total_treated - truth) <= 1.959963984540054 * a.att_total_treated_se
+                cov_sp += abs(b.att_total_treated - truth) <= 1.959963984540054 * b.att_total_treated_se
+            end
+            @test 0.88 <= cov_sp / nrep <= 0.99
+            @test cov_iid / nrep <= 0.80
         end
     end
     @testset "35. Spatial synthetic control" begin

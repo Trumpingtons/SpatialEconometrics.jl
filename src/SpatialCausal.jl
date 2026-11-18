@@ -8,10 +8,12 @@ using StatsAPI
 import StatsAPI: coef, vcov, stderror, nobs, residuals, coefnames, dof_residual
 
 import ..SpatialUtils
-import ..SpatialUtils: check_design_rank, _print_coef_table
+import ..SpatialUtils: check_design_rank, _print_coef_table, _chi2_sf
 import ..SpatialHAC: AbstractRobustVCOV, ConleySpatialHAC, ClusterRobustVCOV,
        DriscollKraayVCOV, vcov_conley, vcov_cluster, vcov_driscoll_kraay
 import ..SpatialWeights: band_weights, row_standardize
+import ..SpatialErrorModel: fit_spatial_error
+import ..SpatialUtils: TwoWayFE
 import ..SpatialHAC: DistanceMetric, EuclideanDistance, HaversineDistance,
        pairwise_distance
 import Random
@@ -111,7 +113,15 @@ function exposure(D::AbstractVector, W::AbstractSparseMatrix;
     end
     all(iszero, Dv) && throw(ArgumentError("no unit is treated, so there is no effect to estimate"))
     all(isone, Dv) && throw(ArgumentError("every unit is treated, so there is no comparison group"))
+    return _exposure_core(Dv, W, order, standardize)
+end
 
+# The exposure columns without the checks on `D`. The staggered design calls
+# it directly with the ever-treated indicator, which may be all ones when
+# treatment switches on and off: identification then comes from timing.
+function _exposure_core(Dv::Vector{T}, W::AbstractSparseMatrix, order::Int,
+                        standardize::Bool) where {T}
+    N = length(Dv)
     Wt = standardize ? row_standardize(T.(W)) : T.(W)
 
     E = Matrix{T}(undef, N, order)
@@ -172,6 +182,10 @@ What an exposure design can and cannot identify, returned by
   carry the identification of the spillover.
 - `n_treated_unexposed`: treated units with no treated neighbour.
 - `exposure_var_control`: variance of exposure among controls.
+- `exposure_var_treated`: variance of exposure among the treated. With
+  `channels = :split` in [`fit_spatial_did`](@ref) it is what separates the
+  treated-onto-treated spillover from the direct effect: at zero, `D×WD` is
+  a multiple of `D`.
 - `exposure_cor`: correlation between `D` and first-order exposure.
 - `mean_exposure_treated`, `mean_exposure_control`: the two means the
   reported spillovers are evaluated at.
@@ -194,6 +208,7 @@ struct InterferenceReport{T<:AbstractFloat}
     n_control_unexposed::Int
     n_treated_unexposed::Int
     exposure_var_control::T
+    exposure_var_treated::T
     exposure_cor::T
     mean_exposure_treated::T
     mean_exposure_control::T
@@ -219,8 +234,13 @@ rep.identified || @warn rep.message
 ```
 """
 function check_interference(em::ExposureMap{T}; var_tol::Real=1e-10) where {T}
-    D = em.D
-    E1 = @view em.E[:, 1]
+    return _interference_report(em.D, @view(em.E[:, 1]); var_tol=var_tol)
+end
+
+# The report from a treatment vector and its first-order exposure. Rows are
+# units for an ExposureMap, and unit-periods for a staggered fit.
+function _interference_report(D::AbstractVector{T}, E1::AbstractVector{T};
+                              var_tol::Real=1e-10) where {T}
     treated = D .== one(T)
     control = .!treated
 
@@ -232,6 +252,7 @@ function check_interference(em::ExposureMap{T}; var_tol::Real=1e-10) where {T}
     n_c_unexp = count(iszero, Ec)
     n_t_unexp = count(iszero, Et)
     var_c = n_c > 1 ? T(var(Ec)) : zero(T)
+    var_t = n_t > 1 ? T(var(Et)) : zero(T)
     mean_t = n_t > 0 ? T(mean(Et)) : zero(T)
     mean_c = n_c > 0 ? T(mean(Ec)) : zero(T)
 
@@ -267,7 +288,7 @@ function check_interference(em::ExposureMap{T}; var_tol::Real=1e-10) where {T}
               "not as an absolute effect."
     end
 
-    return InterferenceReport{T}(n_t, n_c, n_c_unexp, n_t_unexp, var_c, cor_DE,
+    return InterferenceReport{T}(n_t, n_c, n_c_unexp, n_t_unexp, var_c, var_t, cor_DE,
                                  mean_t, mean_c, identified, msg)
 end
 
@@ -278,6 +299,7 @@ function Base.show(io::IO, r::InterferenceReport)
     @printf(io, "  controls with zero exposure : %d\n", r.n_control_unexposed)
     @printf(io, "  treated with zero exposure  : %d\n", r.n_treated_unexposed)
     @printf(io, "  var(exposure | control)     : %.6g\n", r.exposure_var_control)
+    @printf(io, "  var(exposure | treated)     : %.6g\n", r.exposure_var_treated)
     @printf(io, "  cor(D, exposure)            : %.4f\n", r.exposure_cor)
     @printf(io, "  mean exposure, treated      : %.4f\n", r.mean_exposure_treated)
     @printf(io, "  mean exposure, control      : %.4f\n", r.mean_exposure_control)
@@ -328,7 +350,8 @@ A spatial difference-in-differences fit, returned by
 | `att_total_treated` | `att_direct + att_spill_treated` |
 
 The two spillovers are evaluated at different exposure means and are not
-interchangeable. `att_spill_control` is the policy's reach beyond its
+interchangeable. With `channels = :split` they also come from different
+coefficients. `att_spill_control` is the policy's reach beyond its
 target — the quantity a spillover design exists to measure.
 `att_spill_treated` is part of what a naive DiD would report *as* the
 direct effect, which is the bias this estimator removes.
@@ -341,10 +364,22 @@ standard errors are exact rather than approximations: `Var(a'θ̂) = a'Σa`.
   `att_total_treated` and their `*_se` counterparts.
 - `coef`, `vcov`, `coefnames`, `residuals`: the underlying regression.
 - `exposure_map`: the [`ExposureMap`](@ref) the spillovers are relative to.
-- `interference`: the [`InterferenceReport`](@ref) for that design.
+- `interference`: the [`InterferenceReport`](@ref) for that design. Its
+  rows are units in the two-period design. In the staggered design they are
+  the unit-periods the regression uses, treated or not in that period, so
+  a design where every unit is treated at some time is accepted: the fit
+  then identifies off timing.
 - `vcov_name`: which covariance estimator produced `vcov`.
 - `design`: `:two_period` or `:staggered`.
 - `n_units`, `n_periods`.
+- `channels`: `:pooled` (one exposure coefficient per order) or `:split`
+  (one for the treated and one for the controls).
+- `spillover_equality`: `(stat, df, p_value)`, the Wald test that the two
+  channels' coefficients are equal, against `χ²(order)`, under `vcov`.
+  `NaN` with `df = 0` when `channels = :pooled`, which imposes it.
+- `errors`: `:iid` (OLS with `vcov`) or `:spatial` (spatial-error maximum
+  likelihood), and `lambda`, `lambda_se`: the spatial error parameter and
+  its standard error, `NaN` under `:iid`.
 """
 struct SpatialDiDResult{T<:AbstractFloat} <: StatsAPI.RegressionModel
     att_direct::T
@@ -365,6 +400,11 @@ struct SpatialDiDResult{T<:AbstractFloat} <: StatsAPI.RegressionModel
     design::Symbol
     n_units::Int
     n_periods::Int
+    channels::Symbol
+    spillover_equality::NamedTuple{(:stat, :df, :p_value), Tuple{T, Int, T}}
+    errors::Symbol
+    lambda::T
+    lambda_se::T
 end
 
 StatsAPI.coef(m::SpatialDiDResult) = m.coef
@@ -379,7 +419,8 @@ StatsAPI.dof_residual(m::SpatialDiDResult) = length(m.residuals) - length(m.coef
     fit_spatial_did(y, treat, W; X = nothing, vcov = :cluster,
                     coords = nothing,
                     dist_cutoff = nothing, order = 1, standardize = true,
-                    cluster_groups = nothing)
+                    cluster_groups = nothing, channels = :pooled,
+                    errors = :iid)
 
 Difference-in-differences with spatial spillovers: decompose a policy
 effect into what it did to the treated and what it did to their
@@ -413,19 +454,51 @@ the restriction `β₄ = λβ₃`, which this estimator does **not** impose —
 rather than assumed. Their `ATE(wd) = β₃ + β₄·wd` is what
 `att_total_treated` reports.
 
-`att_spill_treated` and `att_spill_control` come from **one** exposure
-coefficient per order, scaled by the mean exposure of the treated and of
-the controls. The two differ because the groups have different average
-exposure, not because two coefficients were estimated.
+With the default `channels = :pooled`, `att_spill_treated` and
+`att_spill_control` come from **one** exposure coefficient per order,
+scaled by the mean exposure of the treated and of the controls. The two
+differ because the groups have different average exposure, not because
+two coefficients were estimated.
 
-**Chagas, Azzoni and Almeida (2016) eq. (7) is a different estimator and
-is not implemented here.** They split exposure into two channels with
-separate free coefficients — `W_{T,T}b₁` from treated onto treated and
-`W_{NT,T}b₂` from treated onto controls — and their footnote 4 states
-that "Delgado and Florax (2015) consider only the restricted case".
-That generalisation is a roadmap row, not a feature of this function.
-Cite that paper here for the applied design and for the two-channel
-idea, not for the estimator this code fits.
+# Two channels: `channels = :split`
+
+**Chagas, Azzoni and Almeida (2016), eq. (7)**, read in the paper, lets
+the spillover differ by the receiving unit's own status. The exposure
+column `E = WD` is split into `D∘E`, their `W_{T,T}D` (treated neighbours
+of a treated unit), and `(1 − D)∘E`, their `W_{NT,T}D` (treated neighbours
+of a control). Each gets a free coefficient:
+
+```
+y_it = μ_i + γ_t + τ·D_it + δ_T·(D∘E)_it + δ_C·((1 − D)∘E)_it + ε_it
+```
+
+The two columns sum to `E`, so the pooled model is the restriction
+`δ_T = δ_C`, which their footnote 4 calls the restricted case. Then
+`att_spill_treated = δ_T·Ē_T` and `att_spill_control = δ_C·Ē_C`, summed
+over orders. In the staggered design the split uses the treatment in force
+in each period, as their `W_{T,T} = D_t W D_t` does.
+`spillover_equality` tests the restriction.
+
+Reading the split:
+
+- **`τ` becomes the effect on a treated unit with no treated neighbours.**
+  It is separated from `δ_T` only by variation in exposure among the
+  treated. Without that variation the fit refuses the design by name;
+  with little, `τ̂` and `δ̂_T` are strongly negatively correlated and each
+  is imprecise. `att_total_treated = τ + δ_T·Ē_T` is the better-determined
+  number: in the validation study's contiguous block (64 treated units,
+  none without a treated neighbour) the sd of `τ̂` is 5.3 times that of
+  `att_total_treated`, and with the treated scattered at random, 1.4 times.
+  Chagas et al.'s own Table 5 shows the pattern: with the split,
+  their direct effect moves from 0.72 to 1.49 and their treated-channel
+  coefficient is −0.67 (SE 0.58), while `cor(D, D∘WD)` is 0.93 in their
+  data (Table 4). Check `interference.exposure_var_treated` and
+  `n_treated_unexposed` before reading `τ̂` alone.
+- **`δ_C` is identified exactly as in the pooled model**, by controls that
+  differ in exposure.
+- **Their SLX and SDEM versions** add `WX`, which goes in `X`, and their
+  SDEM fits a spatial error by maximum likelihood, which is
+  `errors = :spatial`.
 
 # Arguments
 - `y`: `N x T` outcomes, units by periods.
@@ -443,6 +516,14 @@ idea, not for the estimator this code fits.
 - `coords`, `dist_cutoff`: required by `:conley`.
 - `cluster_groups`: required by `:cluster`. Unit index is the usual choice.
 - `order`, `standardize`: passed to [`exposure`](@ref).
+- `channels`: `:pooled` (default; Delgado & Florax) or `:split` (Chagas
+  et al. eq. 7). See above.
+- `errors`: `:iid` (default) fits by OLS and takes its covariance from
+  `vcov`. `:spatial` fits the same design with a spatial error
+  `u = λWu + ε` by maximum likelihood, on the row-standardised `W`, through
+  [`fit_spatial_error`](@ref): the cross-section on the differences in the
+  two-period design, the two-way fixed-effects panel in the staggered one.
+  It does not take `vcov`. See "Spatially correlated errors" below.
 
 # Which covariance, and why the default is not the spatial one
 
@@ -499,6 +580,50 @@ report more than one cutoff, and prefer the narrow end.
     design with `T > 2` the clusters are genuine and it absorbs
     within-unit serial correlation as usual.
 
+# Spatially correlated errors: `errors = :spatial`
+
+The table above measures `att_direct` alone. The other three effects lean
+on the exposure coefficient, and when the errors are spatially correlated
+no `vcov` covers them. 20 × 20 rook lattice, a contiguous treated block of
+64 units, errors `(I − 0.6W)⁻¹ε` in each period, coverage of nominal 95%
+(`validation/mc_spatial_did_channels.jl`, 2,000 replications; the pooled
+row is from `validation/mc_spatial_did_channels_diagnostics.jl`, 1,000):
+
+| Fit | `att_direct` | `att_spill_control` | `att_total_treated` | equality test, size |
+|---|---|---|---|---|
+| OLS, `:cluster`, pooled | 0.950 | 0.905 | 0.689 | — |
+| OLS, `:cluster`, split | 0.855 | 0.831 | 0.673 | 0.220 |
+| `errors = :spatial`, split | 0.948 | 0.951 | 0.937 | 0.060 |
+
+With the treated units scattered (30% at random) the OLS shortfall is
+smaller (`att_total_treated` 0.873, test size 0.103) and
+`errors = :spatial` again covers (0.943, 0.057).
+
+No `vcov` repairs it. Conley at a cutoff of 2.5 raises the pooled total
+effect's coverage to 0.81, and wider cutoffs lower it again (0.73 at 9,
+where the reported SE is 0.59 of the estimate's sd); Driscoll-Kraay with
+`T = 10` covers at 0.83 even with no spatial correlation
+(`validation/mc_spatial_did_channels_diagnostics.jl`). With uncorrelated
+errors every option covers.
+
+`errors = :spatial` models the dependence instead of correcting for it.
+It is what Chagas et al. fit (their SDEM), and in their own simulation
+design (`N = 200`, `k = 10` nearest neighbours, `T = 10`, `λ = 0.5`,
+treatment redrawn each period) it covers `α`, `b₁` and `b₂` at 0.949,
+0.947 and 0.949, against 0.921, 0.873 and 0.878 for OLS with `:cluster`,
+and the equality test's size is 0.049 against 0.086. It is also more
+precise there (the sd of `b̂₂` is 0.207 against 0.239). With `λ = 0` the
+two agree.
+
+**It assumes a constant error variance.** Its covariance is the inverse
+information matrix. With the error sd doubled on the treated, in the block
+design, coverage falls to 0.773 for `att_direct` and 0.761 for
+`att_total_treated`, and the test's size is 0.151; OLS with `:cluster` is
+no better (0.859, 0.667, 0.210). In the scattered design the ML figures are
+0.896 and 0.912. The package has no heteroskedasticity-robust spatial-error
+estimator yet, so when the variance differs between treated and controls
+in a contiguous design, neither option's intervals are reliable.
+
 # Examples
 ```julia
 m = fit_spatial_did(y, D, W; coords = coords, dist_cutoff = 3.0)
@@ -509,6 +634,10 @@ m = fit_spatial_did(y, D_path, W; coords = coords, dist_cutoff = 3.0)
 
 # the conventional standard errors, chosen deliberately
 m = fit_spatial_did(y, D, W; vcov = :cluster, cluster_groups = 1:N)
+
+# two spillover channels (Chagas et al. eq. 7), with a spatial error
+m = fit_spatial_did(y, D, W; channels = :split, errors = :spatial)
+m.att_spill_control, m.spillover_equality.p_value
 ```
 
 !!! warning "Staggered adoption with heterogeneous effects"
@@ -556,56 +685,108 @@ Institute Discussion Paper 2015-091/VIII. Eq. (6) is the design above.
 Chagas, A. L. S., Azzoni, C. R. & Almeida, A. N. (2016). A spatial
 difference-in-differences analysis of the impact of sugarcane production
 on respiratory diseases. *Regional Science and Urban Economics*, 59,
-24–36. **Read.** Its eq. (7), the unrestricted two-channel SDID, is
-**not** what this function fits; see above.
+24–36. **Read.** Its eq. (7), the unrestricted two-channel SDID, is what
+`channels = :split` fits.
 Goodman-Bacon, A. (2021). Difference-in-differences with variation in
 treatment timing. *Journal of Econometrics*, 225(2).
 """
 function fit_spatial_did(y::AbstractMatrix, treat, W::AbstractSparseMatrix;
                          X=nothing,
-                         vcov::Union{Symbol, AbstractRobustVCOV}=:cluster,
+                         vcov::Union{Nothing, Symbol, AbstractRobustVCOV}=nothing,
                          coords=nothing,
                          dist_cutoff=nothing,
                          order::Int=1,
                          standardize::Bool=true,
-                         cluster_groups=nothing)
+                         cluster_groups=nothing,
+                         channels::Symbol=:pooled,
+                         errors::Symbol=:iid)
     N, T_per = size(y)
     T_el = promote_type(Float64, eltype(y) <: AbstractFloat ? eltype(y) : Float64)
     T_per >= 2 || throw(ArgumentError("difference-in-differences needs at least 2 periods, got $T_per"))
-
-    Dpath, D, design = _treatment_path(treat, N, T_per)
-    em = exposure(D, W; order=order, standardize=standardize)
-    rep = check_interference(em)
-
-    if design === :two_period
-        Z, dep, names, E_used, treated_mask = _build_two_period(T_el, y, em, X)
-        unit_of_row = collect(1:N)
-    else
-        Z, dep, names, unit_of_row, E_used, treated_mask =
-            _build_staggered(T_el, y, Dpath, em, W, X, standardize)
+    channels in (:pooled, :split) || throw(ArgumentError(
+        "unknown `channels = :$channels`; expected :pooled (one spillover coefficient, " *
+        "Delgado & Florax) or :split (one for the treated and one for the controls, " *
+        "Chagas et al. eq. 7)"))
+    split = channels === :split
+    errors in (:iid, :spatial) || throw(ArgumentError(
+        "unknown `errors = :$errors`; expected :iid (OLS, with `vcov`) or :spatial " *
+        "(spatial-error maximum likelihood)"))
+    if errors === :spatial
+        vcov === nothing || throw(ArgumentError(
+            "`vcov` applies to `errors = :iid`. With `errors = :spatial` the covariance " *
+            "comes from the spatial-error likelihood (its information matrix), so drop " *
+            "`vcov`, or use `errors = :iid` to choose one."))
+        standardize || throw(ArgumentError(
+            "`errors = :spatial` needs `standardize = true`: the panel fit's correction " *
+            "for period effects assumes a row-standardised `W`."))
     end
 
-    check_design_rank(Z, names, "fit_spatial_did";
-                      context="This is usually the exposure column: " * rep.message)
+    Dpath, D, design = _treatment_path(treat, N, T_per)
 
-    F = qr(Z)
-    θ = F \ dep
-    resid = dep - Z * θ
+    if design === :two_period
+        em = exposure(D, W; order=order, standardize=standardize)
+        rep = check_interference(em)
+        Z, dep, names, E_used, treated_mask = _build_two_period(T_el, y, em, X, split)
+        unit_of_row = collect(1:N)
+    else
+        # The regression identifies off timing, so a unit treated in some
+        # periods is a comparison in the others, and the report is taken over
+        # the unit-period rows the regression uses.
+        order >= 1 || throw(ArgumentError("`order` must be at least 1, got $order"))
+        size(W) == (N, N) || throw(DimensionMismatch(
+            "`W` is $(size(W, 1))x$(size(W, 2)) but `y` has $N rows"))
+        em = _exposure_core(T_el.(D), W, order, standardize)
+        Z, dep, names, unit_of_row, E_used, treated_mask, Zraw, yraw =
+            _build_staggered(T_el, y, Dpath, em, W, X, standardize, split)
+        rep = _interference_report(T_el.(treated_mask), E_used[:, 1])
+    end
 
-    Σ, vname = _did_vcov(vcov, Z, resid, coords, dist_cutoff, cluster_groups,
-                         unit_of_row, N, design, T_per)
+    context = "This is usually the exposure column: " * rep.message
+    if split
+        context *= " With `channels = :split`, the treated channel `D×WD` also needs " *
+                   "exposure to vary among the treated (variance here " *
+                   "$(rep.exposure_var_treated)); otherwise it is a multiple of `D`. " *
+                   "`channels = :pooled` does not need that."
+    end
+    check_design_rank(Z, names, "fit_spatial_did"; context=context)
+
+    λ̂, λ̂_se = T_el(NaN), T_el(NaN)
+    if errors === :iid
+        F = qr(Z)
+        θ = F \ dep
+        resid = dep - Z * θ
+        Σ, vname = _did_vcov(vcov === nothing ? :cluster : vcov, Z, resid, coords,
+                             dist_cutoff, cluster_groups, unit_of_row, N, design, T_per)
+    else
+        # The same design, with the disturbance u = λWu + ε fitted by
+        # maximum likelihood. Differencing two periods keeps that form, so
+        # the two-period design is a cross-section SEM on the differences;
+        # the staggered one is the two-way fixed-effects panel SEM on the
+        # stacked levels, which applies the same within transform.
+        Werr = row_standardize(T_el.(W))
+        sem = design === :two_period ?
+            fit_spatial_error(Werr, Z[:, 2:end], dep; varnames=names[2:end]) :
+            fit_spatial_error(TwoWayFE(), Werr, Zraw, yraw, N, T_per; varnames=names)
+        p_β = length(StatsAPI.coef(sem)) - 1          # the last entry is λ
+        θ = StatsAPI.coef(sem)[1:p_β]
+        Σ = StatsAPI.vcov(sem)[1:p_β, 1:p_β]
+        resid = StatsAPI.residuals(sem)
+        λ̂, λ̂_se = sem.lambda, sem.lambda_se
+        vname = @sprintf("spatial error ML (λ̂ = %.4f), information matrix; assumes a constant error variance", λ̂)
+    end
 
     # The four effects are each a'θ for a fixed `a`, so their variances are
     # exact. `a` places the exposure means on the exposure coefficients and
-    # 1 on the direct one.
-    i_dir, i_exp = _effect_slots(design, order)
+    # 1 on the direct one. Pooled, both spillovers load the same slots.
+    i_dir, i_expT, i_expC = _effect_slots(design, order, split)
     Ē_T, Ē_C = _exposure_means(E_used, treated_mask)
 
-    a_dir = zeros(T_el, length(θ)); a_dir[i_dir] = one(T_el)
-    a_spt = zeros(T_el, length(θ)); a_spc = zeros(T_el, length(θ))
+    p = length(θ)
+    a_dir = zeros(T_el, p); a_dir[i_dir] = one(T_el)
+    a_spt = zeros(T_el, p); a_spc = zeros(T_el, p)
     for k in 1:order
-        a_spt[i_exp[k]] = Ē_T[k]
-        a_spc[i_exp[k]] = Ē_C[k]
+        a_spt[i_expT[k]] = Ē_T[k]
+        a_spc[i_expC[k]] = Ē_C[k]
     end
     a_tot = a_dir .+ a_spt
 
@@ -616,7 +797,26 @@ function fit_spatial_did(y::AbstractMatrix, treat, W::AbstractSparseMatrix;
         dot(a_spt, θ), q(a_spt),
         dot(a_spc, θ), q(a_spc),
         dot(a_tot, θ), q(a_tot),
-        θ, Matrix(Σ), names, resid, em, rep, vname, design, N, T_per)
+        θ, Matrix(Σ), names, resid, em, rep, vname, design, N, T_per,
+        channels, _spillover_equality(θ, Σ, i_expT, i_expC, split),
+        errors, λ̂, λ̂_se)
+end
+
+# Wald test of δ_T = δ_C, all orders jointly. Pooled imposes it, so there is
+# nothing to test.
+function _spillover_equality(θ::Vector{T}, Σ::AbstractMatrix{T},
+                             i_T::Vector{Int}, i_C::Vector{Int}, split::Bool) where {T}
+    split || return (stat = T(NaN), df = 0, p_value = T(NaN))
+    K = length(i_T)
+    R = zeros(T, K, length(θ))
+    for k in 1:K
+        R[k, i_T[k]] = one(T)
+        R[k, i_C[k]] = -one(T)
+    end
+    r = R * θ
+    V = Symmetric(R * Σ * R')
+    stat = T(dot(r, V \ r))
+    return (stat = stat, df = K, p_value = T(_chi2_sf(Float64(max(stat, zero(T))), K)))
 end
 
 # ─── Treatment path ──────────────────────────────────────────────────
@@ -653,6 +853,10 @@ function _treatment_path(treat::AbstractMatrix, N::Int, T_per::Int)
     if T_per == 2 && all(iszero, @view path[:, 1])
         return path, D, :two_period
     end
+    all(iszero, path) && throw(ArgumentError(
+        "no unit is treated in any period, so there is no effect to estimate"))
+    all(isone, path) && throw(ArgumentError(
+        "every unit is treated in every period, so there is no comparison"))
     return path, D, :staggered
 end
 
@@ -662,15 +866,29 @@ end
 # exact rather than approximate: with no noise it returns τ and δ to
 # machine precision.
 
-function _build_two_period(::Type{T}, y::AbstractMatrix, em::ExposureMap, X) where {T}
+function _build_two_period(::Type{T}, y::AbstractMatrix, em::ExposureMap, X,
+                           split::Bool) where {T}
     N = size(y, 1)
     Δy = T.(@view y[:, 2]) .- T.(@view y[:, 1])
 
     cols = Any[ones(T, N), em.D]
     names = String["(Intercept)", "D"]
-    for k in 1:em.order
-        push!(cols, @view em.E[:, k])
-        push!(names, em.labels[k])
+    if split
+        # All treated-channel columns first, then all control-channel ones,
+        # which is the layout `_effect_slots` reads.
+        for k in 1:em.order
+            push!(cols, em.D .* @view(em.E[:, k]))
+            push!(names, "D×" * em.labels[k])
+        end
+        for k in 1:em.order
+            push!(cols, (one(T) .- em.D) .* @view(em.E[:, k]))
+            push!(names, "(1-D)×" * em.labels[k])
+        end
+    else
+        for k in 1:em.order
+            push!(cols, @view em.E[:, k])
+            push!(names, em.labels[k])
+        end
     end
 
     if X !== nothing
@@ -716,7 +934,7 @@ end
 
 function _build_staggered(::Type{T}, y::AbstractMatrix, Dpath::Matrix{Float64},
                           em::ExposureMap, W::AbstractSparseMatrix, X,
-                          standardize::Bool) where {T}
+                          standardize::Bool, split::Bool) where {T}
     N, T_per = size(y)
     Wt = standardize ? row_standardize(T.(W)) : T.(W)
 
@@ -733,40 +951,58 @@ function _build_staggered(::Type{T}, y::AbstractMatrix, Dpath::Matrix{Float64},
     end
 
     NT = N * T_per
-    ncol = 1 + em.order + (X === nothing ? 0 : _covariate_count(X, N, T_per))
+    n_exp = split ? 2 * em.order : em.order
+    ncol = 1 + n_exp + (X === nothing ? 0 : _covariate_count(X, N, T_per))
     Zr = Matrix{T}(undef, NT, ncol)
     yv = Vector{T}(undef, NT)
     unit_of_row = Vector{Int}(undef, NT)
+    E_used = Matrix{T}(undef, NT, em.order)
 
     # Stacked units-fastest within period, which is the layout
-    # `vcov_conley` and `vcov_driscoll_kraay` expect.
+    # `vcov_conley` and `vcov_driscoll_kraay` expect. Split, each exposure
+    # column goes to the channel of the unit's treatment *in that period*.
     for t in 1:T_per, i in 1:N
         r = (t - 1) * N + i
         yv[r] = T(y[i, t])
-        Zr[r, 1] = T(Dpath[i, t])
+        d = T(Dpath[i, t])
+        Zr[r, 1] = d
         for k in 1:em.order
-            Zr[r, 1 + k] = Epath[i, k, t]
+            e = Epath[i, k, t]
+            E_used[r, k] = e
+            if split
+                Zr[r, 1 + k] = d * e
+                Zr[r, 1 + em.order + k] = (one(T) - d) * e
+            else
+                Zr[r, 1 + k] = e
+            end
         end
         unit_of_row[r] = i
     end
     names = String["D"]
-    append!(names, em.labels)
+    if split
+        append!(names, ["D×" * l for l in em.labels])
+        append!(names, ["(1-D)×" * l for l in em.labels])
+    else
+        append!(names, em.labels)
+    end
 
     if X !== nothing
         K = _covariate_count(X, N, T_per)
         for k in 1:K, t in 1:T_per, i in 1:N
-            Zr[(t - 1) * N + i, 1 + em.order + k] = T(X[i, k, t])
+            Zr[(t - 1) * N + i, 1 + n_exp + k] = T(X[i, k, t])
         end
         append!(names, ["X$k" for k in 1:K])
     end
 
     # The reported spillover is δ times a mean exposure *in levels*, so the
     # means have to come from the exposure before the within transform
-    # touches it. Taken here rather than recomputed from `em.E`, which
+    # touches it. Kept here rather than recomputed from `em.E`, which
     # holds the static ever-treated exposure and would not match the
     # time-varying regressor the coefficient belongs to.
-    E_used = Zr[:, 2:(1 + em.order)]
     treated_mask = Zr[:, 1] .== one(T)
+    # The levels, for `errors = :spatial`: the panel SEM applies its own
+    # within transform.
+    Zraw, yraw = copy(Zr), copy(yv)
 
     # Two-way demeaning: unit means, period means, grand mean added back.
     # This absorbs μ_i and γ_t exactly, so no intercept column is needed
@@ -776,7 +1012,7 @@ function _build_staggered(::Type{T}, y::AbstractMatrix, Dpath::Matrix{Float64},
         _twoway_demean!(@view(Zr[:, j]), N, T_per)
     end
 
-    return Zr, yv, names, unit_of_row, E_used, treated_mask
+    return Zr, yv, names, unit_of_row, E_used, treated_mask, Zraw, yraw
 end
 
 function _covariate_count(X, N::Int, T_per::Int)
@@ -816,12 +1052,16 @@ end
 
 # ─── Effect slots and exposure means ─────────────────────────────────
 
-# Where `D` and the exposure columns sit in θ. The two-period design
+# Where `D` and the exposure columns sit in θ: the slot of `D`, then the
+# exposure slots that carry the spillover onto the treated and onto the
+# controls. Pooled, the two lists are the same. The two-period design
 # carries an intercept, the staggered one does not (the within transform
 # absorbed it), so the offset differs by exactly one.
-function _effect_slots(design::Symbol, order::Int)
+function _effect_slots(design::Symbol, order::Int, split::Bool)
     off = design === :two_period ? 1 : 0
-    return off + 1, [off + 1 + k for k in 1:order]
+    i_T = [off + 1 + k for k in 1:order]
+    i_C = split ? [off + 1 + order + k for k in 1:order] : i_T
+    return off + 1, i_T, i_C
 end
 
 """
@@ -920,11 +1160,15 @@ function Base.show(io::IO, m::SpatialDiDResult{T}) where {T}
     dname = m.design === :two_period ? "two-period" : "staggered"
     println(io, "Spatial Difference-in-Differences ($dname)")
     println(io, "═"^68)
-    @printf(io, "  N = %d units, T = %d periods,  %d treated\n",
-            m.n_units, m.n_periods, m.interference.n_treated)
+    @printf(io, "  N = %d units, T = %d periods,  %d treated %s\n",
+            m.n_units, m.n_periods, m.interference.n_treated,
+            m.design === :two_period ? "units" : "unit-periods")
     println(io, "  exposure: ", join(m.exposure_map.labels, ", "),
             m.exposure_map.standardized ? " (row-standardized W)" : " (unstandardized W)")
     println(io, "  vcov: ", m.vcov_name)
+    m.errors === :spatial && @printf(io, "  spatial error: λ = %.4f (SE %.4f)\n", m.lambda, m.lambda_se)
+    println(io, "  spillover channels: ", m.channels === :split ?
+            "split (treated and controls, free coefficients)" : "pooled (one coefficient)")
     m.interference.identified || println(io, "  ⚠ spillover NOT identified — see `.interference`")
     println(io, "")
     println(io, "  Treatment effects")
@@ -936,6 +1180,10 @@ function Base.show(io::IO, m::SpatialDiDResult{T}) where {T}
                         ("total, on treated", m.att_total_treated, m.att_total_treated_se))
         z = s > 0 ? v / s : T(NaN)
         @printf(io, "  %-28s %12.4f %12.4f %9.2f\n", lab, v, s, z)
+    end
+    if m.channels === :split
+        t = m.spillover_equality
+        @printf(io, "  equal channels: Wald χ²(%d) = %.3f,  p = %.4f\n", t.df, t.stat, t.p_value)
     end
     println(io, "")
     println(io, "  Underlying regression")

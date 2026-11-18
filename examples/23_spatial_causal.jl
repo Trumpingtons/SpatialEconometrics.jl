@@ -18,6 +18,7 @@
 #   - fit_spatial_did: the four effects, and why there are four
 #   - what the omitted exposure column does to a naive estimate
 #   - the covariance choice, and why the default is not the spatial one
+#   - two spillover channels (Chagas et al. 2016) and a spatial error
 
 using SpatialEconometrics
 using Random, LinearAlgebra, SparseArrays, Printf, Statistics
@@ -146,7 +147,7 @@ significant here even though nothing was generated at that range. A unit
 two steps from a contiguous block is adjacent to a unit one step from it,
 so a single-band fit picks up the true first-ring effect through that
 correlation. Reading a ring in isolation tells you how far the signal
-reaches, not where it originates."""
+reaches, not where it originates.""")
 
 # ─── Standard errors ─────────────────────────────────────────────────
 #
@@ -208,3 +209,42 @@ predictable. Spatially contiguous cohorts, which is how rollouts actually
 happen, are the worst case: cohort identity is then nearly collinear with
 the exposure column. Read cohorts separately when heterogeneity is
 plausible.""")
+
+# ─── Two spillover channels, and a spatially correlated error ────────
+#
+# The fits above use one exposure coefficient for the treated and the
+# controls alike (Delgado & Florax 2015). Chagas, Azzoni & Almeida (2016)
+# let them differ. Here the policy spills over onto the controls only, and
+# the error is spatially correlated, which the OLS intervals for the
+# spillovers do not survive (see the fit_spatial_did docstring).
+
+δT, δC = 0.0, 1.5
+Wt2 = row_standardize(W)
+E2 = Wt2 * D
+Ae = lu(sparse(1.0I, N, N) - 0.6 * W)
+y2 = zeros(N, 2)
+y2[:, 1] .= μ .+ 0.4 .* (Ae \ randn(rng, N))
+y2[:, 2] .= μ .+ γ .+ τ .* D .+ δT .* D .* E2 .+ δC .* (1 .- D) .* E2 .+
+            0.4 .* (Ae \ randn(rng, N))
+truth_c = δC * mean(E2[D .== 0])
+
+println("\n", "="^70)
+println("Two channels: spillover onto the controls only, correlated errors")
+println("="^70)
+for (lab, kw) in (("pooled, OLS", (;)),
+                  ("split, OLS", (channels = :split,)),
+                  ("split, spatial error ML", (channels = :split, errors = :spatial)))
+    m2 = fit_spatial_did(y2, D, W; kw...)
+    @printf("  %-24s spillover on controls %.4f (SE %.4f)   truth %.4f\n",
+            lab, m2.att_spill_control, m2.att_spill_control_se, truth_c)
+end
+ms2 = fit_spatial_did(y2, D, W; channels = :split, errors = :spatial)
+@printf("  equal channels: Wald χ²(%d) = %.2f, p = %.4f;  λ̂ = %.3f\n",
+        ms2.spillover_equality.df, ms2.spillover_equality.stat,
+        ms2.spillover_equality.p_value, ms2.lambda)
+println("""
+The pooled fit forces one coefficient on both groups. The split recovers
+the control spillover, and the Wald test asks whether the restriction
+holds. Read att_total_treated rather than att_direct in a split fit: with
+a contiguous block, the direct effect is identified only by the treated
+units' own variation in exposure.""")
