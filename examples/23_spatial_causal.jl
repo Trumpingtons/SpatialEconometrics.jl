@@ -18,7 +18,8 @@
 #   - fit_spatial_did: the four effects, and why there are four
 #   - what the omitted exposure column does to a naive estimate
 #   - the covariance choice, and why the default is not the spatial one
-#   - two spillover channels (Chagas et al. 2016) and a spatial error
+#   - two spillover channels (Chagas et al. 2016) and a spatial error,
+#     by ML or by heteroskedasticity-robust GMM
 
 using SpatialEconometrics
 using Random, LinearAlgebra, SparseArrays, Printf, Statistics
@@ -233,7 +234,8 @@ println("Two channels: spillover onto the controls only, correlated errors")
 println("="^70)
 for (lab, kw) in (("pooled, OLS", (;)),
                   ("split, OLS", (channels = :split,)),
-                  ("split, spatial error ML", (channels = :split, errors = :spatial)))
+                  ("split, spatial error ML", (channels = :split, errors = :spatial)),
+                  ("split, spatial error GMM", (channels = :split, errors = :spatial_gmm)))
     m2 = fit_spatial_did(y2, D, W; kw...)
     @printf("  %-24s spillover on controls %.4f (SE %.4f)   truth %.4f\n",
             lab, m2.att_spill_control, m2.att_spill_control_se, truth_c)
@@ -247,4 +249,7 @@ The pooled fit forces one coefficient on both groups. The split recovers
 the control spillover, and the Wald test asks whether the restriction
 holds. Read att_total_treated rather than att_direct in a split fit: with
 a contiguous block, the direct effect is identified only by the treated
-units' own variation in exposure.""")
+units' own variation in exposure. The ML fit assumes every unit's error has
+the same variance; errors = :spatial_gmm (Kelejian & Prucha 2010) does not,
+and is the one to use when the variance may differ between treated and
+controls.""")

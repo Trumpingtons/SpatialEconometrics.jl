@@ -12,7 +12,7 @@ import ..SpatialUtils: check_design_rank, _print_coef_table, _chi2_sf
 import ..SpatialHAC: AbstractRobustVCOV, ConleySpatialHAC, ClusterRobustVCOV,
        DriscollKraayVCOV, vcov_conley, vcov_cluster, vcov_driscoll_kraay
 import ..SpatialWeights: band_weights, row_standardize
-import ..SpatialErrorModel: fit_spatial_error
+import ..SpatialErrorModel: fit_spatial_error, _sem_gmm_het
 import ..SpatialUtils: TwoWayFE
 import ..SpatialHAC: DistanceMetric, EuclideanDistance, HaversineDistance,
        pairwise_distance
@@ -377,9 +377,10 @@ standard errors are exact rather than approximations: `Var(a'θ̂) = a'Σa`.
 - `spillover_equality`: `(stat, df, p_value)`, the Wald test that the two
   channels' coefficients are equal, against `χ²(order)`, under `vcov`.
   `NaN` with `df = 0` when `channels = :pooled`, which imposes it.
-- `errors`: `:iid` (OLS with `vcov`) or `:spatial` (spatial-error maximum
-  likelihood), and `lambda`, `lambda_se`: the spatial error parameter and
-  its standard error, `NaN` under `:iid`.
+- `errors`: `:iid` (OLS with `vcov`), `:spatial` (spatial-error maximum
+  likelihood) or `:spatial_gmm` (spatial-error GMM, robust to
+  heteroskedasticity), and `lambda`, `lambda_se`: the spatial error
+  parameter and its standard error, `NaN` under `:iid`.
 """
 struct SpatialDiDResult{T<:AbstractFloat} <: StatsAPI.RegressionModel
     att_direct::T
@@ -524,6 +525,9 @@ Reading the split:
   [`fit_spatial_error`](@ref): the cross-section on the differences in the
   two-period design, the two-way fixed-effects panel in the staggered one.
   It does not take `vcov`. See "Spatially correlated errors" below.
+  `:spatial_gmm` fits the same spatial error by Kelejian & Prucha's (2010)
+  generalized moments, whose standard errors stay valid when the error
+  variance differs across units; see "Unequal error variances" below.
 
 # Which covariance, and why the default is not the spatial one
 
@@ -620,9 +624,56 @@ information matrix. With the error sd doubled on the treated, in the block
 design, coverage falls to 0.773 for `att_direct` and 0.761 for
 `att_total_treated`, and the test's size is 0.151; OLS with `:cluster` is
 no better (0.859, 0.667, 0.210). In the scattered design the ML figures are
-0.896 and 0.912. The package has no heteroskedasticity-robust spatial-error
-estimator yet, so when the variance differs between treated and controls
-in a contiguous design, neither option's intervals are reliable.
+0.896 and 0.912. For that case use `errors = :spatial_gmm`.
+
+# Unequal error variances: `errors = :spatial_gmm`
+
+The same spatial error, `u = λWu + ε`, with the `εᵢ` independent but of
+unknown and possibly different variances. Kelejian & Prucha (2010)
+estimate `λ` from two moment conditions that hold whatever the
+variances, `E[ε′(W′W − diag(W′W))ε] = 0` and `E[ε′Wε] = 0`; the effects
+then come from OLS on the spatially filtered design (feasible GLS) with a
+heteroskedasticity-robust sandwich, clustered by unit in its jackknife
+(CR3) form, which allows for the high leverage of a contiguous treated
+block. The regressors (`D`, the exposure columns, `X`) are exogenous, so
+the estimate of `λ` does not enter the effects' variance (their eq. 25).
+
+- **Two-period design:** their cross-section estimator on the
+  differences, exactly what `fit_spatial_error(...; estimator = :gmm)`
+  returns for the differenced design.
+- **Staggered design: this package's extension.** Kelejian & Prucha's
+  theory is for a cross-section. Here the moments are pooled over
+  periods on the two-way fixed-effects residuals, and their covariance is
+  estimated by unit, `Σᵢⱼ Sᵢⱼ² (êᵢ·êⱼ)²`, which allows for the serial
+  correlation that removing the unit effects induces. The period effects
+  correlate units at order `1/N`, which it ignores. It rests on the
+  Monte Carlo below, not on a published proof.
+
+Measured (`validation/mc_spatial_did_gmm.jl`, 2,000 replications), coverage
+of nominal 95%, `channels = :split`:
+
+| Design | error sd | Fit | `att_direct` | `att_total_treated` | equality test, size |
+|---|---|---|---|---|---|
+| block, two-period | doubled on the treated | ML | 0.795 | 0.776 | 0.143 |
+| | | GMM | 0.936 | 0.930 | 0.060 |
+| block, two-period | `1 + 2·exposure` | ML | 0.784 | 0.704 | 0.172 |
+| | | GMM | 0.944 | 0.921 | 0.062 |
+| block, two-period | constant | ML | 0.951 | 0.934 | 0.058 |
+| | | GMM | 0.935 | 0.938 | 0.057 |
+
+The block design is the 20 × 20 lattice above, `λ = 0.6`. With the
+treated scattered the ML shortfall is smaller (`att_direct` 0.900 with the
+sd doubled on the treated) and GMM covers at 0.94–0.95 in every cell. In
+Chagas et al.'s staggered design (`λ = 0.5`, sd doubled on half the map
+and again on treated unit-periods) GMM covers `α`, `b₁`, `b₂` at 0.954,
+0.939, 0.954, against 0.958, 0.877, 0.991 for ML. There `λ̂` itself is
+low by about 0.016 (0.484 for 0.5), which is the `1/N` term the panel
+extension ignores, and its interval covers at 0.93; the effects'
+intervals do not depend on it.
+
+The price, when the variance is in fact constant, is small here: the
+point estimates match ML's in spread, and `att_direct`'s coverage is 0.935
+against 0.951.
 
 # Examples
 ```julia
@@ -638,6 +689,9 @@ m = fit_spatial_did(y, D, W; vcov = :cluster, cluster_groups = 1:N)
 # two spillover channels (Chagas et al. eq. 7), with a spatial error
 m = fit_spatial_did(y, D, W; channels = :split, errors = :spatial)
 m.att_spill_control, m.spillover_equality.p_value
+
+# the same, robust to error variances that differ across units
+m = fit_spatial_did(y, D, W; channels = :split, errors = :spatial_gmm)
 ```
 
 !!! warning "Staggered adoption with heterogeneous effects"
@@ -689,6 +743,15 @@ on respiratory diseases. *Regional Science and Urban Economics*, 59,
 `channels = :split` fits.
 Goodman-Bacon, A. (2021). Difference-in-differences with variation in
 treatment timing. *Journal of Econometrics*, 225(2).
+Kelejian, H. H. & Prucha, I. R. (2010). Specification and estimation of
+spatial autoregressive models with autoregressive and heteroskedastic
+disturbances. *Journal of Econometrics*, 157(1), 53–67. **Read**, from the
+PubMed Central copy. Eqs. (5), (13), (16) and (25) are what
+`errors = :spatial_gmm` implements.
+Arraiz, I., Drukker, D. M., Kelejian, H. H. & Prucha, I. R. (2010). A
+spatial Cliff-Ord-type model with heteroskedastic innovations: small and
+large sample results. *Journal of Regional Science*, 50(2), 592–614. Read
+apart from its appendix, which holds the formulas and was not available.
 """
 function fit_spatial_did(y::AbstractMatrix, treat, W::AbstractSparseMatrix;
                          X=nothing,
@@ -708,17 +771,19 @@ function fit_spatial_did(y::AbstractMatrix, treat, W::AbstractSparseMatrix;
         "Delgado & Florax) or :split (one for the treated and one for the controls, " *
         "Chagas et al. eq. 7)"))
     split = channels === :split
-    errors in (:iid, :spatial) || throw(ArgumentError(
-        "unknown `errors = :$errors`; expected :iid (OLS, with `vcov`) or :spatial " *
-        "(spatial-error maximum likelihood)"))
-    if errors === :spatial
+    errors in (:iid, :spatial, :spatial_gmm) || throw(ArgumentError(
+        "unknown `errors = :$errors`; expected :iid (OLS, with `vcov`), :spatial " *
+        "(spatial-error maximum likelihood) or :spatial_gmm (spatial-error GMM, robust " *
+        "to heteroskedasticity)"))
+    if errors !== :iid
         vcov === nothing || throw(ArgumentError(
-            "`vcov` applies to `errors = :iid`. With `errors = :spatial` the covariance " *
-            "comes from the spatial-error likelihood (its information matrix), so drop " *
-            "`vcov`, or use `errors = :iid` to choose one."))
+            "`vcov` applies to `errors = :iid`. With `errors = :$errors` the covariance " *
+            "comes with the spatial-error fit (" *
+            (errors === :spatial ? "its information matrix" : "a robust sandwich") *
+            "), so drop `vcov`, or use `errors = :iid` to choose one."))
         standardize || throw(ArgumentError(
-            "`errors = :spatial` needs `standardize = true`: the panel fit's correction " *
-            "for period effects assumes a row-standardised `W`."))
+            "`errors = :$errors` needs `standardize = true`: the panel fit's treatment " *
+            "of period effects assumes a row-standardised `W`."))
     end
 
     Dpath, D, design = _treatment_path(treat, N, T_per)
@@ -757,7 +822,7 @@ function fit_spatial_did(y::AbstractMatrix, treat, W::AbstractSparseMatrix;
         resid = dep - Z * θ
         Σ, vname = _did_vcov(vcov === nothing ? :cluster : vcov, Z, resid, coords,
                              dist_cutoff, cluster_groups, unit_of_row, N, design, T_per)
-    else
+    elseif errors === :spatial
         # The same design, with the disturbance u = λWu + ε fitted by
         # maximum likelihood. Differencing two periods keeps that form, so
         # the two-period design is a cross-section SEM on the differences;
@@ -773,6 +838,20 @@ function fit_spatial_did(y::AbstractMatrix, treat, W::AbstractSparseMatrix;
         resid = StatsAPI.residuals(sem)
         λ̂, λ̂_se = sem.lambda, sem.lambda_se
         vname = @sprintf("spatial error ML (λ̂ = %.4f), information matrix; assumes a constant error variance", λ̂)
+    end
+    if errors === :spatial_gmm
+        # Kelejian & Prucha (2010): λ from moments valid under any error
+        # variances, then feasible GLS with a robust sandwich, clustered by
+        # unit. The two-period design is their cross-section, on the
+        # differences; the staggered panel is this package's extension
+        # (see `_sem_gmm_het`).
+        Werr = row_standardize(T_el.(W))
+        o = design === :two_period ?
+            _sem_gmm_het(Werr, Z, dep, N, 1) :
+            _sem_gmm_het(Werr, Zraw, yraw, N, T_per; fe = true)
+        θ, Σ, resid = o.beta, o.vcov_beta, o.residuals
+        λ̂, λ̂_se = o.lambda, o.lambda_se
+        vname = @sprintf("spatial error GMM (λ̂ = %.4f), Kelejian & Prucha (2010); robust to heteroskedasticity", λ̂)
     end
 
     # The four effects are each a'θ for a fixed `a`, so their variances are
@@ -1166,7 +1245,7 @@ function Base.show(io::IO, m::SpatialDiDResult{T}) where {T}
     println(io, "  exposure: ", join(m.exposure_map.labels, ", "),
             m.exposure_map.standardized ? " (row-standardized W)" : " (unstandardized W)")
     println(io, "  vcov: ", m.vcov_name)
-    m.errors === :spatial && @printf(io, "  spatial error: λ = %.4f (SE %.4f)\n", m.lambda, m.lambda_se)
+    m.errors !== :iid && @printf(io, "  spatial error (%s): λ = %.4f (SE %.4f)\n", m.errors === :spatial ? "ML" : "GMM", m.lambda, m.lambda_se)
     println(io, "  spillover channels: ", m.channels === :split ?
             "split (treated and controls, free coefficients)" : "pooled (one coefficient)")
     m.interference.identified || println(io, "  ⚠ spillover NOT identified — see `.interference`")

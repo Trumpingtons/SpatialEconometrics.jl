@@ -19,6 +19,7 @@ of `docs/AUDIT.md`, or the README's Validation Status table.
 | `mc_spatial_log_garch_diagnostics.jl` | Why one cell of A differs from Sato & Matsuda's table: the start, the draw of `z`, a `λ ≥ 0` region | `mc_spatial_log_garch_diagnostics_output.txt` | same section |
 | `mc_spatial_did_channels.jl` | #15: the two-channel spatial DiD (Chagas et al. eq. 7) by OLS and by spatial-error ML: the equality test's size and power, coverage of the four effects, the pooled model's bias; a lattice and Chagas et al.'s own design | `mc_spatial_did_channels_output.txt` | AUDIT, finding 34 |
 | `mc_spatial_did_channels_diagnostics.jl` | Why the OLS intervals under-cover there: pooled against split, correlated against uncorrelated errors, five `vcov`s including wide Conley cutoffs | `mc_spatial_did_channels_diagnostics_output.txt` | same section |
+| `mc_spatial_did_gmm.jl` | The heteroskedasticity-robust spatial error (Kelejian & Prucha 2010) against ML: the DiD on a lattice under three variance patterns, Chagas et al.'s staggered design (the panel extension), and a cross-section SEM with variance tied to the neighbour count | `mc_spatial_did_gmm_output.txt` | AUDIT, finding 35 |
 
 ## Running them
 
@@ -28,7 +29,7 @@ From the repository root, one at a time:
 julia --project=. validation/mc_spatial_log_garch.jl
 ```
 
-- **Output.** The two `mc_spatial_log_garch*` scripts, the two `mc_spatial_did_channels*` scripts and `mc_cre_sdpd.jl`
+- **Output.** The two `mc_spatial_log_garch*` scripts, the three `mc_spatial_did_*` scripts and `mc_cre_sdpd.jl`
   write their output file themselves. The others print to the terminal, and
   their committed output is that printout, saved as the file in the table.
 - **Arguments.** Each script's header says what it takes:
@@ -36,7 +37,7 @@ julia --project=. validation/mc_spatial_log_garch.jl
     (`R_SCALE=0.05` for a pilot at 5% of the replications);
   - `mc_serl_sdpd.jl` and its diagnostics take the replications and the
     design on the command line;
-  - the two `mc_spatial_did_channels*` scripts read `MC_REPS` from the
+  - the three `mc_spatial_did_*` scripts read `MC_REPS` from the
     environment (`MC_REPS=50` for a pilot).
 - **Run time.** The longest are about two hours on one thread
   (`mc_spatial_log_garch.jl`: 7,069 s), so run them in a terminal you can

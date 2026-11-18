@@ -1,0 +1,53 @@
+# Spatial-error GMM against ML — Monte Carlo (2000 replications per cell)
+Julia 1.13.4. Coverage is of nominal 95% intervals; its Monte Carlo sd at R = 2000 is 0.0049. `rej` is the rejection rate at 5% of a true null. `ML` is `errors = :spatial` / `estimator = :ml`, `GMM` is `errors = :spatial_gmm` / `estimator = :gmm`.
+
+## A. Two-period DiD, 20 x 20 rook lattice, λ = 0.6, channels = :split, δ_T = δ_C = 0.8
+
+| layout | error sd | fit | rej | cov τ | cov spill T | cov spill C | cov total T | sd total | mean λ̂ | cov λ | failed |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| block | constant | ML | 0.058 | 0.951 | 0.944 | 0.947 | 0.934 | 0.4322 | 0.5843 | 0.939 | 0 |
+| block | constant | GMM | 0.057 | 0.935 | 0.938 | 0.949 | 0.938 | 0.4323 | 0.5860 | 0.942 | 0 |
+| block | 2 on treated | ML | 0.143 | 0.795 | 0.783 | 0.974 | 0.776 | 0.8008 | 0.5691 | 0.872 | 0 |
+| block | 2 on treated | GMM | 0.060 | 0.936 | 0.941 | 0.947 | 0.930 | 0.8009 | 0.5759 | 0.940 | 0 |
+| block | 1 + 2·exposure | ML | 0.172 | 0.784 | 0.740 | 0.943 | 0.704 | 1.1131 | 0.5558 | 0.766 | 0 |
+| block | 1 + 2·exposure | GMM | 0.062 | 0.944 | 0.941 | 0.946 | 0.921 | 1.1132 | 0.5666 | 0.928 | 0 |
+| scattered | constant | ML | 0.048 | 0.951 | 0.951 | 0.947 | 0.952 | 0.2472 | 0.5912 | 0.947 | 0 |
+| scattered | constant | GMM | 0.046 | 0.951 | 0.949 | 0.949 | 0.952 | 0.2471 | 0.5925 | 0.948 | 0 |
+| scattered | 2 on treated | ML | 0.117 | 0.900 | 0.835 | 0.984 | 0.920 | 0.3753 | 0.5911 | 0.943 | 0 |
+| scattered | 2 on treated | GMM | 0.051 | 0.954 | 0.949 | 0.946 | 0.949 | 0.3753 | 0.5923 | 0.936 | 0 |
+| scattered | 1 + 2·exposure | ML | 0.092 | 0.974 | 0.885 | 0.940 | 0.959 | 0.3883 | 0.5908 | 0.944 | 0 |
+| scattered | 1 + 2·exposure | GMM | 0.055 | 0.953 | 0.940 | 0.949 | 0.951 | 0.3887 | 0.5926 | 0.946 | 0 |
+
+## B. Chagas et al.'s staggered design, λ = 0.5, b1 = b2 = 0.4
+
+| error sd | fit | cov α | cov b1 | cov b2 | rej | sd b̂2 | mean λ̂ | cov λ | failed |
+|---|---|---|---|---|---|---|---|---|---|
+| constant | ML | 0.949 | 0.947 | 0.949 | 0.049 | 0.2067 | 0.4981 | 0.940 | 0 |
+| constant | GMM | 0.953 | 0.944 | 0.952 | 0.048 | 0.2067 | 0.4838 | 0.919 | 0 |
+| 2 on east half, x2 on treated | ML | 0.958 | 0.877 | 0.991 | 0.050 | 0.3816 | 0.5053 | 0.890 | 0 |
+| 2 on east half, x2 on treated | GMM | 0.954 | 0.939 | 0.954 | 0.044 | 0.3781 | 0.4844 | 0.929 | 0 |
+
+## C. Cross-section SEM, distance band on an irregular map, β = (1, 1, −1)
+
+500 points (isolated ones dropped); neighbours per unit: min 2, median 15, max 38.
+
+| λ | error sd | fit | mean λ̂ | rmse λ̂ | cov λ | cov β1 | cov β2 | failed |
+|---|---|---|---|---|---|---|---|---|
+| -0.5 | constant | ML | -0.5209 | 0.1352 | 0.949 | 0.955 | 0.944 | 0 |
+| -0.5 | constant | GMM | -0.5146 | 0.1364 | 0.949 | 0.953 | 0.947 | 0 |
+| -0.5 | ∝ neighbours | ML | -0.4110 | 0.1580 | 0.883 | 0.956 | 0.933 | 0 |
+| -0.5 | ∝ neighbours | GMM | -0.5046 | 0.1789 | 0.951 | 0.948 | 0.946 | 0 |
+| 0.0 | constant | ML | -0.0235 | 0.1193 | 0.946 | 0.955 | 0.947 | 0 |
+| 0.0 | constant | GMM | -0.0169 | 0.1190 | 0.951 | 0.956 | 0.945 | 0 |
+| 0.0 | ∝ neighbours | ML | -0.0285 | 0.1275 | 0.926 | 0.957 | 0.932 | 0 |
+| 0.0 | ∝ neighbours | GMM | -0.0137 | 0.1541 | 0.949 | 0.948 | 0.945 | 0 |
+| 0.5 | constant | ML | 0.4784 | 0.0832 | 0.947 | 0.957 | 0.947 | 0 |
+| 0.5 | constant | GMM | 0.4841 | 0.0831 | 0.949 | 0.958 | 0.947 | 0 |
+| 0.5 | ∝ neighbours | ML | 0.4149 | 0.1316 | 0.821 | 0.961 | 0.936 | 0 |
+| 0.5 | ∝ neighbours | GMM | 0.4804 | 0.1080 | 0.948 | 0.950 | 0.942 | 0 |
+| 0.8 | constant | ML | 0.7833 | 0.0485 | 0.948 | 0.958 | 0.949 | 0 |
+| 0.8 | constant | GMM | 0.7886 | 0.0491 | 0.951 | 0.958 | 0.950 | 0 |
+| 0.8 | ∝ neighbours | ML | 0.7331 | 0.0931 | 0.745 | 0.963 | 0.941 | 0 |
+| 0.8 | ∝ neighbours | GMM | 0.7830 | 0.0648 | 0.950 | 0.951 | 0.944 | 0 |
+
+Run time 967 s.

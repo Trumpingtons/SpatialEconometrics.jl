@@ -29,7 +29,7 @@ One observation per unit. Run the LM battery first (SKILL.md, step 2).
 |---|---|---|
 | the outcome: `y = ρWy + Xβ + ε` | SAR | `fit_spatial(SAR(), W, X, y)` |
 | the outcome and neighbours' covariates | SDM | `fit_spatial(SDM(), W, X, y)` |
-| the disturbance: `u = λWu + ε` | SEM | `fit_spatial_error(W, X, y)` |
+| the disturbance: `u = λWu + ε` | SEM | `fit_spatial_error(W, X, y)`; `estimator = :gmm` if the error variance may differ across units |
 | neighbours' covariates only | SLX | `fit_slx(W, X, y)` (OLS) |
 | the outcome and the disturbance | SAC / SARAR | `fit_sac(W_lag, W_error, X, y)` |
 | neighbours' covariates and the disturbance | SDEM | `fit_sdem(W, X, y)` |
@@ -137,8 +137,10 @@ factor absorbs the factor into `ρ̂`. Check before trusting `ρ̂` in a panel:
     treated are clustered.
   - If the outcome's errors are likely spatially correlated (they usually
     are), the default OLS intervals for the spillovers and the total effect
-    under-cover, whatever `vcov`. Use `errors = :spatial`, and say that its
-    SEs assume a constant error variance.
+    under-cover, whatever `vcov`. Use `errors = :spatial` (ML, assumes a
+    constant error variance) or `errors = :spatial_gmm` (Kelejian & Prucha
+    GMM, robust to unequal variances; in a staggered design it is the
+    package's own extension of their cross-section theory, so say so).
 - **One or a few treated units:** `fit_synthetic_control(Y, treated, T0;
   W or coords)`, which screens donors for spillover contamination;
   `placebo_test`, `spillover_gaps`.

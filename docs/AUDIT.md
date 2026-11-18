@@ -5179,3 +5179,84 @@ design, the Wald statistic against the restricted-against-unrestricted sum
 of squares (exact under `:ols`), exact recovery in both designs, the refusal
 when exposure does not vary among the treated, and the test's size and power
 (over 20 seeds at `N = 144`: size 0.053–0.088, power 0.85–0.89).
+
+### 35. No spatial-error fit was robust to heteroskedasticity — BUILT, the panel case as an extension
+
+Finding 34 left one case open: with the error variance differing between
+treated and controls, `errors = :spatial` covered `att_total_treated` at
+0.76. Neither estimator in the package was valid there. Gaussian ML of a
+spatial error model assumes equal variances, and with unequal ones `λ̂` can
+be inconsistent (Arraiz, Drukker, Kelejian & Prucha 2010). The GM moments in
+`SpatialGS2SLSPanel`, Kelejian & Prucha (1998), need equal variances too:
+their second matrix is `W′W − (tr W′W/n)I`, whose mean under unequal
+variances is `n⁻¹Σᵢσᵢ²(dᵢ − c)`, not zero.
+
+**Built, 2026-11-18:** Kelejian & Prucha (2010), read from the PubMed
+Central copy, for exogenous regressors. `_sem_gmm_het` in
+`SpatialErrorModel` is their steps 1a to 2b: OLS, `λ` by GM from
+`A₁ = W′W − diag(W′W)` and `A₂ = W` (zero diagonals, so the moments hold for
+any variances; eq. 5), unweighted and then weighted by `Ψ̂⁻¹` (eq. 13),
+feasible GLS, and `λ` again from those residuals. With exogenous regressors
+the first-stage term `aᵣ` is zero, so `β̂`'s covariance is the sandwich of the
+filtered regression and is independent of `λ̂`'s (eq. 25), which is
+`(J′Ψ̂⁻¹J)⁻¹/n` (eq. 16). It is exposed as `fit_spatial_error(...;
+estimator = :gmm)` and `fit_spatial_did(...; errors = :spatial_gmm)`.
+Arraiz et al.'s appendix, which holds their own formulas, was not
+available; the 2010 paper's are what is implemented.
+
+**Two choices of this package's, measured.**
+- **CR3, not HC1.** The sandwich is the jackknife form, by unit (HC3 at
+  `T = 1`, times `(N−1)/N`). With HC1 a contiguous treated block's
+  `att_direct` covered at 0.924, constant variance or not; HC3 gives 0.941
+  (1,000 replications). The treated rows have high leverage.
+- **The staggered panel is an extension, not the paper.** The moments are
+  pooled over periods on two-way fixed-effects residuals, and `Ψ̂` is
+  estimated by unit, `(2nT)⁻¹Σᵢⱼ Sᵣ,ᵢⱼSₛ,ᵢⱼ(êᵢ·êⱼ)²`. That allows for the
+  serial correlation the unit demeaning induces; at `T = 1` it is the
+  paper's `diag(ε̂²)` exactly. The time demeaning correlates units at
+  `O(1/N)` and does not commute with `W`, and this ignores both. The
+  measured cost is in `λ̂`, not in the effects (below).
+
+**Checks (testsets 10a and 34m).**
+- `g − G[λ, λ²]` equals `n⁻¹ε(λ)′Aᵣε(λ)` for every `λ`, within one period
+  and over several, to `1e-13`.
+- `Ψ` equals the exact covariance `(2n)⁻¹tr(SᵣΣSₛΣ)` when fed `e = σ`.
+- **The null distribution, simulated** (4,000 draws, variance following
+  `dᵢ`, skewed errors): the moments' means are zero (`|z|` 1.3 and 0.2
+  against 4) and their covariance is `Ψ` (`|z|` at most 1.7). **Power:** the
+  1998 moment's mean is away from zero at `z = 45`. Over four periods after
+  unit demeaning the pooled covariance matches the by-unit formula (`|z|`
+  1.1 and 1.0), and summing per-period covariances as if periods were
+  independent is rejected (`z` 8.5 and 9.0 against 4).
+- The steps by hand: `β̂` is OLS on the data filtered at the step-1 `λ`, the
+  step-2 objective is minimised at `λ̂`, the sandwich is HC3 by its formula,
+  and the DiD's two-period fit equals `fit_spatial_error`'s exactly.
+- Coverage in the suite (contiguous block, sd doubled on the treated, 300
+  replications): over 20 other seeds ML covers `att_total_treated` at
+  0.68–0.76 and GMM at 0.88–0.95.
+
+**Measured** (`validation/mc_spatial_did_gmm.jl`, 2,000 replications,
+Julia 1.13.4):
+
+| Design | error sd | `att_direct` ML / GMM | `att_total_treated` ML / GMM | test size ML / GMM |
+|---|---|---|---|---|
+| block, two-period | constant | 0.951 / 0.935 | 0.934 / 0.938 | 0.058 / 0.057 |
+| block, two-period | doubled on treated | 0.795 / 0.936 | 0.776 / 0.930 | 0.143 / 0.060 |
+| block, two-period | `1 + 2·exposure` | 0.784 / 0.944 | 0.704 / 0.921 | 0.172 / 0.062 |
+| scattered, two-period | doubled on treated | 0.900 / 0.954 | 0.920 / 0.949 | 0.117 / 0.051 |
+
+In Chagas et al.'s staggered design with unequal variances GMM covers `α`,
+`b₁`, `b₂` at 0.954, 0.939, 0.954 (ML 0.958, 0.877, 0.991). Its `λ̂` is low
+by 0.016 there and with constant variance alike (0.484 for 0.5), and covers
+at 0.92–0.93: the `O(1/N)` term above. The effects do not use `λ̂`'s
+variance, so they are not affected. In a cross-section SEM with the error
+sd proportional to the neighbour count, ML's `λ̂` is biased (−0.411 for
+−0.5, 0.415 for 0.5, 0.733 for 0.8) and covers at 0.75–0.93; GMM's is
+within 0.02 of the truth and covers at 0.948–0.951. With constant variance
+GMM's root mean square error is within about 1% of ML's.
+
+**Not settled.** The panel extension has no proof, and the `O(1/N)` bias in
+`λ̂` would want Lee & Yu's orthonormal transformation to remove. Spatial
+lags of `y` (Kelejian & Prucha's SARAR, with its first-stage term `aᵣ`) are
+not built; the existing `fit_gs2sls_panel` still uses the 1998 moments.
+

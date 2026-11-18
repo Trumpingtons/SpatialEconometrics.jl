@@ -4,8 +4,8 @@
 > pass 1, the two short-`T` panels of #1 and #16 to `v0.4.0` (tagged
 > 2026-11-06). Neither tag is registered.
 >
-> 32 submodules, 4,055 test assertions in 61 top-level testsets with both
-> package extensions installed and 4,020 (plus 2 broken markers) without
+> 32 submodules, 4,099 test assertions in 61 top-level testsets with both
+> package extensions installed and 4,064 (plus 2 broken markers) without
 > them, measured on 2026-11-18 on Julia 1.13.4, and without them on 1.10.13.
 > 33 examples, 20 notebooks, 2 package extensions, CI/CD and
 > 64 Documenter.jl pages. **Phases 4, 5, 6, 6B, 6C and 7A are complete.** Item #10 (Performance) closed on 2026-10-30 with its scope
@@ -20,13 +20,13 @@
 > published method belongs; #13 remains, and #16 (spatial log-GARCH) was
 > built on 2026-11-16. Tier 3 is otherwise untouched,
 > and the correctness audit in `docs/AUDIT.md` is closed — findings 1–25,
-> with 29–32 added afterwards from the benchmark suite and Phase 6C, and 33–34 since.
+> with 29–32 added afterwards from the benchmark suite and Phase 6C, and 33–35 since.
 >
 > Items #15 and #16, and every block marked **Planned additions**, were added
 > after that audit closed. They are the extend half of clean → fix → extend.
-> #15 is delivered, including Chagas et al.'s two-channel spatial DiD
-> (2026-11-18); its one open row is a heteroskedasticity-robust spatial
-> error for the DiD (AUDIT 34).
+> #15 is delivered, including Chagas et al.'s two-channel spatial DiD and
+> a heteroskedasticity-robust spatial error for it (2026-11-18; AUDIT 34
+> and 35).
 >
 > This roadmap outlines planned additions organized by impact tier and development phase. Each item includes the motivation, key deliverables, estimated complexity, and relevant references.
 
@@ -344,7 +344,7 @@ design.
 |---|---|---|
 | ~~Spatial difference-in-differences~~ — **delivered**, see `fit_spatial_did` | Direct ATT and spillover ATT through an exposure mapping on `D` and `WD`, two-period and staggered. Four effects rather than three: the spillover onto the treated and onto the controls are evaluated at different exposure means and are not interchangeable | Delgado & Florax (2015), eq. (6) — **read**, and the estimator actually fitted |
 | ~~Unrestricted two-channel SDID~~ — ✅ **built 2026-11-18**, see `fit_spatial_did(...; channels = :split)` | Chagas et al. eq. (7): free coefficients on `D∘WD` (their `W_{T,T}D`) and `(1−D)∘WD` (their `W_{NT,T}D`), in the two-period and staggered designs, with a Wald test of the pooled restriction (`spillover_equality`). The staggered split uses the treatment in force each period, and a design where every unit is treated at some time is now accepted. **Its Monte Carlo found AUDIT finding 34:** with spatially correlated errors the spillover and total-effect intervals under-cover for every `vcov`, in the pooled model too (`att_total_treated` 0.69 in a contiguous block), so `errors = :spatial` was added: the same design with a spatial error by ML (their SDEM), which covers at 0.94–0.95 when the error variance is constant. `validation/mc_spatial_did_channels.jl` and its diagnostics; testsets 34k and 34l | Chagas et al. (2016), eq. (7) — **read** |
-| Heteroskedasticity-robust spatial error for the DiD — ⬜ **open** | `errors = :spatial` takes its covariance from the information matrix. With the error sd doubled on the treated in a contiguous design it covers `att_total_treated` at 0.76 (AUDIT 34), and OLS is no better. A GMM spatial-error estimator robust to unknown heteroskedasticity would close it | Arraiz, Drukker, Kelejian & Prucha (2010), *J. Regional Science* 50(2) — **not read** |
+| ~~Heteroskedasticity-robust spatial error for the DiD~~ — ✅ **built 2026-11-18**, see `fit_spatial_did(...; errors = :spatial_gmm)` and `fit_spatial_error(...; estimator = :gmm)` | `errors = :spatial` takes its covariance from the information matrix, and with the error sd doubled on the treated in a contiguous design it covered `att_total_treated` at 0.76 (AUDIT 34). Kelejian & Prucha's GM estimator for exogenous regressors: `λ` from the zero-diagonal moments, feasible GLS, a CR3 sandwich. The two-period design is their cross-section; the staggered panel is the package's extension, measured but without a published proof. Also offered for the cross-section SEM. AUDIT finding 35; `validation/mc_spatial_did_gmm.jl`; testsets 10a and 34m | Kelejian & Prucha (2010), *J. Econometrics* 157(1) — **read** (PMC copy); Arraiz, Drukker, Kelejian & Prucha (2010), *J. Regional Science* 50(2) — **read** apart from the appendix |
 | ~~Spatial synthetic control~~ — **delivered**, see `fit_synthetic_control` | Donor-weight optimisation on the unit simplex, penalised by geographic or economic distance, with the donor pool screened so the synthetic unit is not assembled from the treated unit's own neighbours. Permutation inference, and the neighbours' own gaps read back as an estimated spillover | Abadie, Diamond & Hainmueller (2010); Abadie & L'Hour (2021) |
 | ~~Spatial shift-share diagnostics~~ — **delivered**, see `fit_shift_share` | Exposure concentration against the Herfindahl condition, the shock-level equivalence transform, a shock-level balance test for exogeneity, Rotemberg weights, Moran's I on the exposure shares, and the Adão-Kolesár-Morales standard error — which is the substantive part, since conventional standard errors reject a true null in up to 71% of samples here | Borusyak, Hull & Jaravel (2022); Adão, Kolesár & Morales (2019); Goldsmith-Pinkham, Sorkin & Swift (2020) |
 | ~~Exposure mapping utilities~~ — **delivered**, see `exposure` / `ring_exposure` / `check_interference` | `D`, `W^k D`, ring and distance-band exposures. The assumption check is the substantive part: `δ` is identified only by controls that differ in exposure, which is a property of the design and `W` alone and so is checkable before any fit | — |
@@ -1488,6 +1488,7 @@ a measured row.
 | **master** (+ AUDIT finding 33, the `ρ` interval and the polish) | 32 | 3,985 ¶¶¶ | 28,142 |
 | **master** (+ the Claude Code skill, #14) | 32 | 3,988 ¶⁴ | 28,143 |
 | **master** (+ #15's two-channel spatial DiD and `errors = :spatial`, AUDIT 34) | 32 | 4,055 ¶⁵ | 28,391 |
+| **master** (+ the heteroskedasticity-robust spatial error, `:spatial_gmm` / `estimator = :gmm`, AUDIT 35) | 32 | 4,099 ¶⁶ | 28,694 |
 | — | | | |
 | **v1.0.0** (Phases 6C–8) | 29–31 | ~4,100 | ~26,500 |
 
@@ -1586,8 +1587,15 @@ assertions added to 34b. The `src/` count rose by 248, all in
 `SpatialCausal.jl`, about half of it docstring prose carrying the measured
 coverage.
 
-Measured on master: 32 submodules plus the umbrella across 28,391 lines of
-`src/`, 10,774 lines of tests, 5,237 lines of examples across 33 scripts,
+¶⁶ Measured locally on 2026-11-18: 4,099 passed on Julia 1.13.4 with both
+extensions, and 4,064 plus 2 broken on 1.10.13 without them, both 44 above
+¶⁵: testsets 10a (the GM estimator's moments, their null distribution and
+its steps) and 34m (the DiD route). The `src/` count rose by 303, in
+`SpatialErrorModel.jl` (the estimator, its option and docstring) and
+`SpatialCausal.jl` (the DiD option and its measured tables).
+
+Measured on master: 32 submodules plus the umbrella across 28,694 lines of
+`src/`, 10,983 lines of tests, 5,242 lines of examples across 33 scripts,
 398 lines of package extensions, 64 documentation pages and 20 notebooks
 (13 Jupyter, 7 Pluto).
 

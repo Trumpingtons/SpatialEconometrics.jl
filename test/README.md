@@ -5,8 +5,8 @@ single outer testset, "SpatialEconometrics.jl Full Suite Verification".
 
 | Run | Result (2026-11-18) |
 |---|---|
-| Julia 1.13.4, both extensions loaded | 4,055 passed, none broken |
-| Julia 1.10.13, no extensions | 4,020 passed, 2 broken |
+| Julia 1.13.4, both extensions loaded | 4,099 passed, none broken |
+| Julia 1.10.13, no extensions | 4,064 passed, 2 broken |
 
 The two broken entries are markers that stand in for the Makie and Turing
 testsets when those packages are absent (see below). A local run takes about

@@ -64,6 +64,10 @@ stacked units-fastest.
 - `varnames`: covariate names.
 - `lambda_bounds`: search interval for `lambda`, default
   `(-0.995, 0.995)`.
+- `estimator` (cross-section only): `:ml` (default), Gaussian maximum
+  likelihood, or `:gmm`, Kelejian & Prucha's (2010) generalized moments
+  estimator, which stays consistent, with valid standard errors, when the
+  error variance differs across units. See "Heteroskedasticity" below.
 
 ### Returns
 A [`SpatialErrorRegressionModel`](@ref) or
@@ -81,6 +85,40 @@ fit_spatial_error(TwoWayFE(), W, X, y, N, T_per)
 Use `lm_tests` to decide between this and `fit_spatial`
 before fitting either.
 
+### Heteroskedasticity: `estimator = :gmm`
+
+Maximum likelihood assumes every unit's error has the same variance, and
+when it does not, `λ̂` can be inconsistent and the information-matrix
+standard errors are wrong (Arraiz, Drukker, Kelejian & Prucha 2010).
+`estimator = :gmm` is Kelejian & Prucha's (2010) estimator for exogenous
+`X`. `λ` comes from the two moment conditions
+
+    E[ε′(W′W − diag(W′W))ε] = 0,    E[ε′Wε] = 0,
+
+which hold whatever the variances, because both matrices have a zero
+diagonal (so `W` must have one). `β` is then OLS on the filtered data
+(feasible GLS), and `λ` is re-estimated from those residuals, as in their
+two-step procedure. The covariance of `β` is the heteroskedasticity-robust
+jackknife (HC3) sandwich of the filtered regression, which allows for
+high-leverage units; `λ`'s comes from their eq. (16).
+With exogenous `X` the two are asymptotically independent. There is no
+likelihood: `loglik` is `NaN` and `sigma2` is the mean squared filtered
+residual.
+
+The price is efficiency when the variance is in fact constant: Arraiz et
+al. report root mean square errors of `λ̂` about 5–8% above ML's there, in a
+model with a spatial lag of `y` as well. In this package's study of the
+pure error model (`validation/mc_spatial_did_gmm.jl`, part C: 500 points on
+an irregular map, a binary distance band, 2,000 replications) the gap was
+at most 1%. With the error sd proportional to each unit's number of
+neighbours, ML's `λ̂` was biased and its interval under-covered (0.733 for
+`λ = 0.8`, coverage 0.745; 0.415 for 0.5, 0.821) where GMM's was not
+(0.783, 0.950; 0.480, 0.948). `β`'s intervals covered under both.
+
+```julia
+m = fit_spatial_error(W, X, y; estimator = :gmm)
+```
+
 !!! note "Identification"
     The design has to have full column rank, and the matrix checked is the
     **within-transformed** one, since that is what gets solved. Under
@@ -96,4 +134,14 @@ before fitting either.
 
 ### References
 Anselin, L. (1988). *Spatial Econometrics: Methods and Models*. Kluwer.
+
+Arraiz, I., Drukker, D. M., Kelejian, H. H., & Prucha, I. R. (2010). A
+spatial Cliff-Ord-type model with heteroskedastic innovations: small and
+large sample results. *Journal of Regional Science*, 50(2), 592–614.
+https://doi.org/10.1111/j.1467-9787.2009.00618.x
+
+Kelejian, H. H., & Prucha, I. R. (2010). Specification and estimation of
+spatial autoregressive models with autoregressive and heteroskedastic
+disturbances. *Journal of Econometrics*, 157(1), 53–67.
+https://doi.org/10.1016/j.jeconom.2009.10.025
 

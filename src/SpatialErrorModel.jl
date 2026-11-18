@@ -125,6 +125,10 @@ stacked units-fastest.
 - `varnames`: covariate names.
 - `lambda_bounds`: search interval for `lambda`, default
   `(-0.995, 0.995)`.
+- `estimator` (cross-section only): `:ml` (default), Gaussian maximum
+  likelihood, or `:gmm`, Kelejian & Prucha's (2010) generalized moments
+  estimator, which stays consistent, with valid standard errors, when the
+  error variance differs across units. See "Heteroskedasticity" below.
 
 # Returns
 A [`SpatialErrorRegressionModel`](@ref) or
@@ -142,6 +146,40 @@ fit_spatial_error(TwoWayFE(), W, X, y, N, T_per)
 Use `lm_tests` to decide between this and `fit_spatial`
 before fitting either.
 
+# Heteroskedasticity: `estimator = :gmm`
+
+Maximum likelihood assumes every unit's error has the same variance, and
+when it does not, `λ̂` can be inconsistent and the information-matrix
+standard errors are wrong (Arraiz, Drukker, Kelejian & Prucha 2010).
+`estimator = :gmm` is Kelejian & Prucha's (2010) estimator for exogenous
+`X`. `λ` comes from the two moment conditions
+
+    E[ε′(W′W − diag(W′W))ε] = 0,    E[ε′Wε] = 0,
+
+which hold whatever the variances, because both matrices have a zero
+diagonal (so `W` must have one). `β` is then OLS on the filtered data
+(feasible GLS), and `λ` is re-estimated from those residuals, as in their
+two-step procedure. The covariance of `β` is the heteroskedasticity-robust
+jackknife (HC3) sandwich of the filtered regression, which allows for
+high-leverage units; `λ`'s comes from their eq. (16).
+With exogenous `X` the two are asymptotically independent. There is no
+likelihood: `loglik` is `NaN` and `sigma2` is the mean squared filtered
+residual.
+
+The price is efficiency when the variance is in fact constant: Arraiz et
+al. report root mean square errors of `λ̂` about 5–8% above ML's there, in a
+model with a spatial lag of `y` as well. In this package's study of the
+pure error model (`validation/mc_spatial_did_gmm.jl`, part C: 500 points on
+an irregular map, a binary distance band, 2,000 replications) the gap was
+at most 1%. With the error sd proportional to each unit's number of
+neighbours, ML's `λ̂` was biased and its interval under-covered (0.733 for
+`λ = 0.8`, coverage 0.745; 0.415 for 0.5, 0.821) where GMM's was not
+(0.783, 0.950; 0.480, 0.948). `β`'s intervals covered under both.
+
+```julia
+m = fit_spatial_error(W, X, y; estimator = :gmm)
+```
+
 !!! note "Identification"
     The design has to have full column rank, and the matrix checked is the
     **within-transformed** one, since that is what gets solved. Under
@@ -157,6 +195,16 @@ before fitting either.
 
 # References
 Anselin, L. (1988). *Spatial Econometrics: Methods and Models*. Kluwer.
+
+Arraiz, I., Drukker, D. M., Kelejian, H. H., & Prucha, I. R. (2010). A
+spatial Cliff-Ord-type model with heteroskedastic innovations: small and
+large sample results. *Journal of Regional Science*, 50(2), 592–614.
+https://doi.org/10.1111/j.1467-9787.2009.00618.x
+
+Kelejian, H. H., & Prucha, I. R. (2010). Specification and estimation of
+spatial autoregressive models with autoregressive and heteroskedastic
+disturbances. *Journal of Econometrics*, 157(1), 53–67.
+https://doi.org/10.1016/j.jeconom.2009.10.025
 """
 function fit_spatial_error(
     W::M,
@@ -167,18 +215,33 @@ function fit_spatial_error(
     lambda_bounds::Tuple{T, T}=(T(-0.995), T(0.995)),
     max_exact_n::Int=1000,
     vcov_probes::Int=250,
-    rng::AbstractRNG=Random.default_rng()
+    rng::AbstractRNG=Random.default_rng(),
+    estimator::Symbol=:ml
 ) where {T<:AbstractFloat, M<:AbstractSparseMatrix{T}}
 
     N, K = size(X)
     @assert size(W) == (N, N) "Dimension mismatch between W and X"
     @assert length(y) == N "Dimension mismatch between y and X"
+    estimator in (:ml, :gmm) || throw(ArgumentError(
+        "unknown `estimator = :$estimator`; expected :ml (maximum likelihood) or :gmm " *
+        "(Kelejian & Prucha 2010, robust to heteroskedasticity)"))
 
     vnames = isnothing(varnames) ? ["x$i" for i in 1:K] : varnames
     X_aug = hcat(ones(T, N), X)
     coefnames_vec = vcat(["(Intercept)"], vnames, ["λ"])
     check_design_rank(X_aug, coefnames_vec, "fit_spatial_error";
                       context = """`X` must not contain its own intercept, since one is added.""")
+
+    if estimator === :gmm
+        o = _sem_gmm_het(W, X_aug, Vector{T}(y), N, 1; bounds = lambda_bounds)
+        P = size(X_aug, 2)
+        V = zeros(T, P + 1, P + 1)
+        V[1:P, 1:P] .= o.vcov_beta
+        V[P + 1, P + 1] = o.lambda_se^2
+        return SpatialErrorRegressionModel{T, M}(
+            vcat(o.beta, o.lambda), V, o.lambda, o.lambda_se, o.sigma2, T(NaN),
+            W, Matrix{T}(X_aug), Vector{T}(y), o.residuals, coefnames_vec)
+    end
 
     Wy = W * y
     WX = W * X_aug
@@ -441,15 +504,176 @@ function _sem_panel_vcov(
     return V_coef, λ_se
 end
 
+# ─── Heteroskedasticity-robust GM estimator (Kelejian & Prucha 2010) ──
+#
+# The model is y = Xβ + u, u = λWu + ε, with the ε independent and of
+# unknown, possibly different, variances, and X exogenous. Kelejian &
+# Prucha (2010, eq. 5) estimate λ from
+#
+#     E[ε′A₁ε] = 0,  A₁ = W′W − diag(W′W),        E[ε′A₂ε] = 0,  A₂ = W.
+#
+# Both matrices have a zero diagonal, so E[ε′Aε] = Σᵢ Aᵢᵢ σᵢ² = 0 whatever
+# the σᵢ². The moments the maximum-likelihood fit rests on, and the
+# Kelejian–Prucha (1998) moments in `SpatialGS2SLSPanel`, need equal σᵢ².
+#
+# The same code runs a panel: the rows are stacked N units at a time, W acts
+# within each period, and with `fe = true` both stages work on two-way
+# demeaned data. That is the package's extension, not the paper's: see the
+# notes at `_gm_psi`.
+
+# The bilinear forms behind the two moments, summed over periods:
+# a′A₁b = (Wa)′(Wb) − Σᵢ dᵢaᵢbᵢ with dᵢ = (W′W)ᵢᵢ, and a′A₂b = a′Wb.
+_gm_B1(a, Wa, b, Wb, dd) = dot(Wa, Wb) - sum(dd .* a .* b)
+_gm_B2(a, Wb) = dot(a, Wb)
+
+# g and G of Kelejian & Prucha's eq. (8): m(λ) = g − G[λ, λ²]′ is the sample
+# moment n⁻¹ε(λ)′Aᵣε(λ) with ε(λ) = u − λWu, exactly, for every λ.
+function _gm_moments(u::Vector{T}, W, N::Int, T_per::Int, dd::Vector{T}) where {T}
+    n = T(length(u))
+    ub = panel_spatial_lag(W, reshape(u, :, 1), N, T_per)[:, 1]
+    ubb = panel_spatial_lag(W, reshape(ub, :, 1), N, T_per)[:, 1]
+    g = [_gm_B1(u, ub, u, ub, dd), _gm_B2(u, ub)] ./ n
+    G = [2 * _gm_B1(u, ub, ub, ubb, dd)   -_gm_B1(ub, ubb, ub, ubb, dd);
+         (_gm_B2(u, ubb) + _gm_B2(ub, ub))  -_gm_B2(ub, ubb)] ./ n
+    return g, G
+end
+
+_gm_m(g, G, λ) = g .- G * [λ, λ^2]
+
+# Ψ, the covariance of √n times the moments, Kelejian & Prucha's eq. (13)
+# with no first-stage term (the regressors are exogenous, so their aᵣ = 0):
+#
+#     ψᵣₛ = (2n)⁻¹ Σᵢⱼ Sᵣ,ᵢⱼ Sₛ,ᵢⱼ σᵢ² σⱼ²,   Sᵣ = Aᵣ + Aᵣ′.
+#
+# The zero diagonals are why no third or fourth moment enters. Over T
+# periods the moment is Σ_{i<j} Sᵢⱼ (eᵢ·eⱼ), eᵢ unit i's T residuals, so
+# σᵢ²σⱼ² becomes E[(eᵢ·eⱼ)²] = tr(CᵢCⱼ), Cᵢ the covariance of unit i's
+# errors over time, estimated by (êᵢ·êⱼ)². That is robust to the serial
+# correlation the unit demeaning induces, and at T = 1 it is the paper's
+# diag(ε̂²) estimator exactly. Time demeaning correlates units at O(1/N),
+# which this ignores.
+function _gm_psi(e::Vector{T}, S1, S2, N::Int, T_per::Int) where {T}
+    E = reshape(e, N, T_per)
+    K(i, j) = dot(view(E, i, :), view(E, j, :))^2
+    acc(S) = (s = zero(T); (I_, J_, V_) = findnz(S);
+              for k in eachindex(V_); I_[k] == J_[k] && continue
+                  s += V_[k] * K(I_[k], J_[k]); end; s)
+    n2 = 2 * T(N * T_per)
+    return [acc(S1 .* S1) acc(S1 .* S2); acc(S1 .* S2) acc(S2 .* S2)] ./ n2
+end
+
+function _gm_solve(g, G, Υ, bounds::Tuple{T, T}) where {T}
+    f(λ) = (m = _gm_m(g, G, λ); dot(m, Υ * m))
+    grid = range(bounds[1], bounds[2], length = 199)
+    k = argmin(f.(grid))
+    lo = grid[max(1, k - 1)]; hi = grid[min(length(grid), k + 1)]
+    λ, _ = brent_maximize(x -> -f(x), T(lo), T(hi); tol = T(1e-10))
+    return T(λ)
+end
+
+"""
+    _sem_gmm_het(W, X, y, N, T_per; fe, bounds) -> NamedTuple
+
+Kelejian & Prucha's (2010) two-step estimator for a spatial-error
+regression with exogenous `X` and heteroskedasticity of unknown form:
+
+1. OLS, then `λ` by GM, unweighted and then with the weight `Ψ̂⁻¹`;
+2. OLS on the spatially filtered data (feasible GLS), then `λ` again from
+   those residuals with the weight re-estimated (their steps 1a to 2b).
+
+`β̂` comes from step 2a and `λ̂` from step 2b, as in the paper. With
+exogenous regressors the covariance of `(β̂, λ̂)` is block diagonal
+(their eq. 25 with `aᵣ = 0`). `β̂`'s block is the cluster-robust sandwich
+of the filtered regression, by unit, in its jackknife (CR3) form (at
+`T_per = 1`, HC3); `λ̂`'s variance is `(J′Ψ̂⁻¹J)⁻¹/n`, `J = G[1, 2λ̂]′`
+(their eq. 16 with the efficient weight).
+
+`W` must have a zero diagonal; rows are stacked `N` at a time. With
+`fe = true` the data are two-way demeaned after filtering, and the filter is
+applied to the levels, which keeps the period effects period effects when
+`W` is row-standardised.
+"""
+function _sem_gmm_het(W::AbstractSparseMatrix{T}, X::AbstractMatrix{T}, y::AbstractVector{T},
+                      N::Int, T_per::Int; fe::Bool = false,
+                      bounds::Tuple{T, T} = (T(-0.995), T(0.995))) where {T<:AbstractFloat}
+    n, k = size(X)
+    n == N * T_per || throw(DimensionMismatch("X has $n rows; expected N*T = $(N * T_per)"))
+    all(iszero, diag(W)) || throw(ArgumentError(
+        "the heteroskedasticity-robust GM estimator needs `W` with a zero diagonal: its " *
+        "moments are valid for any error variances only because the diagonal is zero"))
+    dm(v::AbstractVector) = fe ? within_transform!(copy(v), N, T_per, TwoWayFE()) : copy(v)
+    dmX(M) = fe ? within_transform(Matrix(M), N, T_per, TwoWayFE()) : Matrix(M)
+    lagv(v) = panel_spatial_lag(W, reshape(v, :, 1), N, T_per)[:, 1]
+
+    WtW = W' * W
+    dd = repeat(Vector(diag(WtW)), T_per)
+    A1 = WtW - spdiagm(0 => diag(WtW))
+    S1 = A1 + A1'
+    S2 = W + W'
+
+    yd, Xd = dm(y), dmX(X)
+    # Steps 1a-1c: OLS residuals, initial GM, efficient GM.
+    ũ = yd - Xd * (Xd \ yd)
+    g, G = _gm_moments(ũ, W, N, T_per, dd)
+    λ1 = _gm_solve(g, G, Matrix{T}(I, 2, 2), bounds)
+    Ψ1 = _gm_psi(ũ .- λ1 .* lagv(ũ), S1, S2, N, T_per)
+    λ2 = _gm_solve(g, G, inv(Symmetric(Ψ1)), bounds)
+
+    # Step 2a: feasible GLS. The filter acts on the levels, the transform after.
+    ys = dm(y .- λ2 .* lagv(y))
+    Xs = dmX(X .- λ2 .* panel_spatial_lag(W, Matrix(X), N, T_per))
+    β = Xs \ ys
+    ε = ys - Xs * β
+
+    # Step 2b: GM again, on the FGLS residuals of the untransformed model.
+    û = yd - Xd * β
+    g2, G2 = _gm_moments(û, W, N, T_per, dd)
+    Ψ2 = _gm_psi(û .- λ2 .* lagv(û), S1, S2, N, T_per)
+    λ̂ = _gm_solve(g2, G2, inv(Symmetric(Ψ2)), bounds)
+    Ψ̂ = _gm_psi(û .- λ̂ .* lagv(û), S1, S2, N, T_per)
+    J = G2 * [one(T), 2λ̂]
+    vλ = inv(dot(J, Symmetric(Ψ̂) \ J)) / n
+
+    # β's covariance: the jackknife-type cluster sandwich (CR3), by unit,
+    #   V = (G−1)/G · B Σᵢ Xᵢ′(I − Hᵢᵢ)⁻¹ eᵢeᵢ′(I − Hᵢᵢ)⁻¹Xᵢ B,  B = (Xs′Xs)⁻¹,
+    # with Hᵢᵢ unit i's diagonal block of the hat matrix. At T = 1 it is HC3
+    # times (N−1)/N. HC1 under-covered here when the treated sit in one
+    # block (0.924 for `att_direct` against 0.941 for HC3, 1,000 draws):
+    # their rows have high leverage, and HC1 does not adjust for it.
+    bread = inv(Symmetric(Xs' * Xs))
+    meat = zeros(T, k, k)
+    XB = Xs * bread
+    for i in 1:N
+        rows = [i + (t - 1) * N for t in 1:T_per]
+        Xi = Xs[rows, :]
+        Hii = XB[rows, :] * Xi'
+        ẽ = (Matrix{T}(I, T_per, T_per) - Hii) \ ε[rows]
+        sc = Xi' * ẽ
+        meat .+= sc * sc'
+    end
+    Vβ = Matrix(Symmetric(T(N - 1) / T(N) .* (bread * meat * bread)))
+
+    return (beta = β, vcov_beta = Vβ, lambda = λ̂, lambda_se = sqrt(max(zero(T), vλ)),
+            lambda_initial = λ2, residuals = ε, sigma2 = dot(ε, ε) / n, Psi = Ψ̂, J = J,
+            X_filtered = Xs)
+end
+
 # ─── Show methods ─────────────────────────────────────────────────────
 
 function Base.show(io::IO, m::SpatialErrorRegressionModel)
     println(io, "═══════════════════════════════════════════════════════════════════════")
-    println(io, "Spatial Error Model (SEM) — Maximum Likelihood")
+    gmm = isnan(m.loglik)
+    println(io, gmm ? "Spatial Error Model (SEM) — GMM, robust to heteroskedasticity (Kelejian & Prucha 2010)" :
+                      "Spatial Error Model (SEM) — Maximum Likelihood")
     println(io, "───────────────────────────────────────────────────────────────────────")
     _print_coef_table(io, m.coefnames, m.coef, sqrt.(max.(0.0, diag(m.vcov))))
     println(io, "───────────────────────────────────────────────────────────────────────")
-    @printf(io, "λ = %.4f    σ² = %.4f    Log-lik = %.2f    N = %d\n", m.lambda, m.sigma2, m.loglik, length(m.y))
+    if gmm
+        @printf(io, "λ = %.4f    σ² (mean ε̂²) = %.4f    N = %d
+", m.lambda, m.sigma2, length(m.y))
+    else
+        @printf(io, "λ = %.4f    σ² = %.4f    Log-lik = %.2f    N = %d\n", m.lambda, m.sigma2, m.loglik, length(m.y))
+    end
     println(io, "═══════════════════════════════════════════════════════════════════════")
 end
 

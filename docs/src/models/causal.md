@@ -190,9 +190,29 @@ m.lambda, m.lambda_se
 
 In the same design it covers `att_total_treated` at 94% and holds the
 equality test at 6%. Its standard errors assume a constant error variance:
-with the error sd doubled on the treated, coverage falls to 76%, and there
-is no heteroskedasticity-robust alternative in the package yet. The
-measured tables are in the [`fit_spatial_did`](@ref) docstring.
+with the error sd doubled on the treated, coverage falls to 76%.
+
+### Unequal error variances
+
+`errors = :spatial_gmm` fits the same spatial error by Kelejian & Prucha's
+(2010) generalized moments. Its estimate of ``\lambda`` rests on moment
+conditions that hold whatever the units' error variances, and the effects'
+standard errors come from a heteroskedasticity-robust (jackknife) sandwich
+of the spatially filtered regression:
+
+```julia
+m = fit_spatial_did(y, D, W; channels = :split, errors = :spatial_gmm)
+```
+
+With the error sd doubled on a contiguous treated block it covers
+`att_total_treated` at 93% (ML 78% on the same draws) and holds the equality test at 6% (ML
+14%). When the variance is constant the two agree. In a staggered design
+it is the package's own extension of Kelejian & Prucha's cross-section
+theory, checked by Monte Carlo (effects at 94–95% in Chagas et al.'s
+design) but without a published proof; its ``\hat\lambda`` is low by about
+0.016 there. The same estimator is available for the cross-section spatial
+error model as `fit_spatial_error(W, X, y; estimator = :gmm)`. The measured
+tables are in the [`fit_spatial_did`](@ref) docstring.
 
 ## Synthetic control
 
