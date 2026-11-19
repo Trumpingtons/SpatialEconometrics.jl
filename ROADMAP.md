@@ -1210,7 +1210,13 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      most 0.5 points at K/n ≤ 0.19 and loses up to 3.6 at 0.25. So the
      coded HC2 `V̂` stays: consistent for K/n → 0 and covering 0.94–0.97 in
      every cell up to K/n = 0.25. Step 2 is closed for these designs;
-     untested are K/n above 0.25, other `W`, and other `n`.
+     untested are K/n above 0.25, other `W`, and other `n`. Proposition 3
+     (approximation error, `f ∉ span B`) replaces the sketched Remark 1:
+     the moment's bias is `β = r′(W + D)r + r′r_W` with `r_W = MWP_Bf`, the
+     sketch missed the second term, and that term dominates at large K in
+     `tc_approx.jl` because a rough covariate's lag is outside `span B`. The
+     interval covers `P(|Z + β/√V| ≤ 1.96)`, which the simulation confirms
+     while `β/√V` ≤ 1.1; validity needs `β = o(√n)`, a lower bound on K.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:

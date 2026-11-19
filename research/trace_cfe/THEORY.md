@@ -11,7 +11,9 @@ Revised a third time the same day: Theorem 1 needs only `2 + δ` moments,
 and the Corollary (the estimator's limit and the choice of root) and
 Proposition 1 (the two-step REsd, formerly Remark 2) are proved. Later the
 same day: Proposition 2 (the robust `V̂` is consistent when K/n → 0) is
-proved, and the leave-out alternatives are measured.
+proved, and the leave-out alternatives are measured. Then Proposition 3
+(approximation error) replaces the sketched Remark 1, which had missed a
+first-order term.
 The numerical checks are in `tc_clt.jl`, `tc_schatten.jl`, `tc_clt_moments.jl`
 and their output. ROADMAP #13,
 research item, theory step 1.
@@ -43,7 +45,7 @@ The design (`W`, `B`, `f`) is fixed. Every statement is conditional on it.
   **This is the only bounded-row-sum condition. It is on `W`, not on `C` or
   `M`.**
 - **A3.** The largest leverage stays below 1: `maxᵢ hᵢᵢ ≤ h̄ < 1`.
-- **A4.** At first, `f ∈ span(B)`. Remark 1 drops this.
+- **A4.** At first, `f ∈ span(B)`. Proposition 3 drops this.
 - **A5 (non-degeneracy).** `liminf ‖Cs‖_F²/n > 0`. This is assumed, not
   derived. Measured values are 0.05–0.12 in `tc_clt.jl`.
 - **A6 (Lindeberg for the linear part).** `maxᵢ bᵢ² / ‖b‖² → 0`, where
@@ -360,13 +362,88 @@ costs efficiency, because `‖Cs‖_F²/n` falls as `K/n` rises (from 0.11 at
 K/n = 0.04 to 0.05 at K/n = 0.15 in `tc_clt.jl`), but it does not cost
 validity.
 
-**Remark 1 (approximation error, sketched).** If `f = P_Bf + r`, then `g`
-gains `r′Cr + r′(C + C′)ε`. The second term joins the linear part. The
-first is a bias of size at most `‖C‖_op‖r‖² ≤ c n‖r‖_∞²`, and it must be
-`o(√V) = o(√n)`. So `√n ‖r‖_∞² → 0`, the usual undersmoothing condition.
-For a surface of smoothness `s` in `d` dimensions with `‖r‖_∞ = O(K^{−s/d})`,
-this means `K ≫ n^{d/(4s)}`. **That is the binding rate, and it is a lower
-bound on K, not an upper one.**
+**Proposition 3 (approximation error; proved, given Theorem 1 and the
+Corollary; replaces Remark 1).** Drop A4, so `f = P_Bf + r` with
+`r = Mf ≠ 0`, and read A6 for `b̃ = (C + C′)f`. Write `β = f′Cf`, which is
+`E g(ρ₀)` exactly, since `tr(CΣ) = 0`. Then
+`(g(ρ₀) − β)/√V → N(0, 1)`, with `V` computed from `b̃`; and if
+`β/√V → c`, then `J(ρ̂ − ρ₀)/√V → N(c, 1)`, so the nominal 95% interval
+covers with probability `P(|Z + c| ≤ 1.96)`. The interval is valid if and
+only if `β = o(√n)`.
+
+For the coded moment, `C = A = M(W + DM)`, and `β` splits into
+
+    β = r′(W + D)r + r′r_W,     r_W = MWP_Bf,
+
+where `r_W` is the part of the lagged fitted surface that `B` cannot
+represent. (For Jin & Lee's `C = PM`, the same with `P` in place of
+`W + D` and `r_W = MP′P_Bf`.)
+
+*Proof.* `g(ρ₀) = η′Cη` with `η = f + ε` is `β + b̃′ε + ε′Cε`. Theorem 1
+covers `b̃′ε + ε′Cε` for any `b̃` satisfying A6, and its proof does not use
+`Mf = 0`. In the Corollary, `Mf = 0` is not used either: `J` is defined as
+`−E g′(ρ₀)` for the actual `f`, and `g₀ = O_p(√n)` needs only `β = O(√n)`.
+So `t̂ = (g₀/J)(1 + o_p(1))` as before, and the limit follows. For the split,
+`f′Af = (Mf)′(W + DM)f = r′W(P_Bf + r) + r′Dr`, and `r′WP_Bf = r′r_W`
+because `r = Mr`. ∎
+
+**The sketched remark kept only the first term.** That term is at most
+`‖W + D‖_op‖r‖² ≤ c n‖r‖∞²`, so it is `o(√n)` when `√n‖r‖∞² → 0`; with
+`‖r‖∞ = O(K^{−s/d})` for smoothness `s` in `d` dimensions, that is
+`K ≫ n^{d/(4s)}`. The second term is at most `‖r‖‖r_W‖`, and `r_W` need not
+be small: a covariate `x` in `B` that is rough in space has a lag `Wx` that
+the basis cannot represent. In the worst case this needs
+`‖r‖∞ = o(n^{−1/2})`, that is `K ≫ n^{d/(2s)}`, twice the exponent. When
+`r` is smooth and `r_W` is rough, the two are nearly orthogonal and
+`r′r_W` is of order `‖r‖∞ √n` instead, which needs only `‖r‖∞ → 0`. So the
+binding condition is `β = o(√n)` itself, and it is a **lower** bound on K.
+The robust `V̂` should stay consistent (sketched; Proposition 2's steps
+are not redone here): `û` gains `r`, so `sᵢ` gains
+`(rᵢ² + 2rᵢ(Mε)ᵢ)/Mᵢᵢ`, which adds `O(‖r‖² + ‖r‖√n)` to `V̂`, and that is
+`o(n)` when `‖r‖∞ → 0`.
+
+**Numerical check (`tc_approx.jl`).** n = 900, kNN `W`, a tensor hat basis
+plus a covariate `x`, `f = a·sin(2πu)cos(πv) + x` with `a` = 1 and 4,
+smooth variances, `ρ₀ = 0.4`, R = 1000. `β`, its two terms, `V`, `c` and
+`J` are exact; the bias and coverage of `ρ̂` (HC2 `V̂`) are simulated.
+
+| a | K | ‖r‖∞ | ‖r_W‖∞ | r′(W+D)r | r′r_W | c = β/√V | bias: predicted β/J | simulated | coverage: predicted | simulated |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 10 | 1.13 | 1.21 | 87.4 | −1.09 | 2.46 | 0.107 | 0.116 | 0.309 | 0.211 |
+| 1 | 17 | 0.29 | 1.20 | 6.40 | −0.14 | 0.22 | 0.0122 | 0.0122 | 0.944 | 0.933 |
+| 1 | 26 | 0.19 | 1.24 | 2.08 | −1.41 | 0.03 | 0.0014 | 0.0019 | 0.950 | 0.947 |
+| 1 | 50 | 0.075 | 1.34 | 0.27 | −0.01 | 0.01 | 0.0007 | 0.0022 | 0.950 | 0.946 |
+| 4 | 17 | 1.15 | 1.30 | 102.5 | 1.17 | 2.87 | 0.125 | 0.139 | 0.181 | 0.091 |
+| 4 | 26 | 0.78 | 1.26 | 33.2 | −2.27 | 1.10 | 0.0527 | 0.0555 | 0.804 | 0.780 |
+| 4 | 50 | 0.30 | 1.22 | 4.30 | 1.29 | 0.24 | 0.0137 | 0.0151 | 0.943 | 0.941 |
+| 4 | 101 | 0.17 | 1.11 | 0.31 | 0.72 | 0.06 | 0.0040 | 0.0042 | 0.950 | 0.960 |
+| 4 | 170 | 0.089 | 1.09 | 0.02 | 0.22 | 0.02 | 0.0015 | 0.0003 | 0.950 | 0.947 |
+
+(All rows are in `tc_approx_output.txt`, including a = 1 at K = 101 and 170
+and a = 4 at K = 10, where `c = 15.7`.)
+
+- **`r_W` is not small**: `‖r_W‖∞` is 1.0–1.3 at every K, because of the
+  covariate. The cross term `r′r_W` is the larger part of `β` at a = 4 and
+  K ≥ 101, so the sketched remark's `r′(W+D)r` alone would understate the
+  bias there by a factor of 3 to 12. It is still far below `‖r‖‖r_W‖`,
+  because a smooth `r` and a rough `r_W` are nearly orthogonal.
+- **The prediction holds while `c` is moderate.** For `c` ≤ 1.1 the
+  simulated bias matches `β/J` (`|z|` ≤ 1.9) and the coverage matches
+  `P(|Z + c| ≤ 1.96)` within 2.4 points. For `c` of 2.5 and more, the
+  first-order expansion understates the bias (0.116 against 0.107) and
+  overstates the coverage (0.211 against 0.309). That is outside the
+  local result.
+- **What the check cannot show.** Where the two forms of `β` differ
+  (a = 4, K ≥ 50), the bias of `ρ̂` is 0.0003–0.015 and the two predictions
+  differ by at most 0.005, against a Monte Carlo SE of 0.002–0.003, so the
+  simulation cannot separate them (`z` at most 2.6). The
+  split itself is exact and needs no simulation.
+- **Under-smoothing is the price.** Coverage is within 2 points of 0.95
+  once `c` ≤ 0.25,
+  which here means K ≥ 17 at a = 1 and K ≥ 50 at a = 4: a stronger
+  surface needs a larger K. Because the zero diagonal removes the trace
+  bias at any K, raising K costs efficiency only (the sd rises from 0.054
+  to 0.100 at a = 1 as K goes from 17 to 170), not validity.
 
 **Proposition 1 (REsd, the two-step; proved, given the Corollary).** Write
 `C(r) = (G(r)′ − Δ(r))M`, with `G(r) = W(I − rW)⁻¹` and
@@ -970,8 +1047,11 @@ with bounded leverage cannot reach at n = 900; other `W`; and `n` other than
 1. Theorem 1 and the Corollary are proved (2026-11-19), the Corollary
    under the sign rule for the root and the identification condition A9.
    Proposition 1 (REsd, the two-step) is proved too: the plug-in `ρ̃` costs
-   nothing in the limit. Step 1 has no sketched parts left; Remarks 1 and 3
-   are side cases.
+   nothing in the limit. Step 1 has no sketched parts left. Proposition 3
+   replaces the sketched Remark 1: the approximation-error bias is
+   `β = r′(W + D)r + r′r_W`, the second term was missing, and the interval
+   is valid if and only if `β = o(√n)` (`tc_approx.jl`). Remark 3 is a
+   side case.
 2. A primitive condition for A5, in terms of `W` and `K/n`.
 3. Theory step 2: the conjecture is checked numerically (`tc_vhat.jl`),
    and so are Kline, Saggio & Sølvsten's leave-one-out variances
@@ -982,9 +1062,7 @@ with bounded leverage cannot reach at n = 900; other `W`; and `n` other than
    CJN is within 2% at K/n ≤ 0.11 with bounded leverage, at both signal
    strengths, and biased down beyond that by an amount that does not depend
    on `f`. Proposition 2 proves the coded HC2 `V̂` consistent for
-   K/n → 0 under four moments and A10. Still to do: a correction for
-   K/n → c > 0 (CJN's bias does not depend on `f`, so it may be removable
-   from `û`). Coverage is measured (`tc_coverage_vhat.jl`): HC2 covers
+   K/n → 0 under four moments and A10. Coverage is measured (`tc_coverage_vhat.jl`): HC2 covers
    0.94–0.97 in every cell, and leave-one-out and CJN under-cover at
    K/n = 0.25. CJN's quadratic-part bias has an exact, distribution-free
    formula (`tc_cjn_bias.jl`), and so does its linear part
@@ -1001,9 +1079,9 @@ with bounded leverage cannot reach at n = 900; other `W`; and `n` other than
    alphaXiv. Macaev's theorem (1961), von Bahr & Esseen's inequality (1965)
    and Rosenthal's inequality (1970) are used as they are usually stated,
    and have not been read.
-6. Theorem 1 now needs `2 + δ` moments (done 2026-11-19). Step 2's
-   conjecture still asks for eighth moments, which the variance of `V̂`
-   needs; whether fewer suffice for consistency alone is open.
+6. Theorem 1 now needs `2 + δ` moments (done 2026-11-19). Consistency of
+   `V̂` needs four (Proposition 2); eighth moments would be needed only for
+   a rate or for the variance of `V̂`.
 
 ## References
 

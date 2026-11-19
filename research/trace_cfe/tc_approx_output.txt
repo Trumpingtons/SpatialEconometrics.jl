@@ -1,0 +1,18 @@
+amp 1 K  26 ‖r‖∞ 0.1946 ‖r_W‖∞ 1.2393 | β   +0.661 = r′(W+D)r   +2.075 + r′r_W   -1.414 | c = β/√V +0.026 | ρ̂ bias: predicted β/J +0.0014, first term only +0.0045, simulated +0.0018 (z vs pred   0.0) sd 0.0427 | coverage: predicted 0.950 simulated 1.000
+warm-up (the line above, 5 replications) 3.6 s. R = 1000; MC SE of a coverage near 0.95: 0.007.
+
+amp 1 K  10 ‖r‖∞ 1.1277 ‖r_W‖∞ 1.2142 | β  +86.361 = r′(W+D)r  +87.447 + r′r_W   -1.086 | c = β/√V +2.458 | ρ̂ bias: predicted β/J +0.1068, first term only +0.1082, simulated +0.1156 (z vs pred   7.0) sd 0.0394 | coverage: predicted 0.309 simulated 0.211
+amp 1 K  17 ‖r‖∞ 0.2886 ‖r_W‖∞ 1.2020 | β   +6.267 = r′(W+D)r   +6.403 + r′r_W   -0.137 | c = β/√V +0.224 | ρ̂ bias: predicted β/J +0.0122, first term only +0.0125, simulated +0.0122 (z vs pred  -0.0) sd 0.0543 | coverage: predicted 0.944 simulated 0.933
+amp 1 K  26 ‖r‖∞ 0.1946 ‖r_W‖∞ 1.2393 | β   +0.661 = r′(W+D)r   +2.075 + r′r_W   -1.414 | c = β/√V +0.026 | ρ̂ bias: predicted β/J +0.0014, first term only +0.0045, simulated +0.0019 (z vs pred   0.3) sd 0.0561 | coverage: predicted 0.950 simulated 0.947
+amp 1 K  50 ‖r‖∞ 0.0751 ‖r_W‖∞ 1.3382 | β   +0.255 = r′(W+D)r   +0.269 + r′r_W   -0.013 | c = β/√V +0.011 | ρ̂ bias: predicted β/J +0.0007, first term only +0.0008, simulated +0.0022 (z vs pred   0.7) sd 0.0626 | coverage: predicted 0.950 simulated 0.946
+amp 1 K 101 ‖r‖∞ 0.0431 ‖r_W‖∞ 1.1312 | β   +0.035 = r′(W+D)r   +0.019 + r′r_W   +0.016 | c = β/√V +0.002 | ρ̂ bias: predicted β/J +0.0002, first term only +0.0001, simulated +0.0004 (z vs pred   0.1) sd 0.0773 | coverage: predicted 0.950 simulated 0.956
+amp 1 K 170 ‖r‖∞ 0.0223 ‖r_W‖∞ 1.0163 | β   +0.009 = r′(W+D)r   +0.001 + r′r_W   +0.008 | c = β/√V +0.001 | ρ̂ bias: predicted β/J +0.0001, first term only +0.0000, simulated -0.0012 (z vs pred  -0.4) sd 0.0999 | coverage: predicted 0.950 simulated 0.951
+
+amp 4 K  10 ‖r‖∞ 4.5109 ‖r_W‖∞ 1.1788 | β +1408.161 = r′(W+D)r +1399.156 + r′r_W   +9.005 | c = β/√V +15.719 | ρ̂ bias: predicted β/J +0.2796, first term only +0.2778, simulated +0.4159 (z vs pred 331.5) sd 0.0130 | coverage: predicted 0.000 simulated 0.000
+amp 4 K  17 ‖r‖∞ 1.1543 ‖r_W‖∞ 1.2996 | β +103.624 = r′(W+D)r +102.451 + r′r_W   +1.173 | c = β/√V +2.871 | ρ̂ bias: predicted β/J +0.1245, first term only +0.1231, simulated +0.1390 (z vs pred  11.4) sd 0.0403 | coverage: predicted 0.181 simulated 0.091
+amp 4 K  26 ‖r‖∞ 0.7785 ‖r_W‖∞ 1.2563 | β  +30.927 = r′(W+D)r  +33.199 + r′r_W   -2.272 | c = β/√V +1.102 | ρ̂ bias: predicted β/J +0.0527, first term only +0.0566, simulated +0.0555 (z vs pred   1.9) sd 0.0478 | coverage: predicted 0.804 simulated 0.780
+amp 4 K  50 ‖r‖∞ 0.3005 ‖r_W‖∞ 1.2205 | β   +5.592 = r′(W+D)r   +4.302 + r′r_W   +1.290 | c = β/√V +0.240 | ρ̂ bias: predicted β/J +0.0137, first term only +0.0105, simulated +0.0151 (z vs pred   0.8) sd 0.0566 | coverage: predicted 0.943 simulated 0.941
+amp 4 K 101 ‖r‖∞ 0.1726 ‖r_W‖∞ 1.1131 | β   +1.030 = r′(W+D)r   +0.308 + r′r_W   +0.722 | c = β/√V +0.055 | ρ̂ bias: predicted β/J +0.0040, first term only +0.0012, simulated +0.0042 (z vs pred   0.1) sd 0.0706 | coverage: predicted 0.950 simulated 0.960
+amp 4 K 170 ‖r‖∞ 0.0893 ‖r_W‖∞ 1.0914 | β   +0.243 = r′(W+D)r   +0.021 + r′r_W   +0.222 | c = β/√V +0.016 | ρ̂ bias: predicted β/J +0.0015, first term only +0.0001, simulated +0.0003 (z vs pred  -0.4) sd 0.0920 | coverage: predicted 0.950 simulated 0.947
+
+total 0.3 min
