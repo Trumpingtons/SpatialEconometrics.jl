@@ -1,0 +1,37 @@
+A. Formula against simulation (R = 4000; the sd of a simulated sd is about 1.1% of it)
+  K=81 θ=0.785: ours sd sim 0.038 vs formula 0.038 | JL sd sim 0.038 vs formula 0.038 | bias ours -0.0 JL -0.0
+  K=81 θ=1.571: ours sd sim 0.041 vs formula 0.041 | JL sd sim 0.041 vs formula 0.041 | bias ours -0.0 JL -0.0
+  K=169 θ=0.785: ours sd sim 0.04 vs formula 0.04 | JL sd sim 0.04 vs formula 0.04 | bias ours -0.001 JL -0.001
+
+B. Misalignment path: ratios ours / Jin & Lee (1 = no difference)
+  columns: Var ρ̂ | Vq (quadratic) | Vl (linear) | J (derivative) | Js (signal part) | Jn (noise part) | shares of ours: Vl/V_g, Js/J
+  K= 25 K/n=0.028 θ=0.0   | 1.0 | 1.0 | 0.961 | 1.0 | 0.607 | 1.0 | 0.0, -0.0
+  K= 25 K/n=0.028 θ=0.262 | 1.0 | 1.0 | 1.001 | 1.0 | 1.001 | 1.0 | 0.144, 0.144
+  K= 25 K/n=0.028 θ=0.524 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 0.345, 0.342
+  K= 25 K/n=0.028 θ=0.785 | 1.0 | 1.0 | 0.999 | 1.0 | 1.0 | 1.0 | 0.437, 0.432
+  K= 25 K/n=0.028 θ=1.047 | 1.0 | 1.0 | 0.998 | 1.0 | 0.999 | 1.0 | 0.431, 0.426
+  K= 25 K/n=0.028 θ=1.571 | 1.0 | 1.0 | 0.998 | 1.0 | 0.999 | 1.0 | 0.325, 0.322
+  K= 81 K/n=0.09 θ=0.0   | 1.0 | 1.0 | 0.924 | 1.0 | 2.963 | 1.0 | 0.0, 0.0
+  K= 81 K/n=0.09 θ=0.262 | 1.0 | 1.0 | 1.001 | 1.0 | 1.001 | 1.0 | 0.16, 0.158
+  K= 81 K/n=0.09 θ=0.524 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 0.368, 0.356
+  K= 81 K/n=0.09 θ=0.785 | 1.0 | 1.0 | 0.999 | 1.0 | 1.0 | 1.0 | 0.449, 0.432
+  K= 81 K/n=0.09 θ=1.047 | 1.0 | 1.0 | 0.998 | 1.0 | 0.999 | 1.0 | 0.425, 0.41
+  K= 81 K/n=0.09 θ=1.571 | 1.0 | 1.0 | 0.998 | 1.0 | 0.999 | 1.0 | 0.294, 0.287
+  K=169 K/n=0.188 θ=0.0   | 1.0 | 1.0 | 0.873 | 1.0 | 9.916 | 1.0 | 0.0, 0.0
+  K=169 K/n=0.188 θ=0.262 | 1.0 | 1.0 | 1.001 | 1.0 | 1.001 | 1.0 | 0.197, 0.19
+  K=169 K/n=0.188 θ=0.524 | 1.0 | 1.0 | 1.001 | 1.0 | 1.0 | 1.0 | 0.415, 0.385
+  K=169 K/n=0.188 θ=0.785 | 1.0 | 1.0 | 0.999 | 1.0 | 1.0 | 1.0 | 0.475, 0.437
+  K=169 K/n=0.188 θ=1.047 | 1.0 | 1.0 | 0.997 | 0.999 | 0.999 | 1.0 | 0.42, 0.39
+  K=169 K/n=0.188 θ=1.571 | 1.0 | 1.0 | 0.995 | 0.999 | 0.998 | 1.0 | 0.227, 0.218
+
+C. tc_concurvity.jl's design at ρ₀ = 0, constant variance (f projected on span B); simulated sd ratios were 0.84 (ω = 1) and 0.76 (ω = 0.1)
+  ω=1.0 K=100: sd ratio 0.849 | Var 0.72 | Vq 0.98 | Vl 0.885 | J 1.137 | Js 1.387 | Jn 0.973
+  ω=0.1 K=100: sd ratio 0.783 | Var 0.614 | Vq 0.979 | Vl 0.542 | J 1.101 | Js 1.393 | Jn 0.973
+
+D. Asymmetry test, same design as C (ω = 0.1): Var ratio ours / alternative, and the instrument alignment
+  kNN W (asymmetric)       vs JL, A = W  : Var 0.614 | Vq 0.979 | Vl 0.542 | Js 1.393
+  kNN W (asymmetric)       vs JL, A = W′ : Var 0.998 | Vq 1.014 | Vl 1.013 | Js 1.013
+    cos(MWf, MW′f) = 0.532
+  symmetrised (W + W′)/2   vs JL, A = W  : Var 0.998 | Vq 1.012 | Vl 0.99 | Js 0.999
+  symmetrised (W + W′)/2   vs JL, A = W′ : Var 0.998 | Vq 1.012 | Vl 0.99 | Js 0.999
+    cos(MWf, MW′f) = 1.0

@@ -1,26 +1,26 @@
   check: general variance / tc_varg = 0.9999999999999996;  max|diag C| JL-W = 1.3877787807814457e-17, JL-G = 1.3877787807814457e-17
-ω=0.1 ρ0=0.4 het=false K=100 | TC exact -0.007 sd 0.0349 se 0.0547 cov 1.0 | JL-W -0.0103 sd 0.0612 se 0.0679 cov 1.0 | JL-G -0.0137 sd 0.0682 se 0.0722 cov 1.0
-warm-up (5 replications) in 4.6 s
+ω=0.1 ρ0=0.4 het=false K=100 | TC exact -0.007 sd 0.0349 se 0.0547 cov 1.0 | JL-W -0.009 sd 0.0334 se 0.0546 cov 1.0 | JL-G -0.0164 sd 0.0263 se 0.0532 cov 1.0
+warm-up (5 replications) in 4.7 s
 
-ω=1.0 ρ0=0.0 het=false K=100 | TC exact 0.0014 sd 0.0604 se 0.059 cov 0.946 | JL-W 0.0027 sd 0.0722 se 0.0696 cov 0.924 | JL-G 0.0029 sd 0.0717 se 0.0695 cov 0.934
-ω=1.0 ρ0=0.4 het=false K=100 | TC exact 0.001 sd 0.0506 se 0.0493 cov 0.944 | JL-W 0.002 sd 0.0592 se 0.057 cov 0.93 | JL-G 0.0001 sd 0.0592 se 0.0567 cov 0.948
-ω=0.3 ρ0=0.0 het=false K=100 | TC exact 0.0006 sd 0.0658 se 0.0633 cov 0.948 | JL-W 0.0006 sd 0.0848 se 0.0791 cov 0.932 | JL-G 0.0016 sd 0.0837 se 0.0789 cov 0.938
-ω=0.3 ρ0=0.4 het=false K=100 | TC exact 0.0002 sd 0.0551 se 0.0529 cov 0.95 | JL-W -0.0 sd 0.0699 se 0.0651 cov 0.934 | JL-G -0.0021 sd 0.0736 se 0.0685 cov 0.94
-ω=0.1 ρ0=0.0 het=false K=100 | TC exact 0.0002 sd 0.0667 se 0.0645 cov 0.942 | JL-W 0.0005 sd 0.0876 se 0.0826 cov 0.934 | JL-G 0.0018 sd 0.0864 se 0.0824 cov 0.938
-ω=0.1 ρ0=0.4 het=false K=100 | TC exact -0.0001 sd 0.0557 se 0.0538 cov 0.94 | JL-W -0.0003 sd 0.0721 se 0.0679 cov 0.936 | JL-G -0.0024 sd 0.0773 se 0.0727 cov 0.938
-ω=0.0 ρ0=0.0 het=false K=100 | TC exact 0.0005 sd 0.0686 se 0.0656 cov 0.95 | JL-W 0.0011 sd 0.0892 se 0.0845 cov 0.938 | JL-G 0.0025 sd 0.0881 se 0.0842 cov 0.942
-ω=0.0 ρ0=0.4 het=false K=100 | TC exact 0.0001 sd 0.0575 se 0.0549 cov 0.95 | JL-W 0.0002 sd 0.0737 se 0.0697 cov 0.938 | JL-G -0.0022 sd 0.0792 se 0.0748 cov 0.928
-ω=1.0 ρ0=0.0 het=true K=100 | TC exact -0.0034 sd 0.0934 se 0.0913 cov 0.94 | JL-W -0.0027 sd 0.1079 se 0.1011 cov 0.934 | JL-G -0.0031 sd 0.1067 se 0.101 cov 0.938
-ω=1.0 ρ0=0.4 het=true K=100 | TC exact -0.0032 sd 0.0782 se 0.0765 cov 0.936 | JL-W -0.0027 sd 0.089 se 0.0833 cov 0.934 | JL-G -0.0065 sd 0.0857 se 0.0813 cov 0.932
-ω=0.3 ρ0=0.0 het=true K=100 | TC exact -0.0037 sd 0.0999 se 0.0967 cov 0.94 | JL-W -0.0045 sd 0.116 se 0.1074 cov 0.936 | JL-G -0.0043 sd 0.1146 se 0.1071 cov 0.934
-ω=0.3 ρ0=0.4 het=true K=100 | TC exact -0.0035 sd 0.0839 se 0.0811 cov 0.94 | JL-W -0.0044 sd 0.0962 se 0.0888 cov 0.936 | JL-G -0.0081 sd 0.0944 se 0.0881 cov 0.936
-ω=0.1 ρ0=0.0 het=true K=100 | TC exact -0.0041 sd 0.1014 se 0.098 cov 0.938 | JL-W -0.0053 sd 0.1181 se 0.1097 cov 0.94 | JL-G -0.0049 sd 0.1164 se 0.1093 cov 0.938
-ω=0.1 ρ0=0.4 het=true K=100 | TC exact -0.0038 sd 0.0849 se 0.082 cov 0.936 | JL-W -0.0051 sd 0.0979 se 0.0907 cov 0.942 | JL-G -0.009 sd 0.0966 se 0.0905 cov 0.938
-ω=0.0 ρ0=0.0 het=true K=100 | TC exact -0.003 sd 0.1028 se 0.0991 cov 0.942 | JL-W -0.0034 sd 0.1201 se 0.1115 cov 0.936 | JL-G -0.0031 sd 0.1184 se 0.1112 cov 0.934
-ω=0.0 ρ0=0.4 het=true K=100 | TC exact -0.0029 sd 0.0864 se 0.0832 cov 0.94 | JL-W -0.0037 sd 0.0999 se 0.0926 cov 0.936 | JL-G -0.008 sd 0.0986 se 0.0924 cov 0.936
+ω=1.0 ρ0=0.0 het=false K=100 | TC exact 0.0014 sd 0.0604 se 0.059 cov 0.946 | JL-W 0.0017 sd 0.0603 se 0.0591 cov 0.944 | JL-G 0.0018 sd 0.0599 se 0.0591 cov 0.946
+ω=1.0 ρ0=0.4 het=false K=100 | TC exact 0.001 sd 0.0506 se 0.0493 cov 0.944 | JL-W 0.0012 sd 0.0504 se 0.0494 cov 0.944 | JL-G -0.0004 sd 0.0497 se 0.0484 cov 0.942
+ω=0.3 ρ0=0.0 het=false K=100 | TC exact 0.0006 sd 0.0658 se 0.0633 cov 0.948 | JL-W 0.0008 sd 0.0661 se 0.0633 cov 0.942 | JL-G 0.0009 sd 0.0656 se 0.0633 cov 0.95
+ω=0.3 ρ0=0.4 het=false K=100 | TC exact 0.0002 sd 0.0551 se 0.0529 cov 0.95 | JL-W 0.0003 sd 0.0553 se 0.0529 cov 0.944 | JL-G -0.0016 sd 0.0544 se 0.0517 cov 0.942
+ω=0.1 ρ0=0.0 het=false K=100 | TC exact 0.0002 sd 0.0667 se 0.0645 cov 0.942 | JL-W 0.0004 sd 0.0669 se 0.0646 cov 0.946 | JL-G 0.0005 sd 0.0665 se 0.0646 cov 0.944
+ω=0.1 ρ0=0.4 het=false K=100 | TC exact -0.0001 sd 0.0557 se 0.0538 cov 0.94 | JL-W 0.0001 sd 0.0558 se 0.0538 cov 0.944 | JL-G -0.0021 sd 0.0549 se 0.0526 cov 0.946
+ω=0.0 ρ0=0.0 het=false K=100 | TC exact 0.0005 sd 0.0686 se 0.0656 cov 0.95 | JL-W 0.0006 sd 0.0688 se 0.0657 cov 0.948 | JL-G 0.0007 sd 0.0683 se 0.0657 cov 0.952
+ω=0.0 ρ0=0.4 het=false K=100 | TC exact 0.0001 sd 0.0575 se 0.0549 cov 0.95 | JL-W 0.0002 sd 0.0576 se 0.0549 cov 0.948 | JL-G -0.0021 sd 0.0567 se 0.0536 cov 0.942
+ω=1.0 ρ0=0.0 het=true K=100 | TC exact -0.0034 sd 0.0934 se 0.0913 cov 0.94 | JL-W -0.0031 sd 0.0928 se 0.0911 cov 0.944 | JL-G -0.0033 sd 0.0921 se 0.091 cov 0.946
+ω=1.0 ρ0=0.4 het=true K=100 | TC exact -0.0032 sd 0.0782 se 0.0765 cov 0.936 | JL-W -0.003 sd 0.0777 se 0.0762 cov 0.938 | JL-G -0.006 sd 0.0749 se 0.0739 cov 0.936
+ω=0.3 ρ0=0.0 het=true K=100 | TC exact -0.0037 sd 0.0999 se 0.0967 cov 0.94 | JL-W -0.0037 sd 0.0996 se 0.0964 cov 0.938 | JL-G -0.004 sd 0.099 se 0.0963 cov 0.938
+ω=0.3 ρ0=0.4 het=true K=100 | TC exact -0.0035 sd 0.0839 se 0.0811 cov 0.94 | JL-W -0.0035 sd 0.0836 se 0.0808 cov 0.938 | JL-G -0.0069 sd 0.08 se 0.0777 cov 0.938
+ω=0.1 ρ0=0.0 het=true K=100 | TC exact -0.0041 sd 0.1014 se 0.098 cov 0.938 | JL-W -0.0041 sd 0.101 se 0.0977 cov 0.938 | JL-G -0.0045 sd 0.1005 se 0.0976 cov 0.936
+ω=0.1 ρ0=0.4 het=true K=100 | TC exact -0.0038 sd 0.0849 se 0.082 cov 0.936 | JL-W -0.0038 sd 0.0846 se 0.0817 cov 0.936 | JL-G -0.0074 sd 0.0808 se 0.0783 cov 0.938
+ω=0.0 ρ0=0.0 het=true K=100 | TC exact -0.003 sd 0.1028 se 0.0991 cov 0.942 | JL-W -0.003 sd 0.1024 se 0.0988 cov 0.938 | JL-G -0.0034 sd 0.1018 se 0.0987 cov 0.938
+ω=0.0 ρ0=0.4 het=true K=100 | TC exact -0.0029 sd 0.0864 se 0.0832 cov 0.94 | JL-W -0.0029 sd 0.0861 se 0.083 cov 0.938 | JL-G -0.0067 sd 0.0821 se 0.0794 cov 0.938
 
 Larger basis (dsurf = 18):
-ω=0.1 ρ0=0.0 het=false K=199 | TC exact 0.0003 sd 0.0916 se 0.0934 cov 0.95 | JL-W 0.0032 sd 0.1167 se 0.1132 cov 0.932 | JL-G 0.0059 sd 0.1152 se 0.1127 cov 0.936
-ω=0.1 ρ0=0.4 het=false K=199 | TC exact 0.0002 sd 0.0822 se 0.084 cov 0.944 | JL-W 0.0016 sd 0.1032 se 0.1003 cov 0.934 | JL-G -0.0006 sd 0.1125 se 0.11 cov 0.908
-ω=0.1 ρ0=0.0 het=true K=199 | TC exact 0.0025 sd 0.1299 se 0.1314 cov 0.94 | JL-W 0.0007 sd 0.1502 se 0.1421 cov 0.934 | JL-G 0.0016 sd 0.148 se 0.1413 cov 0.928
-ω=0.1 ρ0=0.4 het=true K=199 | TC exact 0.0022 sd 0.1174 se 0.1189 cov 0.942 | JL-W -0.0007 sd 0.1335 se 0.1263 cov 0.936 | JL-G -0.0073 sd 0.1336 se 0.1284 cov 0.926
+ω=0.1 ρ0=0.0 het=false K=199 | TC exact 0.0003 sd 0.0916 se 0.0934 cov 0.95 | JL-W 0.0014 sd 0.0843 se 0.0838 cov 0.944 | JL-G 0.0014 sd 0.0837 se 0.0837 cov 0.952
+ω=0.1 ρ0=0.4 het=false K=199 | TC exact 0.0002 sd 0.0822 se 0.084 cov 0.944 | JL-W 0.0011 sd 0.0755 se 0.0752 cov 0.944 | JL-G -0.0023 sd 0.0729 se 0.073 cov 0.948
+ω=0.1 ρ0=0.0 het=true K=199 | TC exact 0.0025 sd 0.1299 se 0.1314 cov 0.94 | JL-W 0.0024 sd 0.1231 se 0.1229 cov 0.944 | JL-G 0.0013 sd 0.1217 se 0.1227 cov 0.938
+ω=0.1 ρ0=0.4 het=true K=199 | TC exact 0.0022 sd 0.1174 se 0.1189 cov 0.942 | JL-W 0.002 sd 0.1111 se 0.1109 cov 0.944 | JL-G -0.0046 sd 0.1037 se 0.1056 cov 0.938

@@ -1,0 +1,2 @@
+torus + Fourier basis (commutes)  K=81  ‖MW−WM‖=1.1e-14  ‖ours−JL‖=1.13e-14  tr(Cs²) ours/JL=1.0
+torus + Chebyshev basis           K=45  ‖MW−WM‖=1.64  ‖ours−JL‖=1.57  tr(Cs²) ours/JL=1.012

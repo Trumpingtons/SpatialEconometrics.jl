@@ -37,9 +37,11 @@ where:
 **Prior art (checked 2026-11-18; see `ExtRef/README.md`).** Both corrections
 are Jin & Lee (2012):
 - the pooled `τ` is their homoskedastic root estimator with
-  `P = W − tr(W M)/(n − d)·I` (§3.1, footnote 12);
+  `P = W′ − tr(W′M)/(n − d)·I` (§3.1);
 - the zero diagonal under heteroskedasticity is their §3.2, which builds it
-  more simply, as `P = A − Diag(AM)Diag(M)⁻¹M`, without solving `(M∘M)d`.
+  more simply, as `P = W′ − Diag(W′M)Diag(M)⁻¹`, without solving `(M∘M)d`.
+  Their two-step REsd uses `G′(ρ̂)` in place of `W′`, and is more efficient
+  than either (see Results).
 
 Liu & Yang (2015) apply the same per-unit idea to the QML score. All of these
 take a regressor matrix of fixed dimension, with `PM` bounded in row and
@@ -67,7 +69,9 @@ Every script uses fixed seeds, and its output is committed beside it as
 | `tc_lib.jl` | Shared code: the design objects, the three estimators and the variance of the moment | — |
 | `tc_null.jl` | Null-distribution check: fixed design, `f` in span `B`, errors redrawn 2,000 times; normal and χ²₃ errors, constant and varying variances, `ρ₀` = 0 and 0.4. The first block of its output is a 20-replication warm-up; ignore it | 43 s |
 | `tc_decomp.jl` | Splits the robust variance's bias into its quadratic and linear parts, before the noise term was subtracted | 6 s |
-| `tc_jinlee.jl` | Jin & Lee (2012, §3.2) against the exact diagonal in the concurvity design: their `P = W − Diag(WM)Diag(M)⁻¹M` (JL-W) and their two-step `A = G(ρ̂)` (JL-G), all with the same robust variance; 16 cells at K = 100 and 4 at K = 199, 500 replications each | 15 min |
+| `tc_jinlee.jl` | Jin & Lee (2012, §3.2) against the exact diagonal in the concurvity design: their `P = W′ − Diag(W′M)Diag(M)⁻¹` (JL-W) and their two-step REsd with `G(ρ̂)′` (JL-G), all with the same robust variance; 16 cells at K = 100 and 4 at K = 199, 500 replications each | 15 min |
+| `tc_commute.jl` | The two zero-diagonal corrections on a torus: equal with a Fourier basis (`MW = WM`), different with a Chebyshev basis | 10 s |
+| `tc_misalign.jl` | The delta-method variance of `ρ̂` at `ρ₀ = 0`, split into quadratic, linear and derivative parts: checked against simulation, along a basis-misalignment path, in the concurvity design, and with `W′` and a symmetrised `W` | 1 min |
 | `tc_concurvity.jl` | `x2 = (1−ω)·smooth(u,v) + ω·noise` with free smooths of `(u, v)` and `x2`, K = 100, 500 replications per cell, against an oracle | 24 s |
 
 `tc_first_look*.jl` are self-contained and predate `tc_lib.jl`. Their
@@ -112,18 +116,31 @@ simulation (1.668).
 In this design, removing the trace term leaves no separate "population
 channel".
 
-**Against Jin & Lee (`tc_jinlee.jl`), 20 cells:**
-- all three estimators are unbiased, |bias| ≤ 0.009;
-- ours, with `M` on both sides of the moment matrix, has a smaller sd in every
-  cell: 0.76–0.88 of JL-W's, so 0.58–0.77 of its variance. The gain is largest
-  with constant variances (0.58–0.73) and holds at K = 199 (0.62–0.77);
-- JL-G's two-step `G(ρ̂)` gains nothing over JL-W;
-- coverage: ours 0.936–0.950 (se/sd 0.95–1.02); JL-W 0.924–0.942 and JL-G
-  0.908–0.948 (se/sd 0.92–0.98). The Monte Carlo SE of a coverage at R = 500
-  is 0.010.
+**Against Jin & Lee (`tc_jinlee.jl`), 20 cells, corrected 2026-11-19:**
+- all three estimators are unbiased (|bias| ≤ 0.008) and cover at
+  0.936–0.952;
+- ours against their first step (JL-W, `A = W′`): variance ratio 0.99–1.01
+  at K = 100, and **1.11–1.19 at K = 199**, so ours is worse with a large basis;
+- their two-step REsd (JL-G, `A = G(ρ̂)′`) has the smallest variance: 0.87–0.99
+  of JL-W's, with the largest gains at `ρ₀ = 0.4`.
 
-Not yet checked: the efficiency gain has no theory yet, and the robust variance
-for Jin & Lee's `C` has not had its own null-distribution check.
+The first run of this script used `A = W` and `A = G(ρ̂)`: the primes were
+lost in the `pdftotext` extraction. It reported a 25–40% gain for ours, which
+was the cost of putting the instrument on the wrong side of an asymmetric `W`.
+The corrected run replaces that output.
+
+**Where the variance comes from (`tc_misalign.jl`, `tc_commute.jl`):**
+- on a torus with a Fourier basis, `MW = WM`, and the two corrections are
+  the same matrix (difference 1e-14);
+- the delta-method variance `[2σ⁴tr(Cs²) + 4σ²‖Cs f‖²]/J²` matches the
+  simulated sd to three digits, and in the concurvity design it predicts the
+  first run's sd ratios (0.849 and 0.783, against simulated 0.84 and 0.76);
+- rotating the basis away from the Fourier modes changes nothing: the ratios
+  stay within 0.5% of 1;
+- the first run's gap is all in the linear part. Ours uses the instrument
+  `MWf`, and Jin & Lee with `A = W` use `M(W′ − Δ)f`; their cosine is 0.53
+  under kNN `W`. With `A = W′`, or with a symmetrised `W`, the variance
+  ratio is 0.998.
 
 ## Not settled
 

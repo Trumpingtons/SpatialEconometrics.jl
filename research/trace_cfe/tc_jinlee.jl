@@ -2,8 +2,11 @@
 #
 # Jin & Lee's heteroskedasticity-robust root estimator solves y0'P M y0 = 0, with y0 = y − ρWy and
 # P = A − Δ M, where Δ = Diag(AM) Diag(M)⁻¹. Then C = P M = (A − Δ) M has a zero diagonal.
-#   JL-W:  A = W (their initial estimator)
-#   JL-G:  A = G(ρ̂) = W (I − ρ̂W)⁻¹ with ρ̂ = JL-W (their REsd, two-step)
+#   JL-W:  A = W′ (their initial estimator, §3.2 p. 451)
+#   JL-G:  A = G(ρ̂)′, G = W (I − ρ̂W)⁻¹, with ρ̂ = JL-W (their REsd, two-step)
+# Correction, 2026-11-19: the first version of this script used A = W and A = G(ρ̂). The primes were lost
+# in the pdftotext extraction and are visible on the page images. With A = W the linear instrument is
+# M(W′ − Δ)f in place of MWf, which with an asymmetric kNN W cost 25–40% of variance (tc_misalign.jl, part D).
 # Every estimator gets the same robust variance, written for a general zero-diagonal C:
 #   Var g = 2σ'(Cs∘Cs)σ + Σ (âᵢ² − noiseᵢ) σᵢ²,  â = (C + C') P_B y0,  noise = diag(H (Q'ΣQ) H'), H = (C + C')Q
 # For C = MW + MDM this reduces to tc_varg (checked below on the first replication).
@@ -49,10 +52,10 @@ function compare(; n = 900, ω = 0.1, ρ0 = 0.4, het = false, R = 500, seed = 21
     for r in 1:R
         y = Fac \ (f .+ σ .* randn(rng, n)); Wy = W * y
         tc = fit_all(D, W, y)
-        jw = jl_fit(D, Wd, y, Wy)
+        jw = jl_fit(D, Matrix(Wd'), y, Wy)
         sew = se_of(robust_var(D, jw.C, W, y, jw.ρ), jw.ρ, jw.a, jw.b)
         Gh = Wd / (I - jw.ρ * Wd)
-        jg = jl_fit(D, Gh, y, Wy)
+        jg = jl_fit(D, Matrix(Gh'), y, Wy)
         seg = se_of(robust_var(D, jg.C, W, y, jg.ρ), jg.ρ, jg.a, jg.b)
         if check && r == 1                         # the general variance reproduces tc_varg for C = A
             Vg = robust_var(D, D.A, W, y, tc.ρd); Vt = tc_varg(D, W, y, tc.ρd).robust

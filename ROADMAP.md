@@ -1096,44 +1096,58 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
   cross-fitting.
 - **The correction is not new** (read 2026-11-18). Jin & Lee (2012) give
   the closed-form root of `y′S(ρ)′PMS(ρ)y = 0`:
-  - with `tr(PM) = 0` (their §3.1, footnote 12, which is our pooled `τ`
-    exactly);
-  - with `PM` zero-diagonal under heteroskedasticity (§3.2).
+  - with `tr(PM) = 0` (§3.1). Their `P = W′ − tr(W′M)/(n − d)·I` is our
+    pooled `τ` exactly;
+  - with `PM` zero-diagonal under heteroskedasticity (§3.2). Their initial
+    estimator uses `P = W′ − Diag(W′M)Diag(M)⁻¹`, and REsd, the two-step,
+    uses `G′(ρ̂)` in place of `W′`.
 
   Liu & Yang (2015) apply the per-unit version to the QML score. Both
   assume a regressor matrix of fixed dimension, with `PM` bounded in row and
   column sums.
-- **What may be new.** Our zero-diagonal matrix, `MW + MDM` with `d` solving
-  `(M∘M)d = −diag(MW)`, has `M` on both sides; Jin & Lee's `(W − Δ)M` has it
-  on one. In `tc_jinlee.jl`:
-  - both are unbiased;
-  - ours has 0.58–0.77 of Jin & Lee's variance in all 20 cells, and the
-    gain holds at K = 199;
-  - ours covers at 0.936–0.950, theirs at 0.91–0.94.
+- **Our exact-diagonal matrix `MW + MDM` is not better** (measured
+  2026-11-19, `tc_jinlee.jl`, 20 cells of 500 replications):
+  - against Jin & Lee's first step its variance ratio is 0.99–1.01 at
+    K = 100, and it is worse at K = 199 (1.11–1.19);
+  - their two-step REsd has the smallest variance of the three: 0.87–0.99 of
+    their first step's;
+  - all three are unbiased and cover at 0.936–0.952.
 
-  The robust variance also needs a noise term for the estimated `P_B y₀`.
-  Without it the variance ran 3–10% high. It is negligible when the
-  dimension is fixed.
-- **The theory to work out,** in order:
-  1. Why the two-sided projection is more efficient: compare the two
-     variances analytically, as a function of `K/n`, and find whether the
-     gain vanishes when the dimension is fixed.
-  2. Whether `MW + MDM` is optimal within the zero-diagonal class, or how
-     far it is from the best `P`.
-  3. A CLT for the linear-quadratic moment when `M` is dense. The Kelejian &
+  The first version of the comparison reported a 25–40% variance gain for
+  ours. That gain was an error: Jin & Lee's matrices were implemented with
+  `W` in place of `W′`, because `pdftotext` dropped the primes, which are
+  visible on the page images. With an asymmetric `W` the unprimed version
+  uses the instrument `M(W′ − Δ)f` instead of `MWf` (`tc_misalign.jl`,
+  part D). Read formulas from the page image, not from extracted text. Also
+  measured (`tc_commute.jl`, `tc_misalign.jl`): the two corrections are
+  equal when `MW = WM`, and the delta-method variance matches the simulated
+  sd in every design checked.
+- **What may still be new:**
+  - the regime where the basis grows with `n`: there `M` is dense and the
+    trace term is first-order, and the published results assume fixed `d`
+    or rate conditions such as `k²/n → 0`;
+  - the noise term in the robust variance for the estimated `P_B y₀`.
+    Without it the variance ran 3–10% high, and it is negligible when the
+    dimension is fixed;
+  - the link to Geniaux: in our designs his own-observation bias is the
+    Jin–Lee trace term.
+- **The theory to work out,** for Jin & Lee's REsd with a growing basis, in
+  order:
+  1. A CLT for the linear-quadratic moment when `M` is dense. The Kelejian &
      Prucha (2010) theorem needs bounded row sums, which a growing `P_B`
      breaks. This step sets the rate at which K may grow with `n`.
-  4. The consistency of the robust variance, including the noise term.
+  2. The consistency of the robust variance, including the noise term.
+  3. Whether REsd's optimality under homoskedasticity (their
+     Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:
-  - a null-distribution check of the robust variance for Jin & Lee's `C`,
-    since their slightly low coverage may come from the variance and not
-    the estimator;
+  - a null-distribution check of the robust variance with REsd's matrix;
   - a penalised smoother, where `M = I − S_λ` is not idempotent;
   - Geniaux's own E3 design.
-- **Outcome if the theory holds:** a short paper (a note on Geniaux, or a
-  methods note on the two-sided zero-diagonal moment). The candidate
-  package feature is a `correction = :zero_diagonal` option on
-  `closed_form_rho`. It is not to be built before steps 1 and 3.
+- **Outcome if the theory holds:** a note on Geniaux: one closed-form
+  correction, Jin & Lee's, removes the bias his three safeguards target. The
+  candidate package feature is a `correction = :jin_lee` option on
+  `closed_form_rho`. It is not to be built before step 1.
+
 
 **New file:** `src/SemiparametricSpatial.jl` (1,136 lines against the ~500
 estimated; the four estimators with their variances, two bandwidth selectors
