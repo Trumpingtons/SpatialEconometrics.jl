@@ -56,6 +56,12 @@ What these papers do not cover (and see the comparison under Results):
 
 Su (2012) estimates `ρ` with linear moments only.
 
+## Theory
+
+`THEORY.md` holds the proof sketch for theory step 1, a CLT for the moment
+when `M` is dense, with its numerical check. It is a sketch and has not been
+checked by anyone else.
+
 ## Scripts
 
 Run from the repository root with `julia --project=. research/trace_cfe/<file>.jl`.
@@ -70,6 +76,7 @@ Every script uses fixed seeds, and its output is committed beside it as
 | `tc_null.jl` | Null-distribution check: fixed design, `f` in span `B`, errors redrawn 2,000 times; normal and χ²₃ errors, constant and varying variances, `ρ₀` = 0 and 0.4. The first block of its output is a 20-replication warm-up; ignore it | 43 s |
 | `tc_decomp.jl` | Splits the robust variance's bias into its quadratic and linear parts, before the noise term was subtracted | 6 s |
 | `tc_jinlee.jl` | Jin & Lee (2012, §3.2) against the exact diagonal in the concurvity design: their `P = W′ − Diag(W′M)Diag(M)⁻¹` (JL-W) and their two-step REsd with `G(ρ̂)′` (JL-G), all with the same robust variance; 16 cells at K = 100 and 4 at K = 199, 500 replications each | 15 min |
+| `tc_clt.jl` | Theory step 1: the conditions of the CLT for a dense `M` (norm ratios, the `Δ` bound, Lindeberg for the linear part) and the distribution of the standardised moment, for local and global bases with K ≈ 2√n and K ≈ 0.15n, plus a power check with two complete groups. See `THEORY.md` | 45 s |
 | `tc_commute.jl` | The two zero-diagonal corrections on a torus: equal with a Fourier basis (`MW = WM`), different with a Chebyshev basis | 10 s |
 | `tc_misalign.jl` | The delta-method variance of `ρ̂` at `ρ₀ = 0`, split into quadratic, linear and derivative parts: checked against simulation, along a basis-misalignment path, in the concurvity design, and with `W′` and a symmetrised `W` | 1 min |
 | `tc_concurvity.jl` | `x2 = (1−ω)·smooth(u,v) + ω·noise` with free smooths of `(u, v)` and `x2`, K = 100, 500 replications per cell, against an oracle | 24 s |

@@ -1,0 +1,25 @@
+knn hat n=400 K=16         K/n 0.04 maxh 0.183 | max|Δ| 0.129 ≤ 0.173 | ‖Cs‖op 1.06 ‖Cs‖F²/n 0.112 op/F 0.158 ‖L‖op/F 0.106 | Lind_b 0.073 | z: mean -0.172 sd 1.009 skew 0.15 exk 0.089 size 0.06 KS 0.14
+Monte Carlo SEs at R = 2000: mean 0.022, sd 0.016, skew 0.055, excess kurtosis 0.11, size 0.005; KS 95% critical value 0.030
+
+Local (hat) basis, K ≈ 2√n: max leverage → 0
+knn hat n=400 K=36         K/n 0.09 maxh 0.431 | max|Δ| 0.216 ≤ 0.317 | ‖Cs‖op 0.998 ‖Cs‖F²/n 0.078 op/F 0.178 ‖L‖op/F 0.121 | Lind_b 0.047 | z: mean -0.013 sd 1.018 skew 0.412 exk 1.631 size 0.054 KS 0.041
+knn hat n=900 K=64         K/n 0.071 maxh 0.408 | max|Δ| 0.242 ≤ 0.32 | ‖Cs‖op 1.024 ‖Cs‖F²/n 0.09 op/F 0.114 ‖L‖op/F 0.078 | Lind_b 0.037 | z: mean 0.013 sd 1.006 skew 0.352 exk 0.572 size 0.053 KS 0.032
+knn hat n=1600 K=81        K/n 0.051 maxh 0.365 | max|Δ| 0.175 ≤ 0.274 | ‖Cs‖op 1.049 ‖Cs‖F²/n 0.105 op/F 0.081 ‖L‖op/F 0.056 | Lind_b 0.017 | z: mean 0.011 sd 0.995 skew 0.2 exk 0.193 size 0.046 KS 0.016
+knn hat n=2500 K=100       K/n 0.04 maxh 0.269 | max|Δ| 0.148 ≤ 0.196 | ‖Cs‖op 1.081 ‖Cs‖F²/n 0.113 op/F 0.064 ‖L‖op/F 0.044 | Lind_b 0.009 | z: mean 0.007 sd 1.018 skew 0.162 exk 0.048 size 0.057 KS 0.018
+
+Local (hat) basis, K ≈ 0.15 n: K/n fixed, max leverage does not vanish
+knn hat n=400 K=64         K/n 0.16 maxh 0.595 | max|Δ| 0.301 ≤ 0.609 | ‖Cs‖op 0.829 ‖Cs‖F²/n 0.05 op/F 0.186 ‖L‖op/F 0.13 | Lind_b 0.036 | z: mean -0.016 sd 1.0 skew 0.316 exk 1.329 size 0.05 KS 0.038
+knn hat n=900 K=144        K/n 0.16 maxh 0.831 | max|Δ| 0.378 ≤ 1.291 | ‖Cs‖op 0.932 ‖Cs‖F²/n 0.049 op/F 0.141 ‖L‖op/F 0.095 | Lind_b 0.018 | z: mean 0.016 sd 0.978 skew 0.202 exk 0.403 size 0.048 KS 0.022
+knn hat n=1600 K=225       K/n 0.141 maxh 0.782 | max|Δ| 0.452 ≤ 1.168 | ‖Cs‖op 0.89 ‖Cs‖F²/n 0.055 op/F 0.095 ‖L‖op/F 0.064 | Lind_b 0.019 | z: mean 0.029 sd 1.003 skew 0.126 exk 0.086 size 0.05 KS 0.015
+knn hat n=2500 K=361       K/n 0.144 maxh 0.757 | max|Δ| 0.334 ≤ 1.23 | ‖Cs‖op 0.957 ‖Cs‖F²/n 0.055 op/F 0.082 ‖L‖op/F 0.055 | Lind_b 0.007 | z: mean -0.016 sd 0.986 skew 0.138 exk 0.16 size 0.048 KS 0.03
+
+Global polynomial (Chebyshev) basis, K ≈ 2√n: boundary leverage
+knn cheb n=400 K=36        K/n 0.09 maxh 0.722 | max|Δ| 0.295 ≤ 0.712 | ‖Cs‖op 0.992 ‖Cs‖F²/n 0.084 op/F 0.171 ‖L‖op/F 0.116 | Lind_b 0.031 | z: mean -0.006 sd 1.021 skew 0.507 exk 1.857 size 0.05 KS 0.038
+knn cheb n=900 K=55        K/n 0.061 maxh 0.709 | max|Δ| 0.33 ≤ 0.995 | ‖Cs‖op 1.049 ‖Cs‖F²/n 0.102 op/F 0.109 ‖L‖op/F 0.075 | Lind_b 0.017 | z: mean 0.022 sd 0.999 skew 0.313 exk 0.403 size 0.057 KS 0.026
+knn cheb n=1600 K=78       K/n 0.049 maxh 0.809 | max|Δ| 0.31 ≤ 1.356 | ‖Cs‖op 1.072 ‖Cs‖F²/n 0.11 op/F 0.081 ‖L‖op/F 0.055 | Lind_b 0.029 | z: mean 0.013 sd 0.995 skew 0.195 exk 0.192 size 0.046 KS 0.018
+knn cheb n=2500 K=105      K/n 0.042 maxh 0.754 | max|Δ| 0.266 ≤ 0.928 | ‖Cs‖op 1.072 ‖Cs‖F²/n 0.116 op/F 0.063 ‖L‖op/F 0.043 | Lind_b 0.012 | z: mean 0.01 sd 1.01 skew 0.136 exk 0.05 size 0.046 KS 0.016
+
+Power check: W of two complete groups, hat basis K ≈ 2√n (‖Cs‖op/‖Cs‖F should not vanish)
+groups hat n=400 K=36      K/n 0.09 maxh 0.431 | max|Δ| 0.005 ≤ 0.081 | ‖Cs‖op 0.957 ‖Cs‖F²/n 0.002 op/F 0.998 ‖L‖op/F 0.636 | Lind_b 0.01 | z: mean -0.033 sd 0.969 skew 3.019 exk 15.307 size 0.041 KS 0.193
+groups hat n=900 K=64      K/n 0.071 maxh 0.408 | max|Δ| 0.002 ≤ 0.05 | ‖Cs‖op 0.955 ‖Cs‖F²/n 0.001 op/F 0.999 ‖L‖op/F 0.637 | Lind_b 0.003 | z: mean -0.02 sd 0.948 skew 2.389 exk 7.498 size 0.049 KS 0.194
+groups hat n=1600 K=81     K/n 0.051 maxh 0.365 | max|Δ| 0.001 ≤ 0.033 | ‖Cs‖op 0.961 ‖Cs‖F²/n 0.001 op/F 1.0 ‖L‖op/F 0.637 | Lind_b 0.002 | z: mean -0.01 sd 0.975 skew 2.754 exk 11.11 size 0.048 KS 0.185

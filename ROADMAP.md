@@ -1136,6 +1136,14 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
   1. A CLT for the linear-quadratic moment when `M` is dense. The Kelejian &
      Prucha (2010) theorem needs bounded row sums, which a growing `P_B`
      breaks. This step sets the rate at which K may grow with `n`.
+     **Sketch written 2026-11-19** (`research/trace_cfe/THEORY.md`; not
+     checked by anyone else). The martingale route needs only norm ratios:
+     `‖C‖_op` stays bounded because `‖M‖_op = 1`, so bounded row sums are
+     needed for `W` alone. In the sketch, `K/n → c < 1` is allowed, and the
+     binding rate is the undersmoothing lower bound `√n‖r‖_∞² → 0`. In
+     `tc_clt.jl` normality improves with `n` in every kNN design, including
+     K/n ≈ 0.15 and a Chebyshev basis with leverage 0.75. The power check
+     (two complete groups) stays far from normal.
   2. The consistency of the robust variance, including the noise term.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
