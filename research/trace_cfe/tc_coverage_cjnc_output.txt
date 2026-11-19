@@ -1,0 +1,44 @@
+normal rough  weak   K 101 K/n 0.112 maxh 0.779 | bias -0.0007 sd 0.0278 | oracle 1.000 hc2 1.000 cjn 1.000 cjnc 1.000
+warm-up (the line above, 5 replications) 6.2 s. Coverage of the 95% interval, R = 1000 (MC SE 0.007).
+
+normal smooth weak   K  50 K/n 0.056 maxh 0.378 | bias +0.0015 sd 0.0629 | oracle 0.948 hc2 0.944 cjn 0.944 cjnc 0.944
+normal smooth weak   K 101 K/n 0.112 maxh 0.779 | bias +0.0003 sd 0.0772 | oracle 0.963 hc2 0.956 cjn 0.953 cjnc 0.954
+normal smooth weak   K 170 K/n 0.189 maxh 0.884 | bias -0.0012 sd 0.0999 | oracle 0.957 hc2 0.951 cjn 0.948 cjnc 0.951
+normal smooth weak   K 226 K/n 0.251 maxh 0.936 | bias +0.0031 sd 0.1267 | oracle 0.955 hc2 0.956 cjn 0.924(neg 5) cjnc 0.896(neg 17)
+
+normal rough  weak   K  50 K/n 0.056 maxh 0.378 | bias -0.0008 sd 0.0468 | oracle 0.948 hc2 0.952 cjn 0.950 cjnc 0.951
+normal rough  weak   K 101 K/n 0.112 maxh 0.779 | bias -0.0031 sd 0.0589 | oracle 0.949 hc2 0.952 cjn 0.950 cjnc 0.950
+normal rough  weak   K 170 K/n 0.189 maxh 0.884 | bias -0.0036 sd 0.0780 | oracle 0.956 hc2 0.960 cjn 0.949 cjnc 0.954
+normal rough  weak   K 226 K/n 0.251 maxh 0.936 | bias -0.0041 sd 0.0995 | oracle 0.955 hc2 0.961 cjn 0.937 cjnc 0.916(neg 7)
+
+chisq  smooth weak   K  50 K/n 0.056 maxh 0.378 | bias +0.0012 sd 0.0637 | oracle 0.946 hc2 0.947 cjn 0.945 cjnc 0.946
+chisq  smooth weak   K 101 K/n 0.112 maxh 0.779 | bias -0.0004 sd 0.0808 | oracle 0.945 hc2 0.940 cjn 0.932 cjnc 0.935
+chisq  smooth weak   K 170 K/n 0.189 maxh 0.884 | bias -0.0010 sd 0.1036 | oracle 0.947 hc2 0.944 cjn 0.939 cjnc 0.941
+chisq  smooth weak   K 226 K/n 0.251 maxh 0.936 | bias +0.0027 sd 0.1274 | oracle 0.950 hc2 0.959 cjn 0.911(neg 13) cjnc 0.875(neg 36)
+
+chisq  rough  weak   K  50 K/n 0.056 maxh 0.378 | bias -0.0004 sd 0.0458 | oracle 0.952 hc2 0.958 cjn 0.952 cjnc 0.952
+chisq  rough  weak   K 101 K/n 0.112 maxh 0.779 | bias -0.0009 sd 0.0572 | oracle 0.953 hc2 0.957 cjn 0.950 cjnc 0.953
+chisq  rough  weak   K 170 K/n 0.189 maxh 0.884 | bias -0.0006 sd 0.0767 | oracle 0.950 hc2 0.966 cjn 0.953 cjnc 0.955
+chisq  rough  weak   K 226 K/n 0.251 maxh 0.936 | bias +0.0005 sd 0.0970 | oracle 0.961 hc2 0.968 cjn 0.940(neg 6) cjnc 0.916(neg 17)
+
+normal smooth strong K  50 K/n 0.056 maxh 0.378 | bias -0.0000 sd 0.0119 | oracle 0.955 hc2 0.956 cjn 0.956 cjnc 0.956
+normal smooth strong K 101 K/n 0.112 maxh 0.779 | bias -0.0003 sd 0.0173 | oracle 0.953 hc2 0.951 cjn 0.950 cjnc 0.950
+normal smooth strong K 170 K/n 0.189 maxh 0.884 | bias -0.0010 sd 0.0247 | oracle 0.963 hc2 0.958 cjn 0.957 cjnc 0.958
+normal smooth strong K 226 K/n 0.251 maxh 0.936 | bias -0.0009 sd 0.0292 | oracle 0.959 hc2 0.960 cjn 0.956 cjnc 0.956
+
+normal rough  strong K  50 K/n 0.056 maxh 0.378 | bias -0.0004 sd 0.0189 | oracle 0.946 hc2 0.945 cjn 0.945 cjnc 0.946
+normal rough  strong K 101 K/n 0.112 maxh 0.779 | bias -0.0009 sd 0.0246 | oracle 0.948 hc2 0.946 cjn 0.945 cjnc 0.945
+normal rough  strong K 170 K/n 0.189 maxh 0.884 | bias -0.0012 sd 0.0352 | oracle 0.946 hc2 0.947 cjn 0.944 cjnc 0.946
+normal rough  strong K 226 K/n 0.251 maxh 0.936 | bias -0.0020 sd 0.0415 | oracle 0.953 hc2 0.953 cjn 0.950 cjnc 0.948
+
+chisq  smooth strong K  50 K/n 0.056 maxh 0.378 | bias +0.0005 sd 0.0121 | oracle 0.950 hc2 0.951 cjn 0.950 cjnc 0.950
+chisq  smooth strong K 101 K/n 0.112 maxh 0.779 | bias +0.0003 sd 0.0178 | oracle 0.945 hc2 0.947 cjn 0.944 cjnc 0.944
+chisq  smooth strong K 170 K/n 0.189 maxh 0.884 | bias +0.0003 sd 0.0251 | oracle 0.945 hc2 0.955 cjn 0.950 cjnc 0.951
+chisq  smooth strong K 226 K/n 0.251 maxh 0.936 | bias +0.0004 sd 0.0286 | oracle 0.961 hc2 0.965 cjn 0.958 cjnc 0.956(neg 1)
+
+chisq  rough  strong K  50 K/n 0.056 maxh 0.378 | bias +0.0002 sd 0.0190 | oracle 0.949 hc2 0.945 cjn 0.943 cjnc 0.943
+chisq  rough  strong K 101 K/n 0.112 maxh 0.779 | bias +0.0002 sd 0.0239 | oracle 0.952 hc2 0.953 cjn 0.949 cjnc 0.950
+chisq  rough  strong K 170 K/n 0.189 maxh 0.884 | bias +0.0007 sd 0.0334 | oracle 0.955 hc2 0.958 cjn 0.956 cjnc 0.956
+chisq  rough  strong K 226 K/n 0.251 maxh 0.936 | bias +0.0008 sd 0.0400 | oracle 0.964 hc2 0.964 cjn 0.956(neg 1) cjnc 0.954(neg 1)
+
+total 25.0 min

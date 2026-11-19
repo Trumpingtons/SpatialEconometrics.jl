@@ -1203,8 +1203,14 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      exactly `4tr(ΩΛ[(MΣM)∘(MΣM)]Λ)` for any error law, because the
      cumulant term meets the zero diagonal of `Cs∘Cs`; `tc_cjn_bias.jl`
      confirms it in 24 of 24 cells, and the plug-in correction works to
-     K/n = 0.19 but not at 0.25. Still open: a correction for K/n → c > 0
-     that keeps HC2's coverage.
+     K/n = 0.19 but not at 0.25. The linear part's bias has an exact
+     formula too (`tc_cjn_lin.jl`, 32 of 32 cells); with both parts
+     corrected CJN is within 1.6% of `V` at K/n ≤ 0.19, and worse than
+     uncorrected at 0.25. Its coverage (`tc_coverage_cjnc.jl`) gains at
+     most 0.5 points at K/n ≤ 0.19 and loses up to 3.6 at 0.25. So the
+     coded HC2 `V̂` stays: consistent for K/n → 0 and covering 0.94–0.97 in
+     every cell up to K/n = 0.25. Step 2 is closed for these designs;
+     untested are K/n above 0.25, other `W`, and other `n`.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:
