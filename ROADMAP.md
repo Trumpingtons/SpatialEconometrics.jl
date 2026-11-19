@@ -1,6 +1,6 @@
 # SpatialEconometrics.jl — Development Roadmap
 
-> **Current version:** 0.6.0, tagged `v0.6.0` on 2026-11-18. It adds to
+> **Current version:** 0.6.0, tagged `v0.6.0` on 2026-11-19 (on `edbca6d`). It adds to
 > `v0.5.0` (tagged 2026-11-17): the check of the `ρ` search interval
 > against `W`'s spectrum (AUDIT 33); #15's two-channel spatial DiD; the
 > heteroskedasticity-robust spatial-error GMM and GS2SLS, with the fixes to
@@ -1591,7 +1591,7 @@ crossed the rule: it is not a projection any more but a tagged release
 | **master** (+ #15's two-channel spatial DiD and `errors = :spatial`, AUDIT 34) | 32 | 4,055 ¶⁵ | 28,391 |
 | **master** (+ the heteroskedasticity-robust spatial error, `:spatial_gmm` / `estimator = :gmm`, AUDIT 35) | 32 | 4,099 ¶⁶ | 28,694 |
 | **master** (+ the heteroskedasticity-robust GS2SLS and the default path's panel fixes, AUDIT 36) | 32 | 4,139 ¶⁷ | 29,005 |
-| **v0.6.0** (tagged 2026-11-18, = the row above) | 32 | 4,139 ¶⁷ | 29,005 |
+| **v0.6.0** (tagged 2026-11-19, = the row above) | 32 | 4,139 ¶⁷ | 29,005 |
 | — | | | |
 | **v1.0.0** (Phases 6C–8) | 29–31 | ~4,100 | ~26,500 |
 

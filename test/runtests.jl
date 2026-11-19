@@ -41,9 +41,38 @@ coefnames(m::HausMock) = m.names
 coef(m::HausMock) = m.b
 vcov(m::HausMock) = m.V
 
+# Progress reporting for CI, off unless SE_TEST_PROGRESS=1. The Julia 1 job on
+# ubuntu-latest has three times lost its runner at 63-66 minutes, which leaves
+# no log, against a healthy 14-35 minutes. These lines say which testset was
+# running and how memory stood when it happened: one line as each top-level
+# testset starts, and a heartbeat every 60 s from the interactive thread
+# (Julia 1.13 starts one by default; on 1.10, with none, only the per-testset
+# lines appear). The output goes to stdout and is flushed at once.
+const _PROGRESS = get(ENV, "SE_TEST_PROGRESS", "0") == "1"
+const _PROGRESS_T0 = time()
+const _PROGRESS_NOW = Ref("(before the first testset)")
+function _progress_line(tag)
+    gib(x) = round(x / 2^30, digits = 2)
+    mins = round((time() - _PROGRESS_T0) / 60, digits = 1)
+    println("[progress] +$(mins) min  $tag  maxrss $(gib(Sys.maxrss())) GiB  free $(gib(Sys.free_memory())) of $(gib(Sys.total_memory())) GiB")
+    flush(stdout)
+end
+function _progress(name)
+    _PROGRESS || return
+    _PROGRESS_NOW[] = name
+    _progress_line("start: " * name)
+end
+if _PROGRESS && Threads.nthreads(:interactive) > 0
+    Threads.@spawn :interactive while true
+        sleep(60)
+        _progress_line("heartbeat, in: " * _PROGRESS_NOW[])
+    end
+end
+
 @testset "SpatialEconometrics.jl Full Suite Verification" begin
 
     @testset "1. Cross-Sectional SAR & SDM" begin
+        _progress("1. Cross-Sectional SAR & SDM")
         rng = MersenneTwister(101); W = make_rook_weights(20); N = size(W, 1)
         X = randn(rng, N, 2); β_true = [2.0, 1.5, -1.0]; θ_true = [0.8, -0.5]; ρ_true = 0.55; σ_true = 0.50
         y = (I - ρ_true * W) \ (β_true[1] .+ X * β_true[2:3] .+ (W * X) * θ_true .+ σ_true .* randn(rng, N))
@@ -57,6 +86,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "2. Static Spatial Panels" begin
+        _progress("2. Static Spatial Panels")
         rng = MersenneTwister(202); L = 12; N = L * L; T_per = 6; NT = N * T_per; W = make_rook_weights(L)
         X = randn(rng, NT, 2); β_true = [1.5, -0.8]; ρ_true = 0.45; σ_true = 0.5
         μ_i = randn(rng, N); ξ_t = randn(rng, T_per)
@@ -78,6 +108,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "3. Dynamic Spatial Panels" begin
+        _progress("3. Dynamic Spatial Panels")
         rng = MersenneTwister(303); L = 10; N = L * L; T_tot = 8; NT = N * T_tot; W = make_rook_weights(L)
         X = randn(rng, NT, 1); β_true = [0.8]; γ_true = 0.3; η_true = 0.15; ρ_true = 0.35; σ_true = 0.4
         μ_i = randn(rng, N)
@@ -97,6 +128,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "4. GS2SLS / SARAR Panel" begin
+        _progress("4. GS2SLS / SARAR Panel")
         rng = MersenneTwister(404); L = 10; N = L * L; T_tot = 6; NT = N * T_tot; W = make_rook_weights(L)
         X_exog = randn(rng, NT, 2); β_true = [1.2, -0.6]; ρ_true = 0.3; λ_true = 0.25
         z1 = randn(rng, NT); z2 = randn(rng, NT)
@@ -118,6 +150,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "4b. GS2SLS moments, dynamic Jacobian, panel information" begin
+        _progress("4b. GS2SLS moments, dynamic Jacobian, panel information")
         GS = SpatialEconometrics.SpatialGS2SLSPanel
         L = 14; N = L * L
         W = make_rook_weights(L); Wd = Matrix(W)
@@ -311,6 +344,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "4c. GS2SLS λ first-stage correction (finding 24)" begin
+        _progress("4c. GS2SLS λ first-stage correction (finding 24)")
         GS = SpatialEconometrics.SpatialGS2SLSPanel
         SU = SpatialEconometrics.SpatialUtils
         L = 8; N = L * L; T_tot = 6; NT = N * T_tot
@@ -442,6 +476,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "4d. heteroskedasticity-robust GS2SLS (errors = :heteroskedastic)" begin
+        _progress("4d. heteroskedasticity-robust GS2SLS (errors = :heteroskedastic)")
         GS = SpatialEconometrics.SpatialGS2SLSPanel
         SU = SpatialEconometrics.SpatialUtils
 
@@ -691,6 +726,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "5. System GMM (Arellano-Bond / Blundell-Bond)" begin
+        _progress("5. System GMM (Arellano-Bond / Blundell-Bond)")
         rng = MersenneTwister(505); N = 80; T_tot = 7; K = 1
         γ_true = 0.4; β_true = [1.0]
         μ_i = randn(rng, N); Y = zeros(N, T_tot); X_ten = randn(rng, N, T_tot, K)
@@ -709,6 +745,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "5b. Dynamic GMM: Windmeijer Assembly and Diagnostics" begin
+        _progress("5b. Dynamic GMM: Windmeijer Assembly and Diagnostics")
         DG = SpatialEconometrics.DynamicPanelSystemGMM
 
         # y_it = ρ y_{i,t-1} + x_it β + μ_i + ε_it, burnt in so the initial
@@ -899,6 +936,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "6. GRAS / Cross-Entropy Calibration" begin
+        _progress("6. GRAS / Cross-Entropy Calibration")
         rng = MersenneTwister(606)
         M_dim = 5; N_dim = 4
         X0 = randn(rng, M_dim, N_dim) .* 10
@@ -915,6 +953,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "7. Driscoll-Kraay & Conley HAC" begin
+        _progress("7. Driscoll-Kraay & Conley HAC")
         rng = MersenneTwister(707); L = 10; N = L * L; T_per = 8; W = make_rook_weights(L)
         X = randn(rng, N * T_per, 2); ρ_true = 0.4
         S_lu = lu(sparse(1.0I, N, N) - ρ_true * W)
@@ -1001,6 +1040,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "8. FormulaDSL.jl (@formula, slag, fe, endo)" begin
+        _progress("8. FormulaDSL.jl (@formula, slag, fe, endo)")
         rng = MersenneTwister(808); L = 15; N = L * L; T_per = 6; NT = N * T_per; W = make_rook_weights(L)
         X = randn(rng, NT, 2); β_true = [1.4, -0.9]; θ_true = [0.7, -0.35]; ρ_true = 0.45
         μ_i = randn(rng, N); ξ_t = randn(rng, T_per)
@@ -1040,6 +1080,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "9. Spatial Diagnostics (Moran, LM, Geary)" begin
+        _progress("9. Spatial Diagnostics (Moran, LM, Geary)")
         rng = MersenneTwister(909); W = make_rook_weights(15); N = size(W, 1)
         X = randn(rng, N, 2)
         y_sar = (I - 0.5 * W) \ (X * [1.5, -0.8] .+ 0.4 .* randn(rng, N))
@@ -1111,6 +1152,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "10. Spatial Error Model (SEM)" begin
+        _progress("10. Spatial Error Model (SEM)")
         rng = MersenneTwister(1010); W = make_rook_weights(15); N = size(W, 1)
         X = randn(rng, N, 2); β_true = [1.0, 2.0, -1.0]; λ_true = 0.55
         u = (I - λ_true * W) \ (0.5 .* randn(rng, N))
@@ -1261,6 +1303,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "11. GWR & MGWR" begin
+        _progress("11. GWR & MGWR")
         rng = MersenneTwister(1111); N = 150
         coords = hcat(rand(rng, N) .* 10, rand(rng, N) .* 10)
         X = randn(rng, N, 2)
@@ -1354,6 +1397,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "11b. Bandwidth selection & back-fitting convergence" begin
+        _progress("11b. Bandwidth selection & back-fitting convergence")
         rng = MersenneTwister(2211); N = 45
         coords = hcat(rand(rng, N) .* 10, rand(rng, N) .* 10)
         X = randn(rng, N, 2)
@@ -1418,6 +1462,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "11c. MGWR degrees of freedom against a solved fixed point" begin
+        _progress("11c. MGWR degrees of freedom against a solved fixed point")
         # The back-fitting fixed point is a linear system, so at small N it
         # can be solved outright and both degrees-of-freedom paths checked
         # against the answer instead of against each other. Every bug found
@@ -1519,6 +1564,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "11d. Gravity: FE sweeping and NB dispersion" begin
+        _progress("11d. Gravity: FE sweeping and NB dispersion")
         rng = MersenneTwister(5150)
         No, Nd = 12, 10; N = No * Nd
         o = repeat(1:No, inner = Nd)
@@ -1662,6 +1708,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "12. Spatial Weights Construction" begin
+        _progress("12. Spatial Weights Construction")
         rng = MersenneTwister(1200)
         N = 100
         coords = hcat(rand(rng, N) .* 10, rand(rng, N) .* 10)
@@ -1734,6 +1781,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "13. Model Selection & Comparison" begin
+        _progress("13. Model Selection & Comparison")
         rng = MersenneTwister(1300); W = make_rook_weights(15); N = size(W, 1)
         X = randn(rng, N, 2)
         y = (I - 0.5 * W) \ (fill(1.0, N) .+ X * [1.5, -0.8] .+ (W * X) * [0.6, -0.3] .+ 0.5 .* randn(rng, N))
@@ -1787,6 +1835,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "13b. Log-likelihoods against an independent Gaussian density" begin
+        _progress("13b. Log-likelihoods against an independent Gaussian density")
         # Every one of these was previously asserted only to be finite. The
         # concentrated likelihood each estimator maximises is rewritten here
         # straight from the density, with the filtered residual formed
@@ -1858,6 +1907,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "13c. Vuong: omega is a variance of pointwise ratios" begin
+        _progress("13c. Vuong: omega is a variance of pointwise ratios")
         # vuong_test built omega out of the AGGREGATE log-likelihoods, as
         # sqrt(abs(2(ll1-ll2)/n - adj^2)). That is twice a mean difference, not
         # a variance: it came out 0.71x the right size here, giving p = 0.324
@@ -1943,6 +1993,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "13d. Trace-based variances are exact and reproducible" begin
+        _progress("13d. Trace-based variances are exact and reproducible")
         # tr(G), tr(G^2) and tr(G-transpose-G) were estimated by unseeded
         # Hutchinson probes off the global RNG: 250 for the power traces, 30
         # for the last one. So fitting the same model twice gave different
@@ -2041,6 +2092,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "14. Spatial Panel Diagnostics" begin
+        _progress("14. Spatial Panel Diagnostics")
         rng = MersenneTwister(1400); L = 10; N = L * L; T_per = 8; NT = N * T_per
         W = make_rook_weights(L)
         X = randn(rng, NT, 2); β_true = [1.5, -0.8]; ρ_true = 0.45
@@ -2093,6 +2145,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "14b. Panel Diagnostics: Scale, Degrees of Freedom, Degeneracy" begin
+        _progress("14b. Panel Diagnostics: Scale, Degrees of Freedom, Degeneracy")
         rng = MersenneTwister(1414)
         L = 6; N = L * L; T_per = 5; NT = N * T_per
         W = make_rook_weights(L)
@@ -2269,6 +2322,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "15. Higher-Order Spatial Models (SLX, SAC, SDEM)" begin
+        _progress("15. Higher-Order Spatial Models (SLX, SAC, SDEM)")
         rng = MersenneTwister(1500); W = make_rook_weights(15); N = size(W, 1)
         X = randn(rng, N, 2)
 
@@ -2313,6 +2367,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "15b. Variances of SLX, SEM, SDEM and SAC" begin
+        _progress("15b. Variances of SLX, SEM, SDEM and SAC")
         # None of these had ever been checked against a value. SAC and SDEM
         # turned out not to compute a variance for their spatial parameters at
         # all: the diagonal slots held 1/N, so every reported standard error
@@ -2448,6 +2503,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "16. Spatial Regime Models" begin
+        _progress("16. Spatial Regime Models")
         rng = MersenneTwister(1600); W = make_rook_weights(15); N = size(W, 1)
         X = randn(rng, N, 2); ρ_true = 0.4
         IN = sparse(1.0I, N, N)
@@ -2494,6 +2550,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "17. Spatial Simulation & Monte Carlo" begin
+        _progress("17. Spatial Simulation & Monte Carlo")
         rng = MersenneTwister(1700); L = 10; N = L * L
         W = make_rook_weights(L)
 
@@ -2543,6 +2600,7 @@ vcov(m::HausMock) = m.V
 
 
     @testset "17b. Simulation DGPs and Monte Carlo bookkeeping (finding 22)" begin
+        _progress("17b. Simulation DGPs and Monte Carlo bookkeeping (finding 22)")
         L = 5; W = make_rook_weights(L); N = size(W, 1); Wd = Matrix(W)
         X = randn(MersenneTwister(77), N, 2)
         b = [1.0, -0.5]; th = [0.4, 0.2]; s = 0.8; ρ = 0.5; λ = 0.3
@@ -2648,6 +2706,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "18. Spatial Tables & Output" begin
+        _progress("18. Spatial Tables & Output")
         rng = MersenneTwister(1800); W = make_rook_weights(10); N = size(W, 1)
         X = randn(rng, N, 2)
         y = (I - 0.4 * W) \ (fill(1.0, N) .+ X * [1.5, -0.8] .+ 0.5 .* randn(rng, N))
@@ -2701,6 +2760,7 @@ vcov(m::HausMock) = m.V
 
 
     @testset "18b. Table exporters escape and honour digits (finding 23)" begin
+        _progress("18b. Table exporters escape and honour digits (finding 23)")
         ST = SpatialEconometrics.SpatialTables
         W = make_rook_weights(8); N = size(W, 1)
         rg = MersenneTwister(31); X = randn(rg, N, 2)
@@ -2839,6 +2899,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "19. Spatial Discrete Choice (Probit)" begin
+        _progress("19. Spatial Discrete Choice (Probit)")
         rng = MersenneTwister(1900); L = 14; W = make_rook_weights(L); N = size(W, 1)
         X = randn(rng, N, 2)
         X_aug = hcat(ones(N), X)
@@ -2933,6 +2994,7 @@ vcov(m::HausMock) = m.V
 
 
     @testset "19b. Probit Gibbs internals (audit finding 21)" begin
+        _progress("19b. Probit Gibbs internals (audit finding 21)")
         DC = SpatialEconometrics.SpatialDiscreteChoice
         L = 6; W = make_rook_weights(L); N = size(W, 1)
         Wf = SparseMatrixCSC{Float64, Int}(W)
@@ -3073,6 +3135,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "20. Gravity / Flow Models (PPML & NB)" begin
+        _progress("20. Gravity / Flow Models (PPML & NB)")
         rng = MersenneTwister(1212)
         N_orig = 15; N_dest = 12; N_obs = N_orig * N_dest
         origin_id = repeat(1:N_orig, inner=N_dest)
@@ -3105,6 +3168,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "21. Spatial Filtering (ESF / RE-ESF)" begin
+        _progress("21. Spatial Filtering (ESF / RE-ESF)")
         W = make_rook_weights(11); N = size(W, 1)
         IN = sparse(1.0I, N, N)
         S0 = sum(W)
@@ -3242,6 +3306,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "21b. Spatial Filtering: Basis Identities and ESF Variance" begin
+        _progress("21b. Spatial Filtering: Basis Identities and ESF Variance")
         W = make_rook_weights(8); N = size(W, 1); S0 = sum(W)
         Wd = Matrix(W); Wsym = 0.5 .* (Wd .+ Wd')
         Mc = I - ones(N, N) / N
@@ -3375,6 +3440,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "21c. ESF GLM Families against Independent Densities" begin
+        _progress("21c. ESF GLM Families against Independent Densities")
         SF = SpatialEconometrics.SpatialFiltering
         rng = MersenneTwister(606)
         n = 300
@@ -3689,6 +3755,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "22. Regressions found by the example scripts" begin
+        _progress("22. Regressions found by the example scripts")
         W = make_rook_weights(12); N = size(W, 1)
         IN = sparse(1.0I, N, N)
         rng = MersenneTwister(4242)
@@ -3856,6 +3923,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "23. Regressions found by the full sweep" begin
+        _progress("23. Regressions found by the full sweep")
         W = make_rook_weights(10); N = size(W, 1)
         IN = sparse(1.0I, N, N)
         rng = MersenneTwister(606)
@@ -4051,6 +4119,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "24. Extension Entry Points" begin
+        _progress("24. Extension Entry Points")
         # The extension functions are declared by the parent, so
         # `using SpatialEconometrics` alone makes them reachable. An
         # extension cannot usefully export anything of its own: nothing ever
@@ -4082,6 +4151,7 @@ vcov(m::HausMock) = m.V
                    !isnothing(Base.identify_package("Distributions"))
 
     @testset "25. Makie Extension" begin
+        _progress("25. Makie Extension")
         if !_HAVE_MAKIE
             @info "Makie is not installed: skipping the Makie extension tests."
             @test_skip false
@@ -4122,6 +4192,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "26. Turing Extension" begin
+        _progress("26. Turing Extension")
         if !_HAVE_TURING
             @info "Turing is not installed: skipping the Turing extension tests."
             @test_skip false
@@ -4197,6 +4268,7 @@ vcov(m::HausMock) = m.V
 
 
     @testset "27. Durbin Score Tests (Koley & Bera)" begin
+        _progress("27. Durbin Score Tests (Koley & Bera)")
         SD = SpatialEconometrics.SpatialDiagnostics
         chi2sf = SpatialEconometrics.SpatialUtils._chi2_sf
 
@@ -4389,6 +4461,7 @@ vcov(m::HausMock) = m.V
 
 
     @testset "28. knn W Selection by AIC" begin
+        _progress("28. knn W Selection by AIC")
         # The generating design throughout: coordinates uniform on the unit
         # square, y from a SAR on the knn W at k = 6, rho = 0.5.
         K_STAR = 6
@@ -4550,6 +4623,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "29. Identification guards on the design matrix" begin
+        _progress("29. Identification guards on the design matrix")
         SU = SpatialEconometrics.SpatialUtils
 
         # Two estimators used to meet a rank-deficient design the same way
@@ -4908,6 +4982,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "30. Bayesian specification comparison" begin
+        _progress("30. Bayesian specification comparison")
         # Deterministic data throughout, since `randn(::MersenneTwister)` is
         # not promised to give the same numbers across Julia releases and
         # this testset asserts which specification wins. The disturbances
@@ -5230,6 +5305,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "31. Spatio-temporal principal components" begin
+        _progress("31. Spatio-temporal principal components")
         SF = SpatialEconometrics.SpatialFiltering
         SD = SpatialEconometrics.SpatialDiagnostics
 
@@ -5488,6 +5564,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "32. Performance invariants" begin
+        _progress("32. Performance invariants")
         # Correctness tests do not notice an accidental quadratic: the old
         # `row_standardize!` rescanned every nonzero in the matrix once per
         # row, so it was O(N * nnz) rather than O(nnz), and every assertion
@@ -5795,6 +5872,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "33. GWR compact local design" begin
+        _progress("33. GWR compact local design")
         # Every local regression used to build a dense `N x K` weighted
         # design when only the `b` rows inside the kernel's support carry
         # anything. The compact form is the same arithmetic on the rows that
@@ -6048,6 +6126,7 @@ vcov(m::HausMock) = m.V
 
 
     @testset "34. Spatial causal inference" begin
+        _progress("34. Spatial causal inference")
         # The verification standard here is algebra, not a recovery
         # tolerance: the two-period design first-differences to an exact
         # OLS problem, so with no noise the estimator must return the
@@ -6989,6 +7068,7 @@ vcov(m::HausMock) = m.V
         end
     end
     @testset "35. Spatial synthetic control" begin
+        _progress("35. Spatial synthetic control")
         # The gate here is the same one testset 34 uses: algebra where the
         # quantity is algebraic. The donor weights solve a convex program,
         # so the reference is not a tolerance on recovery but the exact
@@ -7663,6 +7743,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "36. Spatial shift-share diagnostics" begin
+        _progress("36. Spatial shift-share diagnostics")
         # Three of the four quantities in this module are exact algebraic
         # identities published as such -- the Borusyak-Hull-Jaravel
         # shock-level equivalence, the Goldsmith-Pinkham-Sorkin-Swift
@@ -8154,6 +8235,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "37. Spatial econometrics for networks" begin
+        _progress("37. Spatial econometrics for networks")
         # Bramoulle, Djebbari and Fortin (2009) is unusually good to test
         # against: their identification results are statements about the
         # rank of integer-structured matrices, so the gates here are exact
@@ -8751,6 +8833,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "38. Weak vs strong cross-sectional dependence" begin
+        _progress("38. Weak vs strong cross-sectional dependence")
         # Pesaran (2015) and Bailey, Kapetanios & Pesaran (2016) state their
         # results as equations and as thresholds, so most gates here are
         # machine-precision identities or exact integers rather than bands.
@@ -9123,6 +9206,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "39. Spatio-temporal models" begin
+        _progress("39. Spatio-temporal models")
         # As above: implications, never guarded tests.
         ST = SpatialEconometrics.SpatioTemporalModels
 
@@ -9592,6 +9676,7 @@ vcov(m::HausMock) = m.V
     # ═══════════════════════════════════════════════════════════════════
 
     @testset "40. Spatial VAR" begin
+        _progress("40. Spatial VAR")
         SV = SpatialEconometrics.SpVAR
 
         # A ring is regular, so row-standardising keeps W⁽¹⁾ symmetric —
@@ -10339,6 +10424,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "41. Semiparametric spatial" begin
+        _progress("41. Semiparametric spatial")
         # Shared draw: knn W on random points, the Su & Jin (2010, §6)
         # regressor x = 0.2z² − z + v and m(z) = 2 logistic(z).
         function sp_draw(rng, n, ρ)
@@ -10530,6 +10616,7 @@ vcov(m::HausMock) = m.V
         end
     end
     @testset "42. Short-T CRE spatial dynamic panel (Li & Yang 2021)" begin
+        _progress("42. Short-T CRE spatial dynamic panel (Li & Yang 2021)")
         CM = SpatialEconometrics.CREDynamicSpatialPanel
         # Queen W1 = W3 on an L×L grid; W2 group interaction in blocks of L.
         function cre_W(L)
@@ -10823,6 +10910,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "43. Short-T dynamic spatial panel with common shocks (Bai & Chen 2026)" begin
+        _progress("43. Short-T dynamic spatial panel with common shocks (Bai & Chen 2026)")
         CS = SpatialEconometrics.CommonShockDynamicPanel
         function cs_knn(rng, N, k)
             P = rand(rng, N, 2); W = zeros(N, N)
@@ -11027,6 +11115,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "44. Spatial log-GARCH (Sato & Matsuda 2021) and covariate-distance W" begin
+        _progress("44. Spatial log-GARCH (Sato & Matsuda 2021) and covariate-distance W")
         SG = SpatialEconometrics.SpatialGARCH
         lqcov = SpatialEconometrics.SpatialUtils._lq_cov
         # The design shared by 44a–44d: rook 7×7, one covariate.
@@ -11225,6 +11314,7 @@ vcov(m::HausMock) = m.V
     end
 
     @testset "45. The Claude skill's function reference matches the docstrings" begin
+        _progress("45. The Claude skill's function reference matches the docstrings")
         # skills/spatial-econometrics/references/api/ is generated from the
         # docstrings by skills/build_reference.jl. A docstring changed without
         # rerunning the script fails here.
