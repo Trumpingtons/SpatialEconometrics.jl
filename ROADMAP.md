@@ -1192,9 +1192,12 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      signal: its bias scales with the signal-to-noise ratio times K/n, not
      with leverage. Leverage 1 rules out any estimator free of `f`. CJN's
      `(M∘M)⁻¹û²`, which is free of `f`, is within 2% at K/n ≤ 0.11 at both
-     signal strengths and falls to 0.84–0.99 at K/n = 0.25. Still open: a
-     proof for K/n → 0 with bounded leverage, a correction for CJN's bias
-     at larger K/n, and coverage.
+     signal strengths and falls to 0.84–0.99 at K/n = 0.25. Proposition 2
+     proves the coded HC2 `V̂` consistent for K/n → 0, with four moments (not
+     the eight the conjecture asked for) and a new condition A10, that the
+     linear-part signal does not sit on high-leverage units. The key fact
+     is that `Cs∘Cs` has bounded row sums although `Cs` is dense. Still
+     open: a correction for K/n → c > 0, and coverage.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:

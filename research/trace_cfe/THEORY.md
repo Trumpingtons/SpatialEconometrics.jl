@@ -9,7 +9,9 @@ a first analysis. Revised again after reading Bhansali, Giraitis & Kokoszka
 needs a log factor, and it cites the martingale CLT as Hall & Heyde state it.
 Revised a third time the same day: Theorem 1 needs only `2 + δ` moments,
 and the Corollary (the estimator's limit and the choice of root) and
-Proposition 1 (the two-step REsd, formerly Remark 2) are proved.
+Proposition 1 (the two-step REsd, formerly Remark 2) are proved. Later the
+same day: Proposition 2 (the robust `V̂` is consistent when K/n → 0) is
+proved, and the leave-out alternatives are measured.
 The numerical checks are in `tc_clt.jl`, `tc_schatten.jl`, `tc_clt_moments.jl`
 and their output. ROADMAP #13,
 research item, theory step 1.
@@ -57,6 +59,12 @@ For the estimator (the Corollary) only:
   assumption: if instead `limsup J/n < 0`, everything below holds with the
   sign rule reversed. Assumed, not derived. In `tc_roots.jl`, `J/n` is
   0.20–0.28.
+
+For the variance estimate (Proposition 2) only:
+- **A10.** `Σᵢ bᵢ²hᵢᵢ = o(n)`: the
+  signal in the linear part does not sit on high-leverage units. It holds
+  if `maxᵢ hᵢᵢ → 0` (then it is `o(‖b‖²)`), or if `maxᵢ |bᵢ|` is bounded and
+  `K/n → 0` (then it is `O(K)`).
 
 ## Lemma 1: the moment at the true ρ (proved)
 
@@ -281,8 +289,9 @@ Assume A1–A9, and choose `ρ̂` by the **sign rule**: of the two roots of
     J (ρ̂ − ρ₀) / √V → N(0, 1),
 
 so `ρ̂ − ρ₀ = O_p(n^{−1/2})`. Moreover `|g′(ρ̂)|/J → 1` in probability, so
-the feasible standard error `√V̂ / |g′(ρ̂)|` is valid whenever `V̂/V → 1`,
-which is step 2 and is open.
+the feasible standard error `√V̂ / |g′(ρ̂)|` is valid whenever `V̂/V → 1`.
+Proposition 2 proves that for the coded `V̂` when K/n → 0 (under A10 and
+four moments); for K/n → c > 0 it is open.
 
 *Proof.* Write `η = f + ε = y₀(ρ₀)` and `t = ρ − ρ₀`. Since `y = (I − ρ₀W)⁻¹η`,
 `Wy = Gη`, and `y₀(ρ) = η − tGη`. So `g` is exactly a quadratic in `t`:
@@ -749,6 +758,81 @@ Newey's own correction is the place to start. The Gaussian correction tried
 in `tc_vhat.jl` made things worse there, but leverage reached 1 in that
 design.
 
+**Proposition 2 (the robust `V̂` is consistent when K/n → 0; proved).**
+Take the coded `V̂` with the HC2 plug-in `sᵢ = ûᵢ²/Mᵢᵢ`, evaluated at the
+root `ρ̂`. Assume A1 with `μ₄ = supᵢ E εᵢ⁴ < ∞`, A2–A9, A10 and `K/n → 0`.
+Then `V̂/V → 1` in probability. Neither the noise term nor any leave-out
+correction is needed for this; both act only on the `O(K/n)` bias.
+
+*Proof.* Write `Ω = Cs∘Cs` and `G₂ = (C + C′)P_B`, so that `V = 2σ²′Ωσ² +
+Σᵢ bᵢ²σᵢ²` and `V̂ = 2s′Ωs + Σᵢ (âᵢ² − (G₂∘G₂ s)ᵢ)sᵢ`. Since A5 gives
+`V ≥ 2σ̲⁴‖Cs‖_F² ≥ cn`, it is enough to show `V̂ − V = o_p(n)`. Two facts
+carry the argument:
+- **`Ω` is bounded although `Cs` is dense.** Its entries are non-negative,
+  its diagonal is zero (`diag C = 0`), and its row sums are
+  `Σⱼ Csᵢⱼ² = ‖Cs eᵢ‖² ≤ ‖Cs‖_op² ≤ c` (Lemma 2). So `‖Ω‖_op ≤ c` and
+  `‖Ω‖_F² ≤ nc²`.
+- **`sᵢ` is `εᵢ²` plus a remainder of order `hᵢᵢ`.** At `ρ₀`, with `f ∈ span
+  B`, `ûᵢ = Mᵢᵢεᵢ − rᵢ` with `rᵢ = Σ_{j≠i} hᵢⱼεⱼ`. Then `sᵢ = εᵢ² + dᵢ`,
+  `dᵢ = −hᵢᵢεᵢ² − 2εᵢrᵢ + rᵢ²/Mᵢᵢ`. From `Σ_{j≠i} hᵢⱼ² = hᵢᵢ(1 − hᵢᵢ)`,
+  `E rᵢ² ≤ σ̄²hᵢᵢ` and `E rᵢ⁴ ≤ (3σ̄⁴ + μ₄)hᵢᵢ²`; with A3 this gives
+  `E dᵢ² ≤ c hᵢᵢ`. Hence `E‖d‖² ≤ cK` and `Σᵢ (E dᵢ²)^{1/2} ≤ c Σᵢ √hᵢᵢ ≤
+  c√(nK)`, by Cauchy–Schwarz and `Σᵢ hᵢᵢ = K`. Both are `o(n)` when
+  `K/n → 0`.
+
+1. **Quadratic part at `ρ₀`.** With `e = (εᵢ²)ᵢ`,
+
+       s′Ωs − σ²′Ωσ² = (e − σ²)′Ω(e − σ²) + 2σ²′Ω(e − σ²) + 2e′Ωd + d′Ωd.
+
+   The first term has mean zero because `Ω` has a zero diagonal and the
+   `εᵢ² − σᵢ²` are independent; its variance is at most
+   `2μ₄²‖Ω‖_F² = O(n)`. The second has variance at most `4μ₄‖Ωσ²‖² = O(n)`.
+   So both are `O_p(√n)`. For the third, `E|e′Ωd| ≤ Σᵢⱼ Ωᵢⱼ (E εⱼ⁴)^{1/2}
+   (E dᵢ²)^{1/2} ≤ c Σᵢ √hᵢᵢ = O(√(nK))`, using the row sums of `Ω`. The
+   fourth is at most `‖Ω‖_op‖d‖² = O_p(K)`.
+2. **Linear part at `ρ₀`.** `â = b + η`, with `η = C′P_Bε`. Split
+   `Σᵢ âᵢ²sᵢ − Σᵢ bᵢ²σᵢ²` into four pieces:
+   - `Σ bᵢ²(εᵢ² − σᵢ²)` has variance at most `μ₄ Σ bᵢ⁴ ≤ μ₄ maxᵢ bᵢ² ‖b‖²`,
+     which is `o(n²)` by A6 and `‖b‖² = O(n)` (A8, Lemma 2).
+   - `Σ bᵢ²dᵢ`. Its part `−2Σ bᵢ²εᵢrᵢ` is a quadratic form in `ε` with a
+     zero diagonal and matrix entries `bᵢ²hᵢₖ`, so its variance is at most
+     `4σ̄⁴ Σᵢ bᵢ⁴ hᵢᵢ = o(n²)`. Its other parts have absolute mean at most
+     `c Σᵢ bᵢ² hᵢᵢ`, which is `o(n)` by A10.
+   - `2Σ bᵢηᵢsᵢ ≤ 2(Σ bᵢ²sᵢ)^{1/2}(Σ ηᵢ²sᵢ)^{1/2}`, and
+   - `Σ ηᵢ²sᵢ` and the noise term `s′(G₂∘G₂)s`. Their means are at most
+     `c Σᵢ Var ηᵢ ≤ c‖C‖_op²K` and `c‖G₂‖_F² ≤ cK`, because
+     `E ηᵢ⁴ ≤ c (Var ηᵢ)²`, `E sᵢ² ≤ c` and `E sᵢsₖ ≤ c` under four moments.
+     So they are `O_p(K)`, and the cross term is `O_p(√(nK))`.
+3. **Replacing `ρ₀` by `ρ̂`.** With `t = ρ̂ − ρ₀ = O_p(n^{−1/2})` (the
+   Corollary) and `m = MWy`, `û(ρ̂) = û − tm` and `â(ρ̂) = â − tG₂Wy`. Here
+   `‖m‖² = O_p(n)` and `‖G₂Wy‖² = O_p(n)` by A7 and A8, so the change `δa` in
+   `â` has `‖δa‖ = O_p(1)`. The change in `s` is
+   `δsᵢ = (−2tûᵢmᵢ + t²mᵢ²)/Mᵢᵢ`, with
+   `‖δs‖ ≤ c(|t| ‖û‖₄‖m‖ + t²‖m‖²) = O_p(n^{−1/2} n^{1/4} n^{1/2}) + O_p(1)
+   = O_p(n^{1/4})`, because `Σ ûᵢ⁴ = O_p(n)` under four moments. So the
+   quadratic part moves by at most `‖Ω‖_op(2‖s‖‖δs‖ + ‖δs‖²) =
+   O_p(n^{3/4})`. The linear part moves by terms such as
+   `|t| Σ âᵢ²|ûᵢmᵢ|/Mᵢᵢ ≤ c|t|(Σ âᵢ²ûᵢ²)^{1/2}(Σ âᵢ²mᵢ²)^{1/2}`, which is
+   `O_p(n^{−1/2})·O_p(√n)·o_p(n)`, since `Σ bᵢ²mᵢ² ≤ maxᵢ bᵢ² ‖m‖² = o_p(n²)`
+   by A6; and `Σ (2âᵢδaᵢ + δaᵢ²)sᵢ`, which is
+   `O_p(√n)·O_p(maxᵢ sᵢ)^{1/2} + O_p(maxᵢ sᵢ) = O_p(n^{3/4})`, since
+   `maxᵢ sᵢ = O_p(√n)` when `E sᵢ² ≤ c`. All of these are `o_p(n)`. ∎
+
+**What the proof says about the measurements.** The remainders are of order
+`√(K/n)` relative to `V` in the worst case, and the measured bias at
+K/n ≈ 0.05 (0.990–1.042 in all the designs above) is smaller than that. The
+proof does not cover `K/n → c > 0`, where `Σ √hᵢᵢ ≍ n` and the bias
+measured above stays. The conjecture asked for eighth moments; consistency
+needs only four. The eighth would be needed for a rate, or for the variance
+of `V̂`.
+
+**The CJN version.** With `s = (M∘M)⁻¹û²` the same steps go through if
+`‖(M∘M)⁻¹‖_∞` is bounded, which Cattaneo, Jansson & Newey obtain from
+`maxᵢ hᵢᵢ < 1/2`; then `E s = σ²` exactly, the `dᵢ` have mean zero, and A10
+is not needed. That condition is stronger than A3, and the designs above
+(leverage up to 0.94) do not satisfy it, although CJN measured well there
+at K/n ≤ 0.11.
+
 ## Still to do
 
 1. Theorem 1 and the Corollary are proved (2026-11-19), the Corollary
@@ -765,8 +849,10 @@ design.
    (`tc_vhat_lo_hat.jl`). Leverage 1 rules out any estimator free of `f`.
    CJN is within 2% at K/n ≤ 0.11 with bounded leverage, at both signal
    strengths, and biased down beyond that by an amount that does not depend
-   on `f`. Still to do: prove consistency of CJN's `V̂` for K/n → 0 with
-   leverage bounded away from 1; correct its bias at larger K/n; coverage.
+   on `f`. Proposition 2 proves the coded HC2 `V̂` consistent for
+   K/n → 0 under four moments and A10. Still to do: a correction for
+   K/n → c > 0 (CJN's bias does not depend on `f`, so it may be removable
+   from `û`); coverage.
 4. Remark 3 for a penalised smoother, with a numerical check.
 5. Reading: de Jong (1987), Bhansali, Giraitis & Kokoszka (2007), Kelejian &
    Prucha (2001) and Hall & Heyde's §3.2 are read. Cattaneo, Jansson & Newey
