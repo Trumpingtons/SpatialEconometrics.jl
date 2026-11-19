@@ -7,7 +7,9 @@ reading de Jong (1987): Theorem 1 is now proved, not sketched, and step 2 has
 a first analysis. Revised again after reading Bhansali, Giraitis & Kokoszka
 (2007), Kelejian & Prucha (2001) and Hall & Heyde (1980): Theorem 1 no longer
 needs a log factor, and it cites the martingale CLT as Hall & Heyde state it.
-The numerical checks are in `tc_clt.jl`, `tc_schatten.jl` and their output. ROADMAP #13,
+Revised a third time the same day: Theorem 1 needs only `2 + δ` moments.
+The numerical checks are in `tc_clt.jl`, `tc_schatten.jl`, `tc_clt_moments.jl`
+and their output. ROADMAP #13,
 research item, theory step 1.
 
 ## Setting
@@ -28,7 +30,10 @@ The design (`W`, `B`, `f`) is fixed. Every statement is conditional on it.
 ## Assumptions
 
 - **A1.** The `εᵢ` are independent, with mean 0, variances
-  `σᵢ² ∈ [σ̲², σ̄²]` where `σ̲ > 0`, and `supᵢ E εᵢ⁴ < ∞`.
+  `σᵢ² ∈ [σ̲², σ̄²]` where `σ̲ > 0`, and `μ̄ = supᵢ E|εᵢ|^{2+δ} < ∞` for
+  some `δ > 0`. They may form a triangular array. Taking `δ ≤ 2` loses
+  nothing, so write `p = 1 + δ/2 ∈ (1, 2]` and `q = 2 + δ ∈ (2, 4]`. (Until
+  2026-11-19 this asked for `supᵢ E εᵢ⁴ < ∞`.)
 - **A2.** `diag(W) = 0`, and `W` has row and column sums bounded in absolute
   value. So `‖W‖_op ≤ c_W`, and each column has `‖Weᵢ‖ ≤ c_W`.
   **This is the only bounded-row-sum condition. It is on `W`, not on `C` or
@@ -116,16 +121,17 @@ matrices, n = 400 to 2500. The lemma is kept because its bound is elementary
 and gives the operator norm at the full rate, which the Schatten bound does
 not.
 
-## Theorem 1: CLT for the moment (proved, given Hall & Heyde's Corollary 3.1 and Macaev's theorem)
+## Theorem 1: CLT for the moment (proved, given Hall & Heyde's Corollary 3.1, Macaev's theorem and two moment inequalities)
 
-Assume A1. Write `σ̲, σ̄` for the variance bounds and `μ̄₄ = supᵢ E εᵢ⁴`. If
+Assume A1, so the errors need only `2 + δ` moments. Write `σ̲, σ̄` for the
+variance bounds. If
 
 - (a) `‖Cs‖_op / ‖Cs‖_F → 0`, and
 - (c′) `maxᵢ bᵢ² / V → 0`,
 
 then `g(ρ₀)/√V → N(0, 1)`. Under A2–A5, (a) holds at rate `n^{−1/2}` by
 Lemma 2. (The first version of this theorem needed
-`(log n)²‖Cs‖_op²/‖Cs‖_F² → 0`, from Lemma 3.)
+`(log n)²‖Cs‖_op²/‖Cs‖_F² → 0`, from Lemma 3, and fourth moments.)
 (c′) is implied by A6, and it is weaker than A6 when the quadratic
 part dominates `V`.
 
@@ -151,23 +157,61 @@ array.
      Lemma 3, `‖L‖_op² ≤ C₄²‖Cs‖_op‖Cs‖_F`. Since
      `V² ≥ 8σ̲⁶‖b‖²‖Cs‖_F²` (from `(x + y)² ≥ 4xy`),
      `Var A/V² ≤ c‖Cs‖_op/‖Cs‖_F`.
-   - `B = u′Σu = ε′Dε` with `D = L′ΣL`. For independent errors and a
-     symmetric `D`, `Var(ε′Dε) ≤ (μ̄₄ + 2σ̄⁴)‖D‖_F²`. Since
-     `0 ≼ L′ΣL ≼ σ̄²L′L`, `‖D‖_F ≤ σ̄²‖L′L‖_F ≤ σ̄²C₄²‖Cs‖_op‖Cs‖_F`. With
-     `V ≥ 2σ̲⁴‖Cs‖_F²`, `Var B/V² ≤ c‖Cs‖_op²/‖Cs‖_F²`.
+   - `B = u′Σu = ε′Dε` with `D = L′ΣL`, which is symmetric and positive
+     semidefinite. Split it as `B − E B = B₁ + B₂`, with
+     `B₁ = Σ_{j≠k} Dⱼₖεⱼεₖ` and `B₂ = Σⱼ Dⱼⱼ(εⱼ² − σⱼ²)`.
+     - **`B₁` needs only second moments.** Its terms are uncorrelated except
+       in the pairs `{j, k} = {l, m}`, so `E B₁² = 2Σ_{j≠k} Dⱼₖ²σⱼ²σₖ² ≤
+       2σ̄⁴‖D‖_F²`. Since `0 ≼ L′ΣL ≼ σ̄²L′L`,
+       `‖D‖_F ≤ σ̄²‖L′L‖_F ≤ σ̄²C₄²‖Cs‖_op‖Cs‖_F`. With `V ≥ 2σ̲⁴‖Cs‖_F²`,
+       `E B₁²/V² ≤ c‖Cs‖_op²/‖Cs‖_F²`.
+     - **`B₂` is a sum of independent, mean-zero terms with `p` moments.**
+       By von Bahr & Esseen's (1965) inequality, for `1 ≤ p ≤ 2`,
+       `E|Σⱼ Xⱼ|^p ≤ 2Σⱼ E|Xⱼ|^p`. Here
+       `E|εⱼ² − σⱼ²|^p ≤ 2^{p−1}(E|εⱼ|^{2p} + σⱼ^{2p}) ≤ 2^p μ̄`, by
+       Jensen's inequality for the second term. So
+       `E|B₂|^p ≤ 2^{p+1}μ̄ Σⱼ Dⱼⱼ^p`. Each `Dⱼⱼ = Σᵢσᵢ²Lᵢⱼ² ≤
+       σ̄²‖Cs eⱼ‖² ≤ σ̄²‖Cs‖_op²`, and `Σⱼ Dⱼⱼ = tr D ≤ σ̄²‖L‖_F² =
+       σ̄²‖Cs‖_F²/2`. So `Σⱼ Dⱼⱼ^p ≤ (maxⱼ Dⱼⱼ)^{p−1} Σⱼ Dⱼⱼ ≤
+       σ̄^{2p}‖Cs‖_op^{2(p−1)}‖Cs‖_F²/2`, and with `V^p ≥
+       (2σ̲⁴)^p‖Cs‖_F^{2p}`,
+       `E|B₂|^p/V^p ≤ c (‖Cs‖_op²/‖Cs‖_F²)^{p−1} = c (‖Cs‖_op/‖Cs‖_F)^δ`.
 
-   The constants depend only on `σ̲`, `σ̄`, `μ̄₄` and `C₄`. Both ratios tend to
-   0 by (a), so `S/V → 1` in probability.
-2. **Lyapunov, which implies the conditional Lindeberg condition.**
-   By independence, `E ξᵢ⁴ = E εᵢ⁴ · E(bᵢ + 2uᵢ)⁴ ≤ 8μ̄₄(bᵢ⁴ + 16 E uᵢ⁴)`.
-   For a weighted sum of independent terms,
-   `E uᵢ⁴ ≤ max(μ̄₄, 3σ̄⁴)(Σⱼcᵢⱼ²)²`. Then:
-   - `Σᵢbᵢ⁴ ≤ maxᵢbᵢ²‖b‖² ≤ maxᵢbᵢ² V/σ̲²`;
-   - `Σᵢ(Σⱼcᵢⱼ²)² ≤ maxᵢ‖cᵢ‖² ‖Cs‖_F² ≤ ‖Cs‖_op²‖Cs‖_F²`, because a row
-     norm is at most the operator norm.
+   The constants depend only on `σ̲`, `σ̄`, `μ̄`, `δ` and `C₄`. Every bound
+   tends to 0 by (a), so `A/V`, `B₁/V` and `B₂/V` tend to 0 in probability
+   (Chebyshev's and Markov's inequalities), and `S/V → 1` in probability.
+   The earlier proof used fourth moments here, because `Var(ε′Dε)` contains
+   `Σⱼ Dⱼⱼ² Var(εⱼ²)`, and in the Lyapunov step below, which was of order 4.
+2. **Lyapunov of order `q = 2 + δ`, which implies the conditional
+   Lindeberg condition.** For `Xᵢ = ξᵢ/√V` and any `η > 0`,
+   `E Σᵢ E[Xᵢ² 1{|Xᵢ| > η} | Fᵢ₋₁] = Σᵢ E[Xᵢ² 1{|Xᵢ| > η}] ≤
+   η^{−δ} Σᵢ E|ξᵢ|^q / V^{q/2}`, so if the right side tends to 0 the
+   conditional sum tends to 0 in `L¹`, hence in probability.
 
-   So `Σᵢ E ξᵢ⁴/V² ≤ c₂[maxᵢbᵢ²/V + ‖Cs‖_op²/‖Cs‖_F²]`, which tends to 0 by
-   (c′) and (a). ∎
+   By independence of `εᵢ` and `uᵢ`,
+   `E|ξᵢ|^q = E|εᵢ|^q · E|bᵢ + 2uᵢ|^q ≤ μ̄ 2^{q−1}(|bᵢ|^q + 2^q E|uᵢ|^q)`.
+   By Rosenthal's (1970) inequality for the independent, mean-zero terms of
+   `uᵢ = Σ_{j<i} cᵢⱼεⱼ`, with `rᵢ² = Σ_{j<i} cᵢⱼ²`,
+
+       E|uᵢ|^q ≤ C_q [Σⱼ |cᵢⱼ|^q E|εⱼ|^q + (Σⱼ cᵢⱼ²σⱼ²)^{q/2}] ≤ C_q (μ̄ + σ̄^q) rᵢ^q,
+
+   because `Σⱼ|cᵢⱼ|^q ≤ (Σⱼcᵢⱼ²)^{q/2}` for `q ≥ 2`. Then:
+   - `Σᵢ|bᵢ|^q ≤ (maxᵢbᵢ²)^{δ/2}‖b‖² ≤ (maxᵢbᵢ²)^{δ/2} V/σ̲²`, so this part
+     of the ratio is at most `c (maxᵢbᵢ²/V)^{δ/2}`;
+   - `Σᵢ rᵢ^q ≤ (maxᵢ rᵢ²)^{δ/2} Σᵢ rᵢ² ≤ ‖Cs‖_op^δ ‖Cs‖_F²/2`, because a
+     row norm is at most the operator norm, and with
+     `V^{q/2} ≥ (2σ̲⁴)^{q/2}‖Cs‖_F^q` this part is at most
+     `c (‖Cs‖_op/‖Cs‖_F)^δ`.
+
+   So `Σᵢ E|ξᵢ|^q/V^{q/2} ≤ c₂[(maxᵢbᵢ²/V)^{δ/2} + (‖Cs‖_op/‖Cs‖_F)^δ]`,
+   which tends to 0 by (c′) and (a). ∎
+
+**The cost of fewer moments is the rate, not the conditions.** Every bound
+above is a power of the same two ratios as before, `‖Cs‖_op/‖Cs‖_F` and
+`maxᵢbᵢ²/V`. The bounds that used fourth moments (`B₂` and Lyapunov) now
+have exponents `δ` and `δ/2` where they had 2 and 1. So with
+`δ` small the normal approximation should improve slowly in n, and
+`tc_clt_moments.jl` shows that (see the numerical check below).
 
 **Against Kelejian & Prucha (2001)** (Theorem 1, Assumptions 1–3 and the
 proof in their appendix, read 2026-11-19 from the page images). Their CLT
@@ -179,8 +223,12 @@ conditions differ from ours in three places:
   dense `M` breaks; Theorem 1 replaces this with (a);
 - they need `n⁻¹σ²_Q ≥ c > 0`, the rate `n`; Theorem 1 needs no rate;
 - they need only `2 + η` moments when `aᵢᵢ = 0` (their Assumption 3(a)), and
-  `4 + η` otherwise; Theorem 1 uses fourth moments throughout. Lowering this
-  would need a truncation argument, as in de Jong (1987), and is not done.
+  `4 + η` otherwise; Theorem 1 now matches them, with `2 + δ` (the
+  zero diagonal is what allows it: a nonzero `Cᵢᵢ` would bring
+  `Σᵢ Cᵢᵢ(εᵢ² − σᵢ²)` into `g`, whose variance needs fourth moments). No
+  truncation is needed, because the zero diagonal leaves the `εᵢ²` only
+  inside the conditional variance, where a law of large numbers with `p`
+  moments is enough.
 
 **Against Lee (2004)** (as restated, with its proof, in Appendix 1A of the
 book chapter "Spatial econometric models: model specifications and basic
@@ -219,9 +267,17 @@ Expand `0 = g(ρ̂) = g(ρ₀) + g′(ρ₀)(ρ̂ − ρ₀) + a(ρ̂ − ρ₀)
 `a = (Wy)′C(Wy)`. Two things need showing:
 - `J := −E g′(ρ₀) = 2[f′W′Csf + tr(W′CsΣ)]`, with `liminf J/n > 0`. This
   is the identification condition; it is assumed.
-- `g′(ρ₀) − E g′(ρ₀) = O_p(√n)` and `a = O_p(n)`. Both are linear-quadratic
+- `g′(ρ₀) − E g′(ρ₀) = o_p(n)` and `a = O_p(n)`. Both are linear-quadratic
   forms in `ε` whose matrices have bounded operator norm, by Lemma 2, and
-  Frobenius norm `O(√n)`.
+  Frobenius norm `O(√n)`. For `a`, `|a| ≤ ‖C‖_op‖Wy‖²` and
+  `E‖Wy‖² = O(n)` with second moments, so Markov gives `a = O_p(n)`. For
+  `g′`, whose matrix
+  `A` has a nonzero diagonal, the linear and off-diagonal parts are
+  `O_p(√n)` with second moments, and the diagonal part
+  `Σᵢ Aᵢᵢ(εᵢ² − σᵢ²)` is `O_p(n^{1/p}) = o_p(n)` by von Bahr & Esseen, as
+  in Theorem 1's proof. With fourth moments it would be `O_p(√n)`; `o_p(n)`
+  is all the expansion needs, because `ρ̂ − ρ₀ = O_p(n^{−1/2})` then follows
+  from Theorem 1 and `liminf J/n > 0`.
 
 Then `(ρ̂ − ρ₀) J/√V → N(0, 1)`, and `ρ̂` is `√n`-consistent.
 
@@ -295,6 +351,37 @@ The full output, with n = 900 and 1600 and every quantity, is in
 - **Caveat:** the size of `|z| > 1.96` is close to 0.05 even in the power
   check. A symmetric two-sided size is not a sensitive test of normality
   here; the skewness and the KS distance are.
+
+## Numerical check with no fourth moment (`tc_clt_moments.jl`, 2026-11-19)
+
+`tc_clt.jl`'s hat-basis design (same seed, `W`, basis, `f` and variances),
+K ≈ 2√n, R = 2000, with two error laws whose fourth moment is infinite and
+whose moments of order below 3 are finite, so A1 holds for any `δ < 1`:
+standardised `t₃` (symmetric) and a centred Pareto with tail index 3
+(skewed). The KS 95% critical value is 0.030.
+
+| n | `‖Cs‖_op/‖Cs‖_F` | KS, `t₃` | KS, Pareto | KS, `χ²₃` (`tc_clt.jl`) |
+|---|---|---|---|---|
+| 400 | 0.178 | 0.062 | 0.131 | 0.041 |
+| 900 | 0.114 | 0.044 | 0.111 | 0.032 |
+| 1600 | 0.081 | 0.050 | 0.097 | 0.016 |
+| 2500 | 0.064 | 0.039 | 0.078 | 0.018 |
+| 4900 | 0.044 | 0.038 | 0.067 | — |
+
+- **Normality improves with n under both laws, but slowly**, as the proof's
+  exponents predict. At n = 4900 neither law is within the KS critical
+  value: `t₃` has levelled off near 0.04, and the Pareto law is still
+  falling. Its sample skewness of `z` stays at 1–3.6, which with an
+  infinite fourth moment is itself very noisy.
+- The size of `|z| > 1.96` is 0.034–0.052, and the sd of `z` is
+  0.93–1.10 (Pareto) and 0.98–1.03 (`t₃`).
+- **Power check:** with `t₃` errors and `W` of two complete groups, where
+  (a) fails, the KS distance stays at 0.18–0.19 for every n.
+
+So the simulation is consistent with Theorem 1 under `2 + δ` moments, and
+shows its practical cost: with heavy tails, n in the thousands still leaves
+a visible departure from normality in the tails of `z`. This is about the
+moment at the true `ρ`; the effect on `ρ̂`'s coverage is not measured.
 
 ## Theory step 2: the robust variance (first analysis, 2026-11-19)
 
@@ -384,10 +471,12 @@ worse, and even goes negative. A remedy must therefore cope with leverage near
 5. Reading: de Jong (1987), Bhansali, Giraitis & Kokoszka (2007), Kelejian &
    Prucha (2001) and Hall & Heyde's §3.2 are read. Cattaneo, Jansson & Newey
    (2018) §3 and Kline, Saggio & Sølvsten (2020) §4.2 have been read via
-   alphaXiv. Macaev's theorem (1961) is used as Bhansali et al. state it,
-   and has not been read.
-6. Fewer moments: Theorem 1 uses fourth moments, where Kelejian & Prucha and
-   Bhansali et al. need only `2 + δ` for a zero diagonal.
+   alphaXiv. Macaev's theorem (1961), von Bahr & Esseen's inequality (1965)
+   and Rosenthal's inequality (1970) are used as they are usually stated,
+   and have not been read.
+6. Theorem 1 now needs `2 + δ` moments (done 2026-11-19). Step 2's
+   conjecture still asks for eighth moments, which the variance of `V̂`
+   needs; whether fewer suffice for consistency alone is open.
 
 ## References
 
@@ -419,6 +508,12 @@ the book chapter there. The others have not been read.
 - Lee, L.-F. (2004). Asymptotic distributions of quasi-maximum likelihood
   estimators for spatial autoregressive models. *Econometrica*, 72(6),
   1899–1925. doi:10.1111/j.1468-0262.2004.00558.x
+- Rosenthal, H. P. (1970). On the subspaces of Lᵖ (p > 2) spanned by
+  sequences of independent random variables. *Israel Journal of
+  Mathematics*, 8(3), 273–303. doi:10.1007/BF02771562
+- von Bahr, B., & Esseen, C.-G. (1965). Inequalities for the rth absolute
+  moment of a sum of random variables, 1 ≤ r ≤ 2. *The Annals of
+  Mathematical Statistics*, 36(1), 299–303. doi:10.1214/aoms/1177700291
 - Macaev, V. I. (1961). A class of completely continuous operators. *Doklady
   Akademii Nauk SSSR*, 139, 548–551 (in Russian). Cited from Bhansali et al.;
   not checked or read.

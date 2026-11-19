@@ -1,0 +1,24 @@
+knn t3 n=400 K=16            ‖Cs‖op/‖Cs‖F 0.158 | maxb²/V 0.001 | z: mean 0.281 sd 1.015 skew 1.162 exk 1.036 size 0.08 KS 0.165
+warm-up done. Monte Carlo SEs at R = 2000: mean 0.022, sd 0.016 (normal case), size 0.005; KS 95% critical value 0.030.
+Sample skewness and kurtosis are reported, but with an infinite fourth moment their own sampling error is large.
+
+Errors t3; local (hat) basis, K ≈ 2√n
+knn t3 n=400 K=36            ‖Cs‖op/‖Cs‖F 0.178 | maxb²/V 0.004 | z: mean 0.048 sd 0.986 skew 1.216 exk 12.563 size 0.04 KS 0.062
+knn t3 n=900 K=64            ‖Cs‖op/‖Cs‖F 0.114 | maxb²/V 0.001 | z: mean 0.011 sd 1.027 skew 1.182 exk 19.378 size 0.046 KS 0.044
+knn t3 n=1600 K=81           ‖Cs‖op/‖Cs‖F 0.081 | maxb²/V 0.0 | z: mean -0.008 sd 0.979 skew 0.385 exk 2.006 size 0.048 KS 0.05
+knn t3 n=2500 K=100          ‖Cs‖op/‖Cs‖F 0.064 | maxb²/V 0.0 | z: mean -0.017 sd 0.993 skew -0.011 exk 3.15 size 0.044 KS 0.039
+knn t3 n=4900 K=144          ‖Cs‖op/‖Cs‖F 0.044 | maxb²/V 0.0 | z: mean -0.005 sd 0.998 skew 0.392 exk 2.72 size 0.052 KS 0.038
+
+Errors pareto; local (hat) basis, K ≈ 2√n
+knn pareto n=400 K=36        ‖Cs‖op/‖Cs‖F 0.178 | maxb²/V 0.004 | z: mean -0.003 sd 0.941 skew 0.929 exk 43.334 size 0.034 KS 0.131
+knn pareto n=900 K=64        ‖Cs‖op/‖Cs‖F 0.114 | maxb²/V 0.001 | z: mean 0.021 sd 0.927 skew 0.832 exk 14.71 size 0.041 KS 0.111
+knn pareto n=1600 K=81       ‖Cs‖op/‖Cs‖F 0.081 | maxb²/V 0.0 | z: mean -0.001 sd 0.931 skew 1.604 exk 27.354 size 0.035 KS 0.097
+knn pareto n=2500 K=100      ‖Cs‖op/‖Cs‖F 0.064 | maxb²/V 0.0 | z: mean 0.022 sd 1.099 skew 1.769 exk 33.122 size 0.048 KS 0.078
+knn pareto n=4900 K=144      ‖Cs‖op/‖Cs‖F 0.044 | maxb²/V 0.0 | z: mean -0.008 sd 1.054 skew 3.625 exk 61.226 size 0.038 KS 0.067
+
+Power check: t₃ errors, W of two complete groups, hat basis K ≈ 2√n (‖Cs‖op/‖Cs‖F does not vanish)
+groups t3 n=400 K=36         ‖Cs‖op/‖Cs‖F 0.998 | maxb²/V 0.0 | z: mean 0.021 sd 1.016 skew 2.786 exk 11.069 size 0.054 KS 0.181
+groups t3 n=900 K=64         ‖Cs‖op/‖Cs‖F 0.999 | maxb²/V 0.005 | z: mean -0.016 sd 0.978 skew 2.885 exk 14.087 size 0.049 KS 0.182
+groups t3 n=1600 K=81        ‖Cs‖op/‖Cs‖F 1.0 | maxb²/V 0.003 | z: mean -0.011 sd 1.002 skew 2.931 exk 13.961 size 0.05 KS 0.187
+
+total 120.2 s
