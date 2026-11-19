@@ -10,6 +10,7 @@ import StatsAPI: coef, vcov, stderror, nobs, residuals, coefnames, dof_residual
 import ..SpatialUtils: check_design_rank, _print_coef_table, _normcdf, _chi2_sf
 import ..SpatialHAC: ClusterRobustVCOV, vcov_cluster
 import ..SpatialDiagnostics: MoranResult, moran_global
+import ..SpatialDiscreteChoice: _norminv
 import Random
 import Random: AbstractRNG
 
@@ -25,13 +26,15 @@ export ShiftShareDesign, shift_share_design,
 # Internal helpers
 # ═══════════════════════════════════════════════════════════════════════
 
-# Residual of `v` after projecting out the columns of `Z`. Z always carries
-# an intercept here, so this is a demeaning as well as a partialling-out.
-_resid_on(v::AbstractVector{T}, Z::AbstractMatrix{T}) where {T<:AbstractFloat} =
-    v .- Z * (Z \ v)
-
-_resid_on(V::AbstractMatrix{T}, Z::AbstractMatrix{T}) where {T<:AbstractFloat} =
-    V .- Z * (Z \ V)
+# Residual of `V` after projecting out the columns of `Z` by weighted least
+# squares with regression weights `w`, so that it is orthogonal to `Z` in the
+# weighted inner product. Z always carries an intercept here, so this is a
+# demeaning as well as a partialling-out.
+function _resid_on(V::AbstractVecOrMat{T}, Z::AbstractMatrix{T},
+                   w::AbstractVector{T}) where {T<:AbstractFloat}
+    sw = sqrt.(w)
+    return V .- Z * ((Z .* sw) \ (V .* sw))
+end
 
 # Weighted mean, used for the shock-level regressions where the weight is
 # average exposure.
@@ -74,10 +77,13 @@ here, which is why [`fit_shift_share`](@ref) defaults to the Adão, Kolesár
 - `g::Vector{T}` — the `K` shocks.
 - `X::Vector{T}` — the constructed regressor, `W * g`.
 - `Z::Matrix{T}` — controls, always including an intercept column first.
-- `s_bar::Vector{T}` — average exposure to each shock, `ŝ_k = (1/N) Σ_i W[i,k]`.
+- `s_bar::Vector{T}` — average exposure to each shock,
+  `ŝ_k = Σ_i e_i W[i,k] / Σ_i e_i`, with `e` the regression weights.
 - `exposure_sum::Vector{T}` — per-region `Σ_k W[i,k]`.
 - `complete_shares::Bool` — whether `exposure_sum` is constant across regions.
 - `shock_names::Vector{String}`
+- `weights::Vector{T}` — the regression weights `e`, all ones when none
+  were given.
 
 # References
 
@@ -93,16 +99,36 @@ struct ShiftShareDesign{T<:AbstractFloat}
     exposure_sum::Vector{T}
     complete_shares::Bool
     shock_names::Vector{String}
+    weights::Vector{T}
 end
 
 """
-    shift_share_design(W, g; controls = nothing, shock_names = nothing)
+    shift_share_design(W, g; controls = nothing, weights = nothing, shock_names = nothing)
 
 Validate a shift-share design and construct its regressor.
 
 `W` is `N × K` exposure shares (region by shock) and `g` is the `K`-vector
 of shocks. `controls` is an optional `N × L` matrix; an intercept is always
 added and should not be supplied.
+
+# Regression weights
+
+`weights` is an optional `N`-vector of positive regression weights `e_i`,
+such as each region's share of the national population. Every function
+that takes the design then works with them: the regional regressions are
+weighted least squares, average exposure is `ŝ_k = Σ_i e_i W[i,k] / Σ_i e_i`,
+and the shock-level aggregates are `e`-weighted, as in Borusyak, Hull &
+Jaravel (2022, §2) and in the `w` argument of Adão, Kolesár & Morales's
+`ivreg_ss.fit`. Only their ratios matter, so they need not sum to one.
+
+# Stacked periods
+
+A design over several periods stacks one row per region and period, with
+one share column per shock and period: the shares of a period are zero in
+the rows of the others. The shocks are then the industry-period pairs, as
+in Autor, Dorn & Hanson (2013) and its reanalyses by Adão, Kolesár &
+Morales (2019) and Borusyak, Hull & Jaravel (2022). A period indicator
+belongs among the controls.
 
 # Incomplete shares
 
@@ -126,9 +152,11 @@ exposure anywhere, so its shock-level aggregate in
 function shift_share_design(W::AbstractMatrix{<:Real},
                             g::AbstractVector{<:Real};
                             controls::Union{Nothing, AbstractMatrix{<:Real}} = nothing,
+                            weights::Union{Nothing, AbstractVector{<:Real}} = nothing,
                             shock_names::Union{Nothing, AbstractVector{<:AbstractString}} = nothing)
     T = float(promote_type(eltype(W), eltype(g),
-                           isnothing(controls) ? Bool : eltype(controls)))
+                           isnothing(controls) ? Bool : eltype(controls),
+                           isnothing(weights) ? Bool : eltype(weights)))
     Wm = convert(Matrix{T}, W)
     gv = convert(Vector{T}, g)
     N, K = size(Wm)
@@ -171,8 +199,14 @@ function shift_share_design(W::AbstractMatrix{<:Real},
     length(names) == K || throw(DimensionMismatch(
         "shift_share_design: `shock_names` has $(length(names)) entries, `W` has $K columns."))
 
+    wv = isnothing(weights) ? ones(T, N) : convert(Vector{T}, weights)
+    length(wv) == N || throw(DimensionMismatch(
+        "shift_share_design: `weights` has $(length(wv)) entries, `W` has $N rows."))
+    all(x -> isfinite(x) && x > zero(T), wv) || throw(ArgumentError(
+        "shift_share_design: `weights` must be finite and positive."))
+
     X = Wm * gv
-    s_bar = vec(sum(Wm; dims = 1)) ./ T(N)
+    s_bar = vec(Wm' * wv) ./ sum(wv)
     esum = vec(sum(Wm; dims = 2))
     complete = maximum(esum) - minimum(esum) <= sqrt(eps(T)) * max(one(T), maximum(abs, esum))
 
@@ -184,13 +218,14 @@ function shift_share_design(W::AbstractMatrix{<:Real},
               "added for you."
     end
 
-    return ShiftShareDesign{T}(Wm, gv, X, Z, s_bar, esum, complete, names)
+    return ShiftShareDesign{T}(Wm, gv, X, Z, s_bar, esum, complete, names, wv)
 end
 
 Base.show(io::IO, d::ShiftShareDesign) = begin
     N, K = size(d.W)
     println(io, "ShiftShareDesign: $N regions, $K shocks")
     println(io, "  controls         : $(size(d.Z, 2) - 1) (plus intercept)")
+    println(io, "  weights          : ", allequal(d.weights) ? "none" : "regression weights")
     println(io, "  complete shares  : $(d.complete_shares)")
     @printf(io, "  regressor X      : mean %.4f, sd %.4f\n",
             mean(d.X), length(d.X) > 1 ? std(d.X) : zero(eltype(d.X)))
@@ -310,8 +345,9 @@ is **numerically identical** to an exposure-weighted estimate computed from
 β̂ = Σ_k ŝ_k g_k ȳ_k / Σ_k ŝ_k g_k x̄_k
 ```
 
-where `ŝ_k` is average exposure, `v̄_k = Σ_i W[i,k] ṽ_i / Σ_i W[i,k]` is the
-exposure-weighted mean of a residualised regional variable, and `ȳ`, `x̄`
+where `ŝ_k` is average exposure, `v̄_k = Σ_i e_i W[i,k] ṽ_i / Σ_i e_i W[i,k]`
+is the exposure-weighted mean of a residualised regional variable, `e` the
+design's regression weights, and `ȳ`, `x̄`
 are those means for the outcome and the regressor or treatment. This is an
 identity, not an approximation, and `beta_equiv` reproduces
 [`fit_shift_share`](@ref)'s estimate to machine precision.
@@ -341,8 +377,8 @@ end
 
 # Exposure-weighted shock-level mean of a residualised regional vector.
 function _aggregate(d::ShiftShareDesign{T}, v::AbstractVector{T}) where {T<:AbstractFloat}
-    num = d.W' * v
-    den = vec(sum(d.W; dims = 1))
+    num = d.W' * (d.weights .* v)
+    den = d.W' * d.weights
     return num ./ den
 end
 
@@ -368,15 +404,15 @@ function shock_aggregate(d::ShiftShareDesign{T}, y::AbstractVector{<:Real};
     length(yv) == N || throw(DimensionMismatch(
         "shock_aggregate: `y` has $(length(yv)) entries, the design has $N regions."))
 
-    ỹ = _resid_on(yv, d.Z)
+    ỹ = _resid_on(yv, d.Z, d.weights)
     is_iv = !isnothing(treatment)
     xsrc = if is_iv
         tv = convert(Vector{T}, treatment)
         length(tv) == N || throw(DimensionMismatch(
             "shock_aggregate: `treatment` has $(length(tv)) entries, the design has $N regions."))
-        _resid_on(tv, d.Z)
+        _resid_on(tv, d.Z, d.weights)
     else
-        _resid_on(d.X, d.Z)
+        _resid_on(d.X, d.Z, d.weights)
     end
 
     y_bar = _aggregate(d, ỹ)
@@ -417,10 +453,19 @@ A shift-share regression with its standard error, returned by
 - `X_tilde::Vector{T}` — the regressor with controls partialled out.
 - `X_ring::Vector{T}` — `X̊`, the `K` coefficients from regressing `X_tilde`
   on the share matrix. Not the raw shocks; see [`fit_shift_share`](@ref).
-- `R_hat::Vector{T}` — `R̂_k = Σ_i W[i,k] ε̂_i`, the share-weighted residual sums.
+- `R_hat::Vector{T}` — `R̂_k = Σ_i e_i W[i,k] ε̂_i`, the share-weighted
+  residual sums, `e` the design's regression weights.
 - `first_stage::T` — `π̂` for IV, `NaN` otherwise.
 - `vcov_type::Symbol` — `:akm` or `:hc1`.
 - `is_iv::Bool`
+- `n_shock_clusters::Int` — the number of clusters of shocks in the AKM
+  standard error, `K` when the shocks were not clustered.
+- `beta0::T`, `level::T` — the null value and the confidence level of the
+  null-imposed interval.
+- `ci_akm0::Tuple{T, T}` — the AKM0 confidence interval of Adão, Kolesár &
+  Morales (2019, Remark 6). It can be unbounded, `(-Inf, Inf)`, or, when
+  `ci_akm0[1] > ci_akm0[2]`, the complement of `(ci_akm0[2], ci_akm0[1])`.
+- `p_akm0::T` — the p-value of the AKM0 test of `beta == beta0`.
 """
 struct ShiftShareFit{T<:AbstractFloat} <: StatsAPI.RegressionModel
     beta::T
@@ -435,6 +480,11 @@ struct ShiftShareFit{T<:AbstractFloat} <: StatsAPI.RegressionModel
     is_iv::Bool
     coefnames::Vector{String}
     design::ShiftShareDesign{T}
+    n_shock_clusters::Int
+    beta0::T
+    level::T
+    ci_akm0::Tuple{T, T}
+    p_akm0::T
 end
 
 StatsAPI.coef(m::ShiftShareFit) = [m.beta]
@@ -447,7 +497,8 @@ StatsAPI.dof_residual(m::ShiftShareFit) =
     length(m.residuals) - size(m.design.Z, 2) - 1
 
 """
-    fit_shift_share(y, design; treatment = nothing, vcov = :akm)
+    fit_shift_share(y, design; treatment = nothing, vcov = :akm,
+                    shock_clusters = nothing, beta0 = 0, level = 0.95)
 
 Fit a shift-share regression and attach a standard error that is valid
 under the design's actual dependence structure.
@@ -468,17 +519,18 @@ spatially-clustered covariances address it.
 Their estimator (eq. 29) is
 
 ```
-se(β̂) = sqrt( Σ_k X̊_k² R̂_k² ) / ( Σ_i X̃_i² ),   R̂_k = Σ_i W[i,k] ε̂_i
+se(β̂) = sqrt( Σ_k X̊_k² R̂_k² ) / ( Σ_i e_i X̃_i² ),   R̂_k = Σ_i e_i W[i,k] ε̂_i
 ```
 
 and for the IV design (eq. 39) the same numerator over
-`Σ_i X̃_i² · |π̂|`, with `ε̂` the structural residual and `π̂` the first-stage
-coefficient.
+`Σ_i e_i X̃_i² · |π̂|`, with `ε̂` the structural residual and `π̂` the
+first-stage coefficient. The `e_i` are the design's regression weights (all
+ones without weights); see [`shift_share_design`](@ref).
 
 `X̊` deserves emphasis because it is easy to get wrong: it is **not** the
 shock vector `g`. It is the vector of coefficients from regressing the
-residualised regressor `X̃` on the share matrix `W`, following step 2 of
-their Remark 5. The two coincide only when there are no controls and `W` is
+residualised regressor `X̃` on the share matrix `W`, by weighted least
+squares when the design has weights, following step 2 of their Remark 5. The two coincide only when there are no controls and `W` is
 square and invertible.
 
 Inference here is conditional on the shares and on the potential outcomes,
@@ -491,6 +543,36 @@ estimator tolerates arbitrary cross-regional correlation in the residuals.
 - `:hc1` — heteroskedasticity-robust, provided **for comparison only**, so
   the gap can be seen rather than described. It is the standard error the
   paper shows to be badly undersized; do not report it.
+
+# Keyword `shock_clusters`
+
+A `K`-vector of group labels, one per shock. The terms `X̊_k R̂_k` are then
+summed within each group before they are squared, so the shocks may be
+correlated within a group and independent across groups (Adão, Kolesár &
+Morales 2019, Section V; the `sector_cvar` argument of their `ivreg_ss.fit`).
+Borusyak, Hull & Jaravel (2022) cluster the industries of Autor, Dorn &
+Hanson (2013) by their 3-digit SIC code this way. In a stacked design, where
+each shock is an industry in a period, giving an industry the same label in
+every period lets its shocks be correlated over time.
+
+# The null-imposed interval, AKM0
+
+The fit also returns the AKM0 interval of Adão, Kolesár & Morales (2019,
+Remark 6) for the confidence level `level`, and the p-value of its test of
+`beta == beta0`. The test imposes the null on the residuals instead of
+estimating them, which removes the downward bias of the AKM standard error
+when there are few effective shocks. Its interval is the set of values
+`b` that the test does not reject,
+
+```
+(β̂ - b)² (Σ_i e_i ẗ_i X̃_i)² ≤ z² Σ_k (X̊_k R̂_k(b))²,   R̂_k(b) = Σ_i e_i W[i,k] (ÿ_i - ẗ_i b)
+```
+
+with `ÿ` and `ẗ` the outcome and the treatment (or the regressor) with the
+controls partialled out, the sums over `k` taken within clusters of shocks
+when there are any, and `z` the normal critical value. The quadratic gives
+a bounded interval when the instrument is strong, and otherwise the union
+of two half-lines or the whole line, as `ci_akm0` reports.
 
 # Requirements
 
@@ -530,9 +612,9 @@ the effective-shock count is a useful summary and not a sufficient one.
 Adão, Kolesár & Morales anticipate the small-shock case themselves — eq. 29
 generalises a cluster-robust formula, so it inherits that formula's
 downward bias from estimation noise in the residuals, which is why they
-also propose a null-imposed interval (their Remark 6). That variant is
-**not implemented here**; where [`exposure_concentration`](@ref) reports few
-effective shocks, treat this interval as optimistic rather than exact.
+also propose the null-imposed interval (their Remark 6), returned in
+`ci_akm0`. Where [`exposure_concentration`](@ref) reports few effective
+shocks, read the AKM0 interval rather than `beta ± z se`.
 
 With no sector component at all (first row) AKM costs a little: 0.930
 against HC1's 0.950. That is the price of robustness when it is not needed.
@@ -540,11 +622,17 @@ against HC1's 0.950. That is the price of robustness when it is not needed.
 # References
 
 Adão, Kolesár & Morales (2019), *Quarterly Journal of Economics* 134(4),
-1949–2010, eqs. 29 and 39 and Remarks 4–5.
+1949–2010, eqs. 29 and 39, Remarks 4–6 and Section V.
+
+Borusyak, Hull & Jaravel (2022), *Review of Economic Studies* 89(1),
+181–213, Appendix C.
 """
 function fit_shift_share(y::AbstractVector{<:Real}, d::ShiftShareDesign{T};
                          treatment::Union{Nothing, AbstractVector{<:Real}} = nothing,
-                         vcov::Symbol = :akm) where {T<:AbstractFloat}
+                         vcov::Symbol = :akm,
+                         shock_clusters::Union{Nothing, AbstractVector} = nothing,
+                         beta0::Real = 0,
+                         level::Real = 0.95) where {T<:AbstractFloat}
     N, K = size(d.W)
     yv = convert(Vector{T}, y)
     length(yv) == N || throw(DimensionMismatch(
@@ -552,9 +640,15 @@ function fit_shift_share(y::AbstractVector{<:Real}, d::ShiftShareDesign{T};
     all(isfinite, yv) || throw(ArgumentError("fit_shift_share: `y` contains a non-finite entry."))
     vcov in (:akm, :hc1) || throw(ArgumentError(
         "fit_shift_share: `vcov` must be :akm or :hc1, got :$vcov."))
+    0 < level < 1 || throw(ArgumentError(
+        "fit_shift_share: `level` must lie strictly between 0 and 1, got $level."))
+    isnothing(shock_clusters) || length(shock_clusters) == K || throw(DimensionMismatch(
+        "fit_shift_share: `shock_clusters` has $(length(shock_clusters)) entries " *
+        "but the design has $K shocks; it takes one label per shock."))
 
-    X̃ = _resid_on(d.X, d.Z)
-    denom = dot(X̃, X̃)
+    w = d.weights
+    X̃ = _resid_on(d.X, d.Z, w)
+    denom = dot(X̃, w .* X̃)
     denom > zero(T) || throw(ArgumentError(
         "fit_shift_share: the shift-share regressor has no variation left " *
         "after the controls are partialled out. Either the shares and shocks " *
@@ -567,23 +661,26 @@ function fit_shift_share(y::AbstractVector{<:Real}, d::ShiftShareDesign{T};
             "fit_shift_share: `treatment` has $(length(tv)) entries, the design has $N regions."))
         all(isfinite, tv) || throw(ArgumentError(
             "fit_shift_share: `treatment` contains a non-finite entry."))
-        xt = dot(X̃, tv)
+        xt = dot(X̃, w .* tv)
         abs(xt) > zero(T) || throw(ArgumentError(
             "fit_shift_share: the instrument is orthogonal to the treatment " *
             "after partialling out the controls, so the first stage is exactly " *
             "zero and the IV estimate is undefined."))
-        β = dot(X̃, yv) / xt
-        ε = _resid_on(yv .- tv .* β, d.Z)
+        β = dot(X̃, w .* yv) / xt
+        ε = _resid_on(yv .- tv .* β, d.Z, w)
         π̂ = xt / denom
         se_denom = abs(xt)
+        ẗ = _resid_on(tv, d.Z, w)
     else
         # Regress y on [X Z] and read the coefficient on X. Equivalent to
         # the partialled-out ratio, computed that way so the residual is the
         # full-design residual rather than one reconstructed from it.
-        β = dot(X̃, yv) / denom
-        ε = _resid_on(yv .- d.X .* β, d.Z)
+        β = dot(X̃, w .* yv) / denom
+        ε = _resid_on(yv .- d.X .* β, d.Z, w)
         π̂ = T(NaN)
         se_denom = denom
+        xt = denom
+        ẗ = X̃
     end
 
     # Step 2 of Remark 5: the shock-level projection of the residualised
@@ -599,33 +696,86 @@ function fit_shift_share(y::AbstractVector{<:Real}, d::ShiftShareDesign{T};
         "the shock-level projection is not unique and the standard error is " *
         "not identified. Two or more shocks have collinear exposure patterns; " *
         "pool them."))
-    X̊ = d.W \ X̃
-    R̂ = d.W' * ε
+    sw = sqrt.(w)
+    X̊ = (d.W .* sw) \ (X̃ .* sw)
+    R̂ = d.W' * (w .* ε)
+
+    # The shock-level terms, summed within clusters of shocks when given.
+    groups = if isnothing(shock_clusters)
+        collect(1:K)
+    else
+        labels = unique(shock_clusters)
+        index = Dict(l => j for (j, l) in enumerate(labels))
+        [index[l] for l in shock_clusters]
+    end
+    G = maximum(groups)
+    function _cluster(v)
+        s = zeros(T, G)
+        for k in 1:K
+            s[groups[k]] += v[k]
+        end
+        return s
+    end
+    cR = _cluster(X̊ .* R̂)
 
     se = if vcov === :akm
-        sqrt(sum(abs2, X̊ .* R̂)) / se_denom
+        sqrt(sum(abs2, cR)) / se_denom
     else
         # HC1 on the partialled-out regression, for comparison only.
         dof = N - size(d.Z, 2) - 1
         dof > 0 || throw(ArgumentError(
             "fit_shift_share: no residual degrees of freedom for an HC1 covariance."))
-        meat = sum(abs2, X̃ .* ε) * T(N) / T(dof)
+        meat = sum(abs2, w .* X̃ .* ε) * T(N) / T(dof)
         sqrt(meat) / se_denom
+    end
+
+    # AKM0 (Remark 6): the test of beta == beta0 with the null imposed on the
+    # residuals, and the interval of the values it does not reject, from the
+    # quadratic (β̂ - b)² RX² = z² Σ_g (cR_g + cW_g (β̂ - b))².
+    b0 = T(beta0)
+    lv = T(level)
+    ÿ = _resid_on(yv, d.Z, w)
+    cR0 = _cluster(X̊ .* (d.W' * (w .* (ÿ .- ẗ .* b0))))
+    cW = _cluster(X̊ .* (d.W' * (w .* ẗ)))
+    z = T(_norminv(1 - (1 - Float64(lv)) / 2))
+    se0 = sqrt(sum(abs2, cR0)) / abs(xt)
+    p0 = se0 > zero(T) ? T(2 * (1 - _normcdf(abs(Float64((β - b0) / se0))))) : T(NaN)
+    Q = xt^2 / z^2 - sum(abs2, cW)
+    Q2 = dot(cR, cW) / Q
+    mid = β - Q2
+    dis = Q2^2 + sum(abs2, cR) / Q
+    ci0 = if Q > zero(T)
+        (mid - sqrt(dis), mid + sqrt(dis))
+    elseif dis > zero(T)
+        (mid + sqrt(dis), mid - sqrt(dis))
+    else
+        (T(-Inf), T(Inf))
     end
 
     name = is_iv ? "treatment (shift-share IV)" : "shift-share regressor"
     return ShiftShareFit{T}(β, se, fill(se^2, 1, 1), ε, X̃, X̊, R̂, π̂,
-                            vcov, is_iv, [name], d)
+                            vcov, is_iv, [name], d, G, b0, lv, ci0, p0)
 end
 
 Base.show(io::IO, m::ShiftShareFit) = begin
     println(io, "ShiftShareFit: ", m.is_iv ? "shift-share IV" : "direct shift-share regression")
-    println(io, "  regions $(nobs(m)), shocks $(length(m.R_hat))")
+    println(io, "  regions $(nobs(m)), shocks $(length(m.R_hat))",
+            m.n_shock_clusters < length(m.R_hat) ?
+            " in $(m.n_shock_clusters) clusters" : "")
     println(io, "  standard error: ", m.vcov_type === :akm ?
             "Adao-Kolesar-Morales" : "HC1 (for comparison only; undersized here)")
     m.is_iv && @printf(io, "  first stage   : %.6f\n", m.first_stage)
     println(io)
     _print_coef_table(io, m.coefnames, [m.beta], [m.se])
+    println(io)
+    lo, hi = m.ci_akm0
+    pct = 100 * m.level
+    if lo <= hi
+        @printf(io, "  AKM0 %g%% interval: [%.6f, %.6f]\n", pct, lo, hi)
+    else
+        @printf(io, "  AKM0 %g%% interval: (-Inf, %.6f] and [%.6f, Inf)\n", pct, hi, lo)
+    end
+    @printf(io, "  AKM0 p-value for beta = %g: %.4f\n", m.beta0, m.p_akm0)
     if m.vcov_type === :hc1
         println(io)
         println(io, "  WARNING: HC1 standard errors are not valid in a shift-share")
@@ -770,7 +920,7 @@ function balance_test(d::ShiftShareDesign{T},
     Qw = Q .* sw                       # weighted least squares by average exposure
 
     # Residualise each characteristic regionally, then aggregate to shocks.
-    R̃ = _resid_on(R, d.Z)
+    R̃ = _resid_on(R, d.Z, d.weights)
     Rbar = reduce(hcat, (_aggregate(d, @view R̃[:, m]) for m in 1:M))
 
     # Weighted regression of each aggregate on the shock-level design. The
@@ -919,12 +1069,13 @@ function rotemberg_weights(y::AbstractVector{<:Real},
     length(tv) == N || throw(DimensionMismatch(
         "rotemberg_weights: `treatment` has $(length(tv)) entries, the design has $N regions."))
 
-    ỹ = _resid_on(yv, d.Z)
-    T̃ = _resid_on(tv, d.Z)
-    Z̃ = _resid_on(d.W, d.Z)
+    ỹ = _resid_on(yv, d.Z, d.weights)
+    T̃ = _resid_on(tv, d.Z, d.weights)
+    Z̃ = _resid_on(d.W, d.Z, d.weights)
 
-    zt = vec(Z̃' * T̃)             # Z̃_k' T̃
-    zy = vec(Z̃' * ỹ)             # Z̃_k' ỹ
+    # Inner products in the design's regression weights e.
+    zt = vec(Z̃' * (d.weights .* T̃))   # Z̃_k' diag(e) T̃
+    zy = vec(Z̃' * (d.weights .* ỹ))   # Z̃_k' diag(e) ỹ
 
     D = dot(d.g, zt)
     abs(D) > zero(T) || throw(ArgumentError(
