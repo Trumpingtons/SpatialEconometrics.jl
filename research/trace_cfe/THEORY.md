@@ -524,8 +524,7 @@ which checks step 2's identities.
   n = 400; 0.0497 against 0.0513 at n = 2500), and its coverage with the
   robust variance and the code's root rule is 0.946–0.952.
 
-**Proposition 4 (a penalised smoother; proved for the moment and the
-estimator, sketched for `V̂`; replaces Remark 3).** Let `M = I − S` with
+**Proposition 4 (a penalised smoother; proved; replaces Remark 3).** Let `M = I − S` with
 `S` symmetric, its eigenvalues in `[0, 1]` (a ridge- or difference-penalised
 spline), `maxᵢ Sᵢᵢ ≤ s̄ < 1` in place of A3, and `M∘M` invertible. Use the
 moment `g(ρ) = y₀′Ay₀` with `A = MW + MDM` and `(M∘M)d = −diag(MW)`, so
@@ -541,13 +540,11 @@ symmetric. Then:
   a smooth `f` because the penalty shrinks: `r` is now shrinkage bias plus
   approximation error, and validity needs `β = f′Af = o(√n)`. Over-smoothing
   breaks it exactly as too small a K does.
-- **The variance estimate needs two changes (sketched).** Under
-  homoskedasticity `E ûᵢ² = σ²(M²)ᵢᵢ`, not `σ²Mᵢᵢ`, so the plug-in is
-  `sᵢ = ûᵢ²/(M²)ᵢᵢ`. With `f̂ = Sy₀`, `â = (A + A′)Sy₀` and the noise term
-  is `diag(HΣ̂H′)` with `H = (A + A′)S`, the general form of the
-  projection's `G(Q′Σ̂Q)G′`. Proposition 2's steps should carry over with
-  `rᵢ = Σ_{j≠i} Sᵢⱼεⱼ`, `Σ_{j≠i} Sᵢⱼ² ≤ Sᵢᵢ(1 − Sᵢᵢ)` and `tr S` in place of
-  `K`; that is not written out.
+- **The variance estimate needs two changes.** Under homoskedasticity
+  `E ûᵢ² = σ²(M²)ᵢᵢ`, not `σ²Mᵢᵢ`, so the plug-in is `sᵢ = ûᵢ²/(M²)ᵢᵢ`.
+  With `f̂ = Sy₀`, `â = (A + A′)Sy₀` and the noise term is `diag(HΣ̂H′)`
+  with `H = (A + A′)S`, the general form of the projection's `G(Q′Σ̂Q)G′`.
+  This `V̂` is consistent (part (c) below).
 
 **The idempotent shortcut is wrong here.** The code forms the moment from
 residual vectors as `(My₀)′(MWy₀ + D My₀)`, which is `y₀′(M²W + MDM)y₀`.
@@ -597,6 +594,77 @@ basis with a second-difference penalty, plus an unpenalised covariate; n =
   a = 1 and λ ≤ 0.1 at a = 4. As with K, the choice that keeps the
   interval valid is the one that smooths less; a criterion such as GCV,
   which targets the fit of `f`, may choose a λ that is too large.
+
+**Proposition 4(c) (the smoother's `V̂` is consistent; proved).** Take the
+`V̂` above, with `sᵢ = ûᵢ²/mᵢ`, `mᵢ = (M²)ᵢᵢ`, evaluated at the root `ρ̂`.
+Assume A1 with four moments, A2, A4–A9, Proposition 4's conditions on `S`,
+`tr S/n → 0`, and for the shrinkage `r = Mf`: `‖r‖² = o(n)` and
+`maxᵢ|rᵢ| ≤ c`. In place of A10 assume `Σᵢ bᵢ²(Sᵢᵢ + rᵢ²) = o(n)`. Then
+`V̂/V → 1` in probability.
+
+*Proof.* Proposition 2's three steps, with these changes.
+- **`mᵢ` is bounded below**: `mᵢ = Mᵢᵢ² + Σ_{j≠i} Sᵢⱼ² ≥ (1 − s̄)²`.
+- **The remainder in `sᵢ`.** At `ρ₀`, `ûᵢ = zᵢ + rᵢ` with `z = Mε`, and
+  `zᵢ = Mᵢᵢεᵢ − qᵢ` with `qᵢ = Σ_{j≠i} Sᵢⱼεⱼ`. Since `(S²)ᵢᵢ ≤ Sᵢᵢ`,
+  `Σ_{j≠i} Sᵢⱼ² ≤ Sᵢᵢ(1 − Sᵢᵢ)`, so `E qᵢ² ≤ σ̄²Sᵢᵢ` and
+  `E qᵢ⁴ ≤ cSᵢᵢ²`. Then `sᵢ = εᵢ² + dᵢ` with
+  `dᵢ = εᵢ²(Mᵢᵢ²/mᵢ − 1) + (−2Mᵢᵢεᵢqᵢ + qᵢ² + 2rᵢzᵢ + rᵢ²)/mᵢ`, and
+  `|Mᵢᵢ²/mᵢ − 1| ≤ Sᵢᵢ/(1 − s̄)²`. So `E dᵢ² ≤ c(Sᵢᵢ + rᵢ²)`, using
+  `|rᵢ| ≤ c`. Hence `E‖d‖² ≤ c(tr S + ‖r‖²) = o(n)` and
+  `Σᵢ (E dᵢ²)^{1/2} ≤ c(√(n tr S) + √n‖r‖) = o(n)`. These are the two facts
+  steps 1 and 2 used, with `tr S + ‖r‖²` in place of `K`. `Ω = As∘As` keeps a
+  zero diagonal and bounded row sums, by Proposition 4's Lemma 2.
+- **Step 1 (quadratic part)** goes through unchanged with this `d`.
+- **Step 2 (linear part).** Now `â = μ + η` with `μ = (A + A′)Sf =
+  b − (A + A′)r` and `η = Hε`. The extra mean `w = (A + A′)r` has
+  `‖w‖² ≤ c‖r‖² = o(n)`, so `Σ wᵢ²sᵢ = O_p(‖r‖²)` (`E sᵢ ≤ c`) and the cross
+  term with `b` is `O_p(√n · ‖r‖) = o_p(n)`. `Σ Var ηᵢ = tr(HΣH′) ≤
+  c‖S‖_F² ≤ c tr S`, and the noise term's mean is at most `c‖H‖_F²`, so both
+  are `O_p(tr S)`. In `Σ bᵢ²dᵢ`, the zero-diagonal quadratic form
+  `−2Σ bᵢ²Mᵢᵢεᵢqᵢ/mᵢ` has variance at most `cΣᵢ bᵢ⁴Sᵢᵢ = o(n²)`. The
+  linear form `2Σ bᵢ²rᵢzᵢ/mᵢ` has variance at most `cΣ bᵢ⁴rᵢ² = o(n²)`
+  (A6). The rest has absolute mean at most `cΣ bᵢ²(Sᵢᵢ + rᵢ²) = o(n)`.
+- **Step 3 (`ρ̂` for `ρ₀`)** is unchanged: `û(ρ̂) = û − tMWy` and
+  `â(ρ̂) = â − tHWy` with `‖M‖_op, ‖H‖_op ≤ c`, and `Σ ûᵢ⁴ = O_p(n)` because
+  `|rᵢ| ≤ c`. ∎
+
+The proof hides two opposite `O(‖r‖²)` effects. The shrinkage in `ûᵢ` adds
+`(2rᵢzᵢ + rᵢ²)/mᵢ` to `sᵢ`, which raises `V̂`. `â` estimates the shrunk
+signal `μ`, not `b`, which lowers the linear part by
+`Δ_b = Σᵢ (μᵢ² − bᵢ²)σᵢ²`. Over-smoothing therefore biases `V̂` too, not only
+`ρ̂`. The condition `‖r‖² = o(n)` is separate from the Corollary's
+`β = o(√n)`: `β` is an indefinite quadratic form in `r` (Proposition 3),
+so neither condition implies the other.
+
+**Numerical check (`tc_smoother_vhat.jl`).** Same design as
+`tc_smoother.jl`, at `ρ₀`, R = 500. Under normal errors the mean gap between
+`V̂` with the feasible `s` and with `r` removed from `s` is exact, and so is
+`Δ_b`:
+
+| a | λ | ‖r‖²/n | `V̂/V` feasible | `r` removed | 1 + Δ_b/V | gap: simulated | exact | first order with `b` |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 0.001 | 0.0000 | 1.008 | 1.008 | 1.000 | 0.0000 | 0.0000 | 0.0000 |
+| 1 | 10 | 0.0042 | 0.993 | 0.988 | 0.984 | 0.0053 | 0.0046 | 0.0043 |
+| 1 | 100 | 0.052 | 0.818 | 0.778 | 0.778 | 0.0406 | 0.0396 | 0.0605 |
+| 4 | 1 | 0.0016 | 1.000 | 0.998 | 0.994 | 0.0022 | 0.0018 | 0.0016 |
+| 4 | 10 | 0.068 | 0.927 | 0.849 | 0.849 | 0.0779 | 0.0752 | 0.0883 |
+| 4 | 100 | 0.83 | 0.550 | 0.228 | 0.229 | 0.322 | 0.321 | 1.471 |
+
+(All 10 cells are in `tc_smoother_vhat_output.txt`.)
+
+- **The exact gap matches the simulation** in all 10 cells, with `|z|` ≤ 2.2.
+  Two cells have `z` = 2.1 and 2.2, both where the gap is largest relative
+  to its SE.
+- **`Δ_b` accounts for the r-removed mean** to within 0.004 where `r`
+  matters; the 0.000–0.008 left at small λ is HC2's own bias. So the two
+  effects explain `V̂`'s bias, and the shrunk signal is the larger one.
+- **Power check.** The first-order shift with `b` in place of `μ` misses
+  by 50% at a = 1, λ = 100 (0.0605 against 0.0396) and by a factor of 4.6
+  at a = 4, λ = 100 (1.47 against 0.32).
+- **Where `‖r‖²/n` ≤ 0.002,** `V̂/V` is 1.000–1.008, within the projection's
+  HC2 range; that is λ ≤ 1 for both amplitudes. In this design `β` binds
+  first: at a = 4, λ = 1, `V̂` is unbiased but coverage is 0.663
+  (`tc_smoother.jl`), because `c` = 1.6.
 
 **Proposition 5 (a primitive condition for A5; proved).** Let `W` be
 non-negative with a zero diagonal, `‖W‖_op ≤ c_W` and `‖W‖_F² ≥ κn`; a
@@ -1202,8 +1270,9 @@ with bounded leverage cannot reach at n = 900; other `W`; and `n` other than
    is valid if and only if `β = o(√n)` (`tc_approx.jl`). Proposition 4
    replaces Remark 3: the theory carries over to a symmetric penalised
    smoother with `Sᵢᵢ` in place of `hᵢᵢ`, provided the moment is formed as
-   `y₀′Ay₀` and not by the idempotent shortcut (`tc_smoother.jl`); the
-   `V̂` part is sketched.
+   `y₀′Ay₀` and not by the idempotent shortcut (`tc_smoother.jl`). Its
+   `V̂` is consistent if `tr S/n → 0` and `‖Mf‖² = o(n)` (Proposition 4(c),
+   `tc_smoother_vhat.jl`).
 2. A5: Proposition 5 derives it from `W` for K/n → 0 and, in its spectral
    form, whenever the weighted overlap `π̄_w` of `B` with the eigenvectors
    of `Ws + D` stays below 1/2 (up to K/n ≈ 0.05–0.10 in `tc_a5.jl`).
@@ -1228,8 +1297,8 @@ with bounded leverage cannot reach at n = 900; other `W`; and `n` other than
    loses up to 3.6 at K/n = 0.25, so HC2 stays the recommended `V̂`. Step 2
    is closed for these designs; untested are K/n above 0.25, other `W`,
    and other `n`.
-4. Proposition 4's `V̂` part: write out Proposition 2's steps for a
-   smoother. Also open: how to choose λ so that `β = o(√n)`.
+4. Proposition 4(c) proves the smoother's `V̂` consistent. Still open: how
+   to choose λ so that `β = o(√n)` and `‖Mf‖² = o(n)`.
 5. Reading: de Jong (1987), Bhansali, Giraitis & Kokoszka (2007), Kelejian &
    Prucha (2001) and Hall & Heyde's §3.2 are read. Cattaneo, Jansson & Newey
    (2018) §3 and Kline, Saggio & Sølvsten (2020) §4.2 have been read via

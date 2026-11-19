@@ -1,0 +1,16 @@
+amp 1 λ   1.000 tr S   62.2 ‖r‖²/n 0.0001 max|r| 0.053 | mean V̂/V: feasible 0.920, r removed 0.919 (1 + Δ_b/V 0.999) | gap 0.0004 ± 0.0003, exact 0.0001 (z   0.9), first order with b 0.0001
+(warm-up line above)
+
+amp 1 λ   0.001 tr S  221.6 ‖r‖²/n 0.0000 max|r| 0.013 | mean V̂/V: feasible 1.008, r removed 1.008 (1 + Δ_b/V 1.000) | gap 0.0000 ± 0.0000, exact 0.0000 (z   0.0), first order with b 0.0000
+amp 1 λ   0.100 tr S  131.3 ‖r‖²/n 0.0000 max|r| 0.016 | mean V̂/V: feasible 1.004, r removed 1.004 (1 + Δ_b/V 1.000) | gap 0.0000 ± 0.0000, exact 0.0000 (z   0.3), first order with b 0.0000
+amp 1 λ   1.000 tr S   62.2 ‖r‖²/n 0.0001 max|r| 0.053 | mean V̂/V: feasible 1.006, r removed 1.006 (1 + Δ_b/V 0.999) | gap 0.0002 ± 0.0001, exact 0.0001 (z   1.7), first order with b 0.0001
+amp 1 λ  10.000 tr S   26.5 ‖r‖²/n 0.0042 max|r| 0.271 | mean V̂/V: feasible 0.993, r removed 0.988 (1 + Δ_b/V 0.984) | gap 0.0053 ± 0.0003, exact 0.0046 (z   2.1), first order with b 0.0043
+amp 1 λ 100.000 tr S   12.0 ‖r‖²/n 0.0518 max|r| 0.799 | mean V̂/V: feasible 0.818, r removed 0.778 (1 + Δ_b/V 0.778) | gap 0.0406 ± 0.0014, exact 0.0396 (z   0.7), first order with b 0.0605
+
+amp 4 λ   0.001 tr S  221.6 ‖r‖²/n 0.0002 max|r| 0.053 | mean V̂/V: feasible 1.004, r removed 1.004 (1 + Δ_b/V 0.999) | gap 0.0001 ± 0.0001, exact 0.0002 (z  -0.1), first order with b 0.0002
+amp 4 λ   0.100 tr S  131.3 ‖r‖²/n 0.0002 max|r| 0.065 | mean V̂/V: feasible 1.001, r removed 1.000 (1 + Δ_b/V 0.999) | gap 0.0004 ± 0.0001, exact 0.0003 (z   0.3), first order with b 0.0002
+amp 4 λ   1.000 tr S   62.2 ‖r‖²/n 0.0016 max|r| 0.212 | mean V̂/V: feasible 1.000, r removed 0.998 (1 + Δ_b/V 0.994) | gap 0.0022 ± 0.0002, exact 0.0018 (z   1.9), first order with b 0.0016
+amp 4 λ  10.000 tr S   26.5 ‖r‖²/n 0.0680 max|r| 1.083 | mean V̂/V: feasible 0.927, r removed 0.849 (1 + Δ_b/V 0.849) | gap 0.0779 ± 0.0013, exact 0.0752 (z   2.2), first order with b 0.0883
+amp 4 λ 100.000 tr S   12.0 ‖r‖²/n 0.8281 max|r| 3.198 | mean V̂/V: feasible 0.550, r removed 0.228 (1 + Δ_b/V 0.229) | gap 0.3223 ± 0.0025, exact 0.3208 (z   0.6), first order with b 1.4705
+
+total 0.4 min
