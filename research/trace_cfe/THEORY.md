@@ -380,7 +380,40 @@ standardised `t₃` (symmetric) and a centred Pareto with tail index 3
 So the simulation is consistent with Theorem 1 under `2 + δ` moments, and
 shows its practical cost: with heavy tails, n in the thousands still leaves
 a visible departure from normality in the tails of `z`. This is about the
-moment at the true `ρ`; the effect on `ρ̂`'s coverage is not measured.
+moment at the true `ρ`; `ρ̂`'s coverage is measured next.
+
+**Coverage of `ρ̂` (`tc_coverage_tails.jl`, 2026-11-19).** The same design
+with `y = (I − ρ₀W)⁻¹(f + ε)`, `ρ₀ = 0.4`, Theorem 1's estimator (Jin & Lee's
+first step, `C = (W′ − Δ)M`) and R = 1000 per cell (Monte Carlo SE of a
+coverage near 0.95: 0.007). Three 95% intervals share the data's delta-method
+denominator: the robust plug-in variance, the exact `V` (the oracle), and the
+homoskedastic plug-in (the power check).
+
+| Errors | Robust, n = 400 → 2500 | Oracle | Homoskedastic |
+|---|---|---|---|
+| normal | 0.948–0.952 | 0.951–0.955 | 0.797–0.853 |
+| `χ²₃` | 0.932–0.951 | 0.948–0.953 | 0.805–0.845 |
+| `t₃` | 0.953–0.969 | 0.952–0.969 | 0.800–0.890 |
+| Pareto, tail index 3 | 0.961–0.977 | 0.950–0.969 | 0.866–0.920 |
+
+- **Heavy tails make the intervals conservative, not anti-conservative.** In
+  every `t₃` and Pareto cell the coverage is at or above 0.95, by up to
+  0.027 (Pareto, n = 900), which is about 4 Monte Carlo SEs. The oracle
+  intervals return to 0.950–0.952 at n = 2500; the robust ones stay at
+  0.956 (`t₃`) and 0.961 (Pareto).
+- This fits what the moment showed: under heavy tails `z = g/√V` is more
+  peaked than normal, so `|z| > 1.96` is rarer (its size was 0.034–0.052 in
+  `tc_clt_moments.jl`). With the plug-in variance, a large `εᵢ` inflates
+  both `g` and `V̂`, which thins the tails of the ratio further; that is
+  probably why the robust intervals over-cover more than the oracle. This
+  explanation is not checked.
+- The median robust se is within 5% of the sd of `ρ̂` in every cell, and the
+  bias of `ρ̂` is at most 0.017 (`χ²₃`, n = 400), small against its sd.
+- **Power check:** the homoskedastic intervals under-cover in every cell,
+  0.80–0.92. The gap is smaller under the Pareto law.
+- Not covered: one design (hat basis, smooth variances, `ρ₀ = 0.4`), and
+  two-sided coverage only, which can hide a lopsided miss under the skewed
+  Pareto law.
 
 ## Theory step 2: the robust variance (first analysis, 2026-11-19)
 

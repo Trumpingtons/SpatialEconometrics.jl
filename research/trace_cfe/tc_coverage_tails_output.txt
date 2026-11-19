@@ -1,0 +1,27 @@
+t3      n   400 K   36 | bias -0.0046 sd 0.1380 | robust se/sd 0.833 | coverage: robust 0.900  oracle 0.950  homo 0.800
+warm-up (20 replications at n = 400) 3.1 s
+t3      n  2500 K  100 | bias -0.0032 sd 0.0458 | robust se/sd 1.118 | coverage: robust 0.950  oracle 0.950  homo 0.900
+20 replications at n = 2500: 0.9 s. Cells: 4 laws × 4 sizes, R = 1000 each.
+Monte Carlo SE of a coverage near 0.95 at R = 1000: 0.007. se/sd uses the median se.
+
+normal  n   400 K   36 | bias -0.0070 sd 0.1482 | robust se/sd 0.989 | coverage: robust 0.952  oracle 0.955  homo 0.853
+normal  n   900 K   64 | bias -0.0052 sd 0.0966 | robust se/sd 0.986 | coverage: robust 0.949  oracle 0.953  homo 0.838
+normal  n  1600 K   81 | bias -0.0010 sd 0.0700 | robust se/sd 0.999 | coverage: robust 0.948  oracle 0.951  homo 0.797
+normal  n  2500 K  100 | bias -0.0033 sd 0.0506 | robust se/sd 1.012 | coverage: robust 0.949  oracle 0.953  homo 0.820
+
+chisq   n   400 K   36 | bias -0.0168 sd 0.1460 | robust se/sd 0.965 | coverage: robust 0.932  oracle 0.948  homo 0.845
+chisq   n   900 K   64 | bias -0.0071 sd 0.0935 | robust se/sd 1.006 | coverage: robust 0.949  oracle 0.952  homo 0.843
+chisq   n  1600 K   81 | bias -0.0042 sd 0.0683 | robust se/sd 1.015 | coverage: robust 0.950  oracle 0.953  homo 0.805
+chisq   n  2500 K  100 | bias -0.0025 sd 0.0513 | robust se/sd 0.991 | coverage: robust 0.951  oracle 0.948  homo 0.821
+
+t3      n   400 K   36 | bias +0.0019 sd 0.1387 | robust se/sd 1.001 | coverage: robust 0.962  oracle 0.969  homo 0.890
+t3      n   900 K   64 | bias -0.0057 sd 0.0923 | robust se/sd 0.986 | coverage: robust 0.953  oracle 0.952  homo 0.856
+t3      n  1600 K   81 | bias -0.0034 sd 0.0665 | robust se/sd 1.001 | coverage: robust 0.969  oracle 0.952  homo 0.800
+t3      n  2500 K  100 | bias -0.0020 sd 0.0495 | robust se/sd 0.996 | coverage: robust 0.956  oracle 0.952  homo 0.825
+
+pareto  n   400 K   36 | bias -0.0075 sd 0.1207 | robust se/sd 1.048 | coverage: robust 0.964  oracle 0.967  homo 0.920
+pareto  n   900 K   64 | bias -0.0016 sd 0.0837 | robust se/sd 1.041 | coverage: robust 0.977  oracle 0.963  homo 0.892
+pareto  n  1600 K   81 | bias -0.0072 sd 0.0609 | robust se/sd 1.045 | coverage: robust 0.973  oracle 0.969  homo 0.871
+pareto  n  2500 K  100 | bias -0.0001 sd 0.0468 | robust se/sd 1.015 | coverage: robust 0.961  oracle 0.950  homo 0.866
+
+total 78.3 s

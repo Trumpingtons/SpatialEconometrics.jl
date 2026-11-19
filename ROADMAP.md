@@ -1159,7 +1159,11 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      Kelejian & Prucha (2001), it drops bounded row sums and the rate `n`,
      with the same moments. In `tc_clt_moments.jl` (`t₃` and Pareto errors,
      no fourth moment) normality improves with n but slowly: KS 0.038 and
-     0.067 at n = 4900, against a critical value of 0.030. For step 2,
+     0.067 at n = 4900, against a critical value of 0.030. In
+     `tc_coverage_tails.jl` this makes the 95% intervals for `ρ̂`
+     conservative, not anti-conservative: robust coverage 0.953–0.977 under
+     those laws, n = 400 to 2500, against 0.948–0.952 with normal errors.
+     For step 2,
      the noise term removes the `O(K/n)` bias of the linear part, but the
      plug-in `σ̂ᵢ² = ûᵢ²/Mᵢᵢ` is biased by `Σⱼ hᵢⱼ²(σⱼ² − σᵢ²)/(1 − hᵢᵢ)`.
      In `tc_vhat.jl` (n = 900, R = 1000, the oracle at 0.997–1.002) the
