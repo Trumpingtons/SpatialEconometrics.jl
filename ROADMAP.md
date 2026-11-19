@@ -1217,6 +1217,18 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      `tc_approx.jl` because a rough covariate's lag is outside `span B`. The
      interval covers `P(|Z + β/√V| ≤ 1.96)`, which the simulation confirms
      while `β/√V` ≤ 1.1; validity needs `β = o(√n)`, a lower bound on K.
+     Proposition 4 carries the theory to a symmetric penalised smoother
+     (`tc_smoother.jl`, a tensor P-spline): Theorem 1 holds (KS ≤ 0.034 in
+     12 of 12 cells), shrinkage bias follows Proposition 3, and over-
+     smoothing is what breaks coverage. The moment must be formed as
+     `y₀′(MW + MDM)y₀`: the residual-vector shortcut assumes `M² = M`, and
+     for a smoother it covers 0.86–0.90 where the correct moment covers
+     0.95. A smoothed TC-CFE in `src/` must not use that shortcut.
+     Proposition 5 derives A5 from `W`: `‖Cs‖_F²/n ≥ κ/2 −
+     2(K/n)(c_W + d̄)²` with `κn ≤ ‖W‖_F²`, so A5 holds for K/n → 0. In
+     `tc_a5.jl` the bound is close at small K/n (0.137 against 0.148) and
+     vanishes by K/n ≈ 0.05, so beyond that A5 stays an assumption. It also
+     shows `d` exploding (to 10⁹) where the leverage reaches 1.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:

@@ -13,7 +13,8 @@ Proposition 1 (the two-step REsd, formerly Remark 2) are proved. Later the
 same day: Proposition 2 (the robust `V̂` is consistent when K/n → 0) is
 proved, and the leave-out alternatives are measured. Then Proposition 3
 (approximation error) replaces the sketched Remark 1, which had missed a
-first-order term.
+first-order term, and Proposition 4 (a penalised smoother) replaces
+Remark 3, and Proposition 5 gives a primitive condition for A5.
 The numerical checks are in `tc_clt.jl`, `tc_schatten.jl`, `tc_clt_moments.jl`
 and their output. ROADMAP #13,
 research item, theory step 1.
@@ -46,8 +47,9 @@ The design (`W`, `B`, `f`) is fixed. Every statement is conditional on it.
   `M`.**
 - **A3.** The largest leverage stays below 1: `maxᵢ hᵢᵢ ≤ h̄ < 1`.
 - **A4.** At first, `f ∈ span(B)`. Proposition 3 drops this.
-- **A5 (non-degeneracy).** `liminf ‖Cs‖_F²/n > 0`. This is assumed, not
-  derived. Measured values are 0.05–0.12 in `tc_clt.jl`.
+- **A5 (non-degeneracy).** `liminf ‖Cs‖_F²/n > 0`. Proposition 5 derives
+  it from `W` when K/n is small; beyond that it is assumed. Measured values
+  are 0.05–0.12 in `tc_clt.jl` and 0.04–0.15 in `tc_a5.jl`.
 - **A6 (Lindeberg for the linear part).** `maxᵢ bᵢ² / ‖b‖² → 0`, where
   `b = MP′f`. It holds if `maxᵢ hᵢᵢ → 0` (Lemma 2b), but the measurements
   show that this is not necessary.
@@ -522,11 +524,138 @@ which checks step 2's identities.
   n = 400; 0.0497 against 0.0513 at n = 2500), and its coverage with the
   robust variance and the code's root rule is 0.946–0.952.
 
-**Remark 3 (a penalised smoother).** If `M = I − S_λ` with `S_λ` symmetric
-and its eigenvalues in `[0, 1]`, as for a ridge-penalised spline, then
-`‖M‖_op ≤ 1` still holds, and Lemma 2(a) carries over. Lemma 2(b) used
-`Mᵢᵢ = 1 − hᵢᵢ` and idempotency, so it needs redoing. Not checked
-numerically.
+**Proposition 4 (a penalised smoother; proved for the moment and the
+estimator, sketched for `V̂`; replaces Remark 3).** Let `M = I − S` with
+`S` symmetric, its eigenvalues in `[0, 1]` (a ridge- or difference-penalised
+spline), `maxᵢ Sᵢᵢ ≤ s̄ < 1` in place of A3, and `M∘M` invertible. Use the
+moment `g(ρ) = y₀′Ay₀` with `A = MW + MDM` and `(M∘M)d = −diag(MW)`, so
+`diag A = 0` exactly; the identity `diag(MDM) = (M∘M)d` needs only `M`
+symmetric. Then:
+- **Lemma 2 holds with `Sᵢᵢ` in place of `hᵢᵢ`.** `‖M‖_op ≤ 1`. The
+  eigenvalues of `M` lie in `[0, 1]`, so `M² ≼ M` and
+  `‖Meᵢ‖² = (M²)ᵢᵢ ≤ Mᵢᵢ`; hence `|(A′M)ᵢᵢ|/Mᵢᵢ ≤ ‖A‖_op/√Mᵢᵢ`, the bound of
+  (b). The finer bound uses `‖Seᵢ‖² = (S²)ᵢᵢ ≤ Sᵢᵢ` the same way.
+- **Theorem 1 holds as stated**, since its proof uses only `‖Cs‖_op`,
+  `‖Cs‖_F` and A5–A6, never idempotency.
+- **The Corollary and Proposition 3 hold with `r = Mf`.** `Mf ≠ 0` even for
+  a smooth `f` because the penalty shrinks: `r` is now shrinkage bias plus
+  approximation error, and validity needs `β = f′Af = o(√n)`. Over-smoothing
+  breaks it exactly as too small a K does.
+- **The variance estimate needs two changes (sketched).** Under
+  homoskedasticity `E ûᵢ² = σ²(M²)ᵢᵢ`, not `σ²Mᵢᵢ`, so the plug-in is
+  `sᵢ = ûᵢ²/(M²)ᵢᵢ`. With `f̂ = Sy₀`, `â = (A + A′)Sy₀` and the noise term
+  is `diag(HΣ̂H′)` with `H = (A + A′)S`, the general form of the
+  projection's `G(Q′Σ̂Q)G′`. Proposition 2's steps should carry over with
+  `rᵢ = Σ_{j≠i} Sᵢⱼεⱼ`, `Σ_{j≠i} Sᵢⱼ² ≤ Sᵢᵢ(1 − Sᵢᵢ)` and `tr S` in place of
+  `K`; that is not written out.
+
+**The idempotent shortcut is wrong here.** The code forms the moment from
+residual vectors as `(My₀)′(MWy₀ + D My₀)`, which is `y₀′(M²W + MDM)y₀`.
+That equals `y₀′Ay₀` only when `M² = M`. For a smoother its diagonal is not
+zero, and `E g(ρ₀)` picks up `tr((M²W + MDM)Σ) ≠ 0`. A TC-CFE with a
+smoother must form `A` itself. (The package's smoothed `closed_form_rho` is
+Smirnov's plain CFE, already marked unproven, so no shipped code is
+affected.)
+
+**Numerical check (`tc_smoother.jl`).** A tensor P-spline: a 15 × 15 hat
+basis with a second-difference penalty, plus an unpenalised covariate; n =
+900, kNN `W`, `f = a·sin(2πu)cos(πv) + x`, smooth variances, normal errors,
+`ρ₀ = 0.4`, R = 1000. Coverage is of the 95% interval at the feasible root.
+
+| a | λ | tr S | max Sᵢᵢ | KS of z₀ | c = β/√V | bias: predicted | simulated | coverage: predicted | oracle | general `V̂` | shortcut moment |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 0.001 | 222 | 0.93 | 0.021 | 0.003 | 0.0004 | 0.0027 | 0.950 | 0.955 | 0.951 | 0.953 |
+| 1 | 0.1 | 131 | 0.75 | 0.027 | 0.014 | 0.0011 | 0.0031 | 0.950 | 0.954 | 0.948 | 0.879 |
+| 1 | 1 | 62 | 0.43 | 0.030 | 0.096 | 0.0056 | 0.0073 | 0.949 | 0.947 | 0.949 | 0.903 |
+| 1 | 10 | 27 | 0.19 | 0.034 | 0.659 | 0.0324 | 0.0338 | 0.899 | 0.919 | 0.900 | 0.946 |
+| 1 | 100 | 12 | 0.08 | 0.033 | 1.949 | 0.0850 | 0.0904 | 0.505 | 0.553 | 0.454 | 0.725 |
+| 4 | 0.1 | 131 | 0.75 | 0.021 | 0.232 | 0.0155 | 0.0175 | 0.944 | 0.950 | 0.954 | 0.863 |
+| 4 | 1 | 62 | 0.43 | 0.029 | 1.594 | 0.0698 | 0.0753 | 0.643 | 0.679 | 0.663 | 0.908 |
+| 4 | 10 | 27 | 0.19 | 0.029 | 8.88 | 0.202 | 0.250 | 0.000 | 0.000 | 0.000 | 0.592 |
+
+(All 12 cells are in `tc_smoother_output.txt`.)
+
+- **Theorem 1 holds for the smoother.** In all 12 cells, `z₀ =
+  (g(ρ₀) − β)/√V` has mean within ±0.06, sd 0.98–1.01, and a KS distance
+  0.016–0.034 from N(0, 1), below the 5% critical value 0.043. That includes
+  λ = 0.001, where `max Sᵢᵢ` = 0.93 and `max|dᵢ|` reaches 44: `‖As‖_op` stays
+  at 0.71, because a large `dᵢ` sits where `Mᵢᵢ` is small.
+- **Shrinkage bias behaves as Proposition 3 says.** For `c` ≤ 0.66 the
+  simulated bias matches `β/J` (`|z|` ≤ 1.0) and the general `V̂`'s coverage
+  is within 1.0 point of `P(|Z + c| ≤ 1.96)`. For `c` ≥ 1.6 the first-order
+  bias is too small (`z` from 3.8 up), as in `tc_approx.jl`.
+- **Power checks.** The shortcut moment has `E g(ρ₀)` from −14 to +710
+  instead of 0. Where the shrinkage bias is small (λ = 0.1 and 1 at a = 1,
+  λ = 0.1 at a = 4) it covers 0.863–0.903, against 0.948–0.954 for the
+  correct moment. Where the shrinkage bias is large, its coverage is the
+  higher one (0.946, 0.908, 0.592) only because its trace bias happens to
+  offset the shrinkage bias.
+  The projection plug-in `ûᵢ²/Mᵢᵢ` differs from `ûᵢ²/(M²)ᵢᵢ` by at most
+  1.5 points of coverage (0.939 against 0.954 at a = 4, λ = 0.1), so that
+  correction matters less than the moment does.
+- **Over-smoothing is what fails.** Coverage is nominal for λ ≤ 1 at
+  a = 1 and λ ≤ 0.1 at a = 4. As with K, the choice that keeps the
+  interval valid is the one that smooths less; a criterion such as GCV,
+  which targets the fit of `f`, may choose a λ that is too large.
+
+**Proposition 5 (a primitive condition for A5; proved).** Let `W` be
+non-negative with a zero diagonal, `‖W‖_op ≤ c_W` and `‖W‖_F² ≥ κn`; a
+row-standardised `W` with at most `m` neighbours per row has `κ = 1/m`.
+For the exact-diagonal moment, with `d̄ = maxᵢ|dᵢ|`,
+
+    ‖Cs‖_F²/n ≥ κ/2 − 2(K/n)(c_W + d̄)².
+
+So A5 holds whenever `limsup K/n < κ/(4(c_W + d̄)²)`, and in particular
+when `K/n → 0` with `d̄` bounded, with `liminf ‖Cs‖_F²/n ≥ κ/2`. A
+sufficient condition for bounded `d̄` is `maxᵢ hᵢᵢ ≤ h̄ < 1/2`, which gives
+
+    d̄ ≤ maxᵢ‖Weᵢ‖ √h̄ / ((1 − h̄)(1 − 2h̄)).
+
+For Jin & Lee's `C = (W′ − Δ)M` the same holds with `max|Δᵢᵢ|` in place of
+`d̄`, which Lemma 2(b) bounds under A3 alone.
+
+*Proof.* Write `Ws = (W + W′)/2` and `X = Ws + D`. Since `M` is an
+orthogonal projection, `MCsM = M(Ws + D)M = MXM`, and `‖Cs‖_F ≥ ‖MCsM‖_F`.
+The four pieces `MXM`, `P_BXM`, `MXP_B`, `P_BXP_B` are orthogonal in the
+Frobenius inner product and sum to `X`, so
+`‖MXM‖_F² ≥ ‖X‖_F² − ‖P_BX‖_F² − ‖XP_B‖_F²`. Each of the last two is at
+most `‖P_B‖_F²‖X‖_op² = K‖X‖_op² ≤ K(c_W + d̄)²`. Since `diag Ws = 0`,
+`‖X‖_F² = ‖Ws‖_F² + ‖D‖_F² ≥ ‖Ws‖_F²`, and
+`‖Ws‖_F² = (‖W‖_F² + tr W²)/2 ≥ ‖W‖_F²/2` because `tr W² = Σᵢⱼ WᵢⱼWⱼᵢ ≥ 0`.
+For a row-standardised row with at most `m` entries, `Σⱼ Wᵢⱼ² ≥ 1/m`. For
+`d̄`: `(M∘M)d = −diag(MW) = diag(P_BW)`, and
+`|eᵢ′P_BWeᵢ| ≤ ‖P_Beᵢ‖‖Weᵢ‖ = √hᵢᵢ‖Weᵢ‖`. Row `i` of `M∘M` has diagonal
+`(1 − hᵢᵢ)²` and off-diagonal sum `Σ_{j≠i} hᵢⱼ² = hᵢᵢ(1 − hᵢᵢ)`, so its
+dominance margin is `(1 − hᵢᵢ)(1 − 2hᵢᵢ)`, and
+`‖(M∘M)⁻¹‖_∞ ≤ 1/((1 − h̄)(1 − 2h̄))`. ∎
+
+**How sharp it is (`tc_a5.jl`).** Exact computation, no simulation, for the
+n = 900 kNN `W` (k = 6, so `κ` = 1/6 and the bound on `‖Ws‖_F²/n` is 0.083;
+the actual value is 0.153) with the Chebyshev and hat bases used above:
+
+| basis | K/n | max hᵢᵢ | ‖Cs‖_F²/n | d̄ | bound with measured ‖Ws‖_F, d̄ | with 1/(2m) | with the d̄ bound |
+|---|---|---|---|---|---|---|---|
+| hat | 0.006 | 0.02 | 0.148 | 0.022 | 0.137 | 0.068 | 0.066 |
+| hat | 0.019 | 0.11 | 0.134 | 0.087 | 0.093 | 0.024 | 0.003 |
+| hat | 0.029 | 0.17 | 0.125 | 0.113 | 0.058 | 0 | 0 |
+| hat | 0.056 | 0.38 | 0.102 | 0.184 | 0 | 0 | 0 |
+| hat | 0.251 | 0.94 | 0.041 | 398 | 0 | 0 | 0 |
+| Chebyshev | 0.008 | 0.03 | 0.145 | 0.030 | 0.130 | 0.061 | 0.058 |
+| Chebyshev | 0.032 | 0.41 | 0.123 | 0.159 | 0.039 | 0 | 0 |
+| Chebyshev | 0.102 | 0.98 | 0.083 | 40 | 0 | 0 | 0 |
+
+- **The bound is close at small K/n and vanishes by K/n ≈ 0.03–0.05.** With
+  the measured ingredients it is 0.137 against 0.148, and it is positive up
+  to K/n = 0.05 for a small `d̄`. The worst case `‖P_BX‖_F² ≤ K‖X‖_op²` is
+  what loses: it treats every basis direction as if it met `W`'s top
+  singular directions. So A5 is proved for K/n → 0 and for small K/n, and
+  stays an assumption beyond that; it is measured at 0.04–0.15 in every
+  design used here.
+- **Leverage 1 makes `d` explode.** In the Chebyshev designs `d̄` is 40 at
+  K/n = 0.10, 1.3 × 10⁴ at 0.19 and 1.9 × 10⁹ at 0.39, where `M∘M` is
+  nearly singular, and at K/n = 0.39 that drives `‖Cs‖_F²/n` to 2.5. The
+  exact-diagonal moment is ill-posed there, which is one more reason for
+  A3 and for a basis with bounded leverage.
 
 ## Numerical check (`tc_clt.jl`)
 
@@ -1050,9 +1179,16 @@ with bounded leverage cannot reach at n = 900; other `W`; and `n` other than
    nothing in the limit. Step 1 has no sketched parts left. Proposition 3
    replaces the sketched Remark 1: the approximation-error bias is
    `β = r′(W + D)r + r′r_W`, the second term was missing, and the interval
-   is valid if and only if `β = o(√n)` (`tc_approx.jl`). Remark 3 is a
-   side case.
-2. A primitive condition for A5, in terms of `W` and `K/n`.
+   is valid if and only if `β = o(√n)` (`tc_approx.jl`). Proposition 4
+   replaces Remark 3: the theory carries over to a symmetric penalised
+   smoother with `Sᵢᵢ` in place of `hᵢᵢ`, provided the moment is formed as
+   `y₀′Ay₀` and not by the idempotent shortcut (`tc_smoother.jl`); the
+   `V̂` part is sketched.
+2. A5: Proposition 5 derives it from `W` for K/n → 0 and small K/n
+   (positive up to K/n ≈ 0.05 in `tc_a5.jl`). Still open: a condition for
+   K/n → c > 0, which needs a bound on `‖P_BX‖_F` sharper than
+   `√K‖X‖_op`, for example in terms of the spectral overlap of `B` with
+   `W`'s leading eigenvectors.
 3. Theory step 2: the conjecture is checked numerically (`tc_vhat.jl`),
    and so are Kline, Saggio & Sølvsten's leave-one-out variances
    (`tc_vhat_lo.jl`, `tc_vhat_lo_lin.jl`). Neither is safe everywhere: HC2
@@ -1072,7 +1208,8 @@ with bounded leverage cannot reach at n = 900; other `W`; and `n` other than
    loses up to 3.6 at K/n = 0.25, so HC2 stays the recommended `V̂`. Step 2
    is closed for these designs; untested are K/n above 0.25, other `W`,
    and other `n`.
-4. Remark 3 for a penalised smoother, with a numerical check.
+4. Proposition 4's `V̂` part: write out Proposition 2's steps for a
+   smoother. Also open: how to choose λ so that `β = o(√n)`.
 5. Reading: de Jong (1987), Bhansali, Giraitis & Kokoszka (2007), Kelejian &
    Prucha (2001) and Hall & Heyde's §3.2 are read. Cattaneo, Jansson & Newey
    (2018) §3 and Kline, Saggio & Sølvsten (2020) §4.2 have been read via
