@@ -1196,8 +1196,15 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      proves the coded HC2 `V̂` consistent for K/n → 0, with four moments (not
      the eight the conjecture asked for) and a new condition A10, that the
      linear-part signal does not sit on high-leverage units. The key fact
-     is that `Cs∘Cs` has bounded row sums although `Cs` is dense. Still
-     open: a correction for K/n → c > 0, and coverage.
+     is that `Cs∘Cs` has bounded row sums although `Cs` is dense. In
+     `tc_coverage_vhat.jl` HC2 gives the best coverage of `ρ̂`, 0.94–0.97
+     in every cell, while leave-one-out (strong signal) and CJN (weak
+     signal) fall to 0.91 at K/n = 0.25. CJN's quadratic-part bias is
+     exactly `4tr(ΩΛ[(MΣM)∘(MΣM)]Λ)` for any error law, because the
+     cumulant term meets the zero diagonal of `Cs∘Cs`; `tc_cjn_bias.jl`
+     confirms it in 24 of 24 cells, and the plug-in correction works to
+     K/n = 0.19 but not at 0.25. Still open: a correction for K/n → c > 0
+     that keeps HC2's coverage.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:

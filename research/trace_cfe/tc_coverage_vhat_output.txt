@@ -1,0 +1,43 @@
+normal rough  weak   K 101 K/n 0.112 maxh 0.779 | bias -0.0007 sd 0.0278 | oracle 1.000 hc2 1.000 lo 1.000 cjn 1.000 homo 1.000
+warm-up (the line above, 5 replications) 4.2 s. Coverage of the 95% interval, R = 1000 (MC SE 0.007).
+
+normal smooth weak   K  50 K/n 0.056 maxh 0.378 | bias +0.0015 sd 0.0629 | oracle 0.948 hc2 0.944 lo 0.943 cjn 0.944 homo 0.869
+normal smooth weak   K 101 K/n 0.112 maxh 0.779 | bias +0.0003 sd 0.0772 | oracle 0.963 hc2 0.956 lo 0.955 cjn 0.953 homo 0.884
+normal smooth weak   K 170 K/n 0.189 maxh 0.884 | bias -0.0012 sd 0.0999 | oracle 0.957 hc2 0.951 lo 0.950 cjn 0.948 homo 0.896
+normal smooth weak   K 226 K/n 0.251 maxh 0.936 | bias +0.0031 sd 0.1267 | oracle 0.955 hc2 0.956 lo 0.950 cjn 0.924(neg 5) homo 0.921
+
+normal rough  weak   K  50 K/n 0.056 maxh 0.378 | bias -0.0008 sd 0.0468 | oracle 0.948 hc2 0.952 lo 0.947 cjn 0.950 homo 0.949
+normal rough  weak   K 101 K/n 0.112 maxh 0.779 | bias -0.0031 sd 0.0589 | oracle 0.949 hc2 0.952 lo 0.947 cjn 0.950 homo 0.952
+normal rough  weak   K 170 K/n 0.189 maxh 0.884 | bias -0.0036 sd 0.0780 | oracle 0.956 hc2 0.960 lo 0.951 cjn 0.949 homo 0.952
+normal rough  weak   K 226 K/n 0.251 maxh 0.936 | bias -0.0041 sd 0.0995 | oracle 0.955 hc2 0.961 lo 0.939(neg 1) cjn 0.937 homo 0.964
+
+chisq  smooth weak   K  50 K/n 0.056 maxh 0.378 | bias +0.0012 sd 0.0637 | oracle 0.946 hc2 0.947 lo 0.942 cjn 0.945 homo 0.873
+chisq  smooth weak   K 101 K/n 0.112 maxh 0.779 | bias -0.0004 sd 0.0808 | oracle 0.945 hc2 0.940 lo 0.934 cjn 0.932 homo 0.878
+chisq  smooth weak   K 170 K/n 0.189 maxh 0.884 | bias -0.0010 sd 0.1036 | oracle 0.947 hc2 0.944 lo 0.936 cjn 0.939 homo 0.890
+chisq  smooth weak   K 226 K/n 0.251 maxh 0.936 | bias +0.0027 sd 0.1274 | oracle 0.950 hc2 0.959 lo 0.937(neg 4) cjn 0.911(neg 13) homo 0.915
+
+chisq  rough  weak   K  50 K/n 0.056 maxh 0.378 | bias -0.0004 sd 0.0458 | oracle 0.952 hc2 0.958 lo 0.954 cjn 0.952 homo 0.957
+chisq  rough  weak   K 101 K/n 0.112 maxh 0.779 | bias -0.0009 sd 0.0572 | oracle 0.953 hc2 0.957 lo 0.950 cjn 0.950 homo 0.954
+chisq  rough  weak   K 170 K/n 0.189 maxh 0.884 | bias -0.0006 sd 0.0767 | oracle 0.950 hc2 0.966 lo 0.954 cjn 0.953 homo 0.954
+chisq  rough  weak   K 226 K/n 0.251 maxh 0.936 | bias +0.0005 sd 0.0970 | oracle 0.961 hc2 0.968 lo 0.944(neg 4) cjn 0.940(neg 6) homo 0.971
+
+normal smooth strong K  50 K/n 0.056 maxh 0.378 | bias -0.0000 sd 0.0119 | oracle 0.955 hc2 0.956 lo 0.944(neg 1) cjn 0.956 homo 0.966
+normal smooth strong K 101 K/n 0.112 maxh 0.779 | bias -0.0003 sd 0.0173 | oracle 0.953 hc2 0.951 lo 0.938 cjn 0.950 homo 0.948
+normal smooth strong K 170 K/n 0.189 maxh 0.884 | bias -0.0010 sd 0.0247 | oracle 0.963 hc2 0.958 lo 0.939 cjn 0.957 homo 0.950
+normal smooth strong K 226 K/n 0.251 maxh 0.936 | bias -0.0009 sd 0.0292 | oracle 0.959 hc2 0.960 lo 0.917(neg 9) cjn 0.956 homo 0.948
+
+normal rough  strong K  50 K/n 0.056 maxh 0.378 | bias -0.0004 sd 0.0189 | oracle 0.946 hc2 0.945 lo 0.944 cjn 0.945 homo 0.952
+normal rough  strong K 101 K/n 0.112 maxh 0.779 | bias -0.0009 sd 0.0246 | oracle 0.948 hc2 0.946 lo 0.936 cjn 0.945 homo 0.947
+normal rough  strong K 170 K/n 0.189 maxh 0.884 | bias -0.0012 sd 0.0352 | oracle 0.946 hc2 0.947 lo 0.932 cjn 0.944 homo 0.941
+normal rough  strong K 226 K/n 0.251 maxh 0.936 | bias -0.0020 sd 0.0415 | oracle 0.953 hc2 0.953 lo 0.933(neg 5) cjn 0.950 homo 0.952
+
+chisq  smooth strong K  50 K/n 0.056 maxh 0.378 | bias +0.0005 sd 0.0121 | oracle 0.950 hc2 0.951 lo 0.932 cjn 0.950 homo 0.961
+chisq  smooth strong K 101 K/n 0.112 maxh 0.779 | bias +0.0003 sd 0.0178 | oracle 0.945 hc2 0.947 lo 0.929 cjn 0.944 homo 0.942
+chisq  smooth strong K 170 K/n 0.189 maxh 0.884 | bias +0.0003 sd 0.0251 | oracle 0.945 hc2 0.955 lo 0.932 cjn 0.950 homo 0.940
+chisq  smooth strong K 226 K/n 0.251 maxh 0.936 | bias +0.0004 sd 0.0286 | oracle 0.961 hc2 0.965 lo 0.906(neg 15) cjn 0.958 homo 0.955
+
+chisq  rough  strong K  50 K/n 0.056 maxh 0.378 | bias +0.0002 sd 0.0190 | oracle 0.949 hc2 0.945 lo 0.937 cjn 0.943 homo 0.951
+chisq  rough  strong K 101 K/n 0.112 maxh 0.779 | bias +0.0002 sd 0.0239 | oracle 0.952 hc2 0.953 lo 0.948 cjn 0.949 homo 0.956
+chisq  rough  strong K 170 K/n 0.189 maxh 0.884 | bias +0.0007 sd 0.0334 | oracle 0.955 hc2 0.958 lo 0.950 cjn 0.956 homo 0.953
+chisq  rough  strong K 226 K/n 0.251 maxh 0.936 | bias +0.0008 sd 0.0400 | oracle 0.964 hc2 0.964 lo 0.936(neg 6) cjn 0.956(neg 1) homo 0.965
+

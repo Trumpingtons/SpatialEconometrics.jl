@@ -1,0 +1,33 @@
+normal rough  K 101 K/n 0.112 maxh 0.779 | predicted 0.987 simulated 0.977 (z vs predicted  -0.1) | corrected 0.986 (z  -0.2) sd/Vq: cjn 0.153 corrected 0.154
+warm-up (the line above, 5 replications) 4.1 s. Ratios are over the true quadratic part Vq; R = 1000.
+
+normal homo   K  50 K/n 0.056 maxh 0.378 | predicted 0.995 simulated 0.999 (z vs predicted   1.2) | corrected 1.004 (z   1.2) sd/Vq: cjn 0.106 corrected 0.107
+normal homo   K 101 K/n 0.112 maxh 0.779 | predicted 0.987 simulated 0.988 (z vs predicted   0.3) | corrected 1.000 (z   0.1) sd/Vq: cjn 0.112 corrected 0.113
+normal homo   K 170 K/n 0.189 maxh 0.884 | predicted 0.971 simulated 0.970 (z vs predicted  -0.3) | corrected 0.992 (z  -2.0) sd/Vq: cjn 0.121 corrected 0.122
+normal homo   K 226 K/n 0.251 maxh 0.936 | predicted 0.940 simulated 0.911 (z vs predicted  -1.8) | corrected 0.561 (z -27.5) sd/Vq: cjn 0.519 corrected 0.504
+
+normal smooth K  50 K/n 0.056 maxh 0.378 | predicted 0.993 simulated 1.008 (z vs predicted   1.7) | corrected 1.015 (z   1.7) sd/Vq: cjn 0.278 corrected 0.279
+normal smooth K 101 K/n 0.112 maxh 0.779 | predicted 0.979 simulated 0.985 (z vs predicted   0.7) | corrected 1.005 (z   0.5) sd/Vq: cjn 0.281 corrected 0.284
+normal smooth K 170 K/n 0.189 maxh 0.884 | predicted 0.960 simulated 0.957 (z vs predicted  -0.3) | corrected 0.986 (z  -1.4) sd/Vq: cjn 0.306 corrected 0.311
+normal smooth K 226 K/n 0.251 maxh 0.936 | predicted 0.888 simulated 0.883 (z vs predicted  -0.4) | corrected 0.896 (z  -9.1) sd/Vq: cjn 0.362 corrected 0.361
+
+normal rough  K  50 K/n 0.056 maxh 0.378 | predicted 0.995 simulated 0.996 (z vs predicted   0.2) | corrected 1.001 (z   0.2) sd/Vq: cjn 0.173 corrected 0.174
+normal rough  K 101 K/n 0.112 maxh 0.779 | predicted 0.987 simulated 0.985 (z vs predicted  -0.3) | corrected 0.998 (z  -0.4) sd/Vq: cjn 0.189 corrected 0.190
+normal rough  K 170 K/n 0.189 maxh 0.884 | predicted 0.964 simulated 0.964 (z vs predicted   0.0) | corrected 0.998 (z  -0.2) sd/Vq: cjn 0.210 corrected 0.215
+normal rough  K 226 K/n 0.251 maxh 0.936 | predicted 0.925 simulated 0.920 (z vs predicted  -0.6) | corrected 0.910 (z -11.4) sd/Vq: cjn 0.270 corrected 0.249
+
+chisq  homo   K  50 K/n 0.056 maxh 0.378 | predicted 0.995 simulated 0.993 (z vs predicted  -0.4) | corrected 0.997 (z  -0.5) sd/Vq: cjn 0.187 corrected 0.187
+chisq  homo   K 101 K/n 0.112 maxh 0.779 | predicted 0.987 simulated 0.986 (z vs predicted  -0.2) | corrected 0.998 (z  -0.3) sd/Vq: cjn 0.194 corrected 0.195
+chisq  homo   K 170 K/n 0.189 maxh 0.884 | predicted 0.971 simulated 0.971 (z vs predicted   0.0) | corrected 0.993 (z  -1.1) sd/Vq: cjn 0.202 corrected 0.205
+chisq  homo   K 226 K/n 0.251 maxh 0.936 | predicted 0.940 simulated 0.937 (z vs predicted  -0.1) | corrected 0.519 (z -16.9) sd/Vq: cjn 0.912 corrected 0.897
+
+chisq  smooth K  50 K/n 0.056 maxh 0.378 | predicted 0.993 simulated 1.002 (z vs predicted   0.7) | corrected 1.009 (z   0.7) sd/Vq: cjn 0.443 corrected 0.445
+chisq  smooth K 101 K/n 0.112 maxh 0.779 | predicted 0.979 simulated 0.988 (z vs predicted   0.6) | corrected 1.006 (z   0.4) sd/Vq: cjn 0.450 corrected 0.454
+chisq  smooth K 170 K/n 0.189 maxh 0.884 | predicted 0.960 simulated 0.978 (z vs predicted   1.0) | corrected 1.008 (z   0.4) sd/Vq: cjn 0.561 corrected 0.569
+chisq  smooth K 226 K/n 0.251 maxh 0.936 | predicted 0.888 simulated 0.897 (z vs predicted   0.5) | corrected 0.889 (z  -5.3) sd/Vq: cjn 0.638 corrected 0.663
+
+chisq  rough  K  50 K/n 0.056 maxh 0.378 | predicted 0.995 simulated 1.005 (z vs predicted   0.8) | corrected 1.010 (z   0.8) sd/Vq: cjn 0.366 corrected 0.366
+chisq  rough  K 101 K/n 0.112 maxh 0.779 | predicted 0.987 simulated 0.985 (z vs predicted  -0.2) | corrected 0.998 (z  -0.2) sd/Vq: cjn 0.338 corrected 0.339
+chisq  rough  K 170 K/n 0.189 maxh 0.884 | predicted 0.964 simulated 0.958 (z vs predicted  -0.5) | corrected 0.992 (z  -0.7) sd/Vq: cjn 0.389 corrected 0.362
+chisq  rough  K 226 K/n 0.251 maxh 0.936 | predicted 0.925 simulated 0.907 (z vs predicted  -1.0) | corrected 0.918 (z  -5.5) sd/Vq: cjn 0.577 corrected 0.467
+

@@ -833,6 +833,70 @@ is not needed. That condition is stronger than A3, and the designs above
 (leverage up to 0.94) do not satisfy it, although CJN measured well there
 at K/n ≤ 0.11.
 
+**Coverage of `ρ̂` with each `V̂` (`tc_coverage_vhat.jl`).** The exact-diagonal
+TC-CFE at its feasible root, with `ρ₀ = 0.4`, in `tc_vhat_lo_hat.jl`'s
+hat-basis design: smooth and rough variances, normal and `χ²₃` errors, both
+signal strengths, K/n from 0.06 to 0.25, R = 1000 per cell (Monte Carlo SE
+0.007). A negative `V̂` counts as not covering.
+
+| `V̂` | weak signal, K/n ≤ 0.19 | weak, K/n = 0.25 | strong signal, K/n ≤ 0.19 | strong, K/n = 0.25 |
+|---|---|---|---|---|
+| oracle | 0.945–0.963 | 0.950–0.961 | 0.945–0.963 | 0.953–0.964 |
+| HC2 (coded) | 0.940–0.966 | 0.956–0.968 | 0.945–0.958 | 0.953–0.965 |
+| leave-one-out | 0.934–0.955 | 0.937–0.950 | 0.929–0.950 | 0.906–0.936 |
+| CJN | 0.932–0.953 | 0.911–0.940 | 0.943–0.957 | 0.950–0.958 |
+
+- **HC2, the coded estimator, has the best coverage**, within 0.94–0.97
+  everywhere. Its upward bias in `V̂` (up to 21% under rough variances)
+  moves coverage by at most 1.6 points above the oracle's, because the
+  standard error is the square root of `V̂` and the tail is thin there.
+- **Leave-one-out under-covers with a strong signal** (0.906–0.936 at
+  K/n = 0.25), with `V̂ < 0` in up to 15 of 1000 replications.
+- **CJN under-covers at K/n = 0.25 with a weak signal** (0.911–0.940),
+  with `V̂ < 0` in up to 13 replications; elsewhere it is 0.932–0.958.
+- **The power check works only for smooth variances.** The homoskedastic
+  `V̂` covers 0.869–0.921 there (weak signal), but 0.95–0.97 under rough
+  variances: rough variances that are unrelated to location average out in
+  `V`, so a pooled `σ̂²` is nearly right for this statistic. That is a fact
+  about this `V`, not a failure of the check.
+
+So for inference the conservative HC2 estimator is the safe choice in these
+designs, and the estimators that remove its bias in `E V̂` pay for it in
+variance and in under-coverage. A bias correction is worth building only
+if it keeps HC2's coverage.
+
+**The exact bias of CJN's quadratic part (proved; `tc_cjn_bias.jl`).** With
+`s = Λû²`, `Λ = (M∘M)⁻¹` and `Ω = Cs∘Cs`, at `ρ₀`:
+
+    E[2s′Ωs] − 2σ²′Ωσ² = 4 tr(ΩΛ[(MΣM)∘(MΣM)]Λ),   for any error law.
+
+*Proof.* `E s = σ²`, so the left side is `2 tr(Ω Cov s)`, with
+`Cov s = Λ Cov(û²) Λ`. For `û = Mε` with independent `εₖ`,
+`Cov(ûᵢ², ûⱼ²) = 2(MΣM)ᵢⱼ² + Σₖ Mᵢₖ²Mⱼₖ²κₖ`, where `κₖ` is the fourth
+cumulant. The second part is `(M∘M)Diag(κ)(M∘M)`, so it contributes
+`Λ(M∘M)Diag(κ)(M∘M)Λ = Diag(κ)` to `Cov s`, and `tr(Ω Diag(κ)) = 0`
+because `diag Ω = 0`. ∎
+
+So the "Gaussian" correction in `tc_vhat.jl` is in fact distribution-free
+for the quadratic part. It failed there because the leverage reached 1. In
+the hat-basis design (R = 1000):
+
+- **The formula is exact.** The predicted ratio `1 + bias/Vq` falls from
+  0.993–0.995 at K/n = 0.06 to 0.888–0.940 at K/n = 0.25, and the simulated
+  mean matches it in all 24 cells (`|z|` ≤ 1.8). The `χ²₃` cells, where
+  `κ ≠ 0`, match as well as the normal ones, which checks that the cumulant
+  term cancels. Power: the same test separates the uncorrected mean from 1,
+  for example 0.964 at K/n = 0.19 with rough variances, a `z` of −5.4.
+- **A plug-in correction works up to K/n = 0.19.** Subtracting
+  `4 tr(ΩΛ[(MSM)∘(MSM)]Λ)` with `S = Diag(s)` gives 0.986–1.015 at
+  K/n ≤ 0.19 (`|z|` ≤ 2.0), at no cost in sd. At K/n = 0.25, where the
+  leverage reaches 0.94, it fails: 0.52–0.92, `z` from −5 to −28. There the
+  plug-in `(MSM)ᵢⱼ²` carries its own bias, which involves `σₖ⁴` and so
+  cannot be removed from one observation per unit.
+- This corrects only the quadratic part. CJN's linear part is still biased
+  down at K/n = 0.25 (0.72–0.95 with a weak signal), and coverage with the
+  corrected `V̂` is not measured.
+
 ## Still to do
 
 1. Theorem 1 and the Corollary are proved (2026-11-19), the Corollary
@@ -852,7 +916,12 @@ at K/n ≤ 0.11.
    on `f`. Proposition 2 proves the coded HC2 `V̂` consistent for
    K/n → 0 under four moments and A10. Still to do: a correction for
    K/n → c > 0 (CJN's bias does not depend on `f`, so it may be removable
-   from `û`); coverage.
+   from `û`). Coverage is measured (`tc_coverage_vhat.jl`): HC2 covers
+   0.94–0.97 in every cell, and leave-one-out and CJN under-cover at
+   K/n = 0.25. CJN's quadratic-part bias has an exact, distribution-free
+   formula (`tc_cjn_bias.jl`), and its plug-in correction works to
+   K/n = 0.19 but not at 0.25. Open: CJN's linear-part bias, and the
+   coverage of a corrected `V̂`.
 4. Remark 3 for a penalised smoother, with a numerical check.
 5. Reading: de Jong (1987), Bhansali, Giraitis & Kokoszka (2007), Kelejian &
    Prucha (2001) and Hall & Heyde's §3.2 are read. Cattaneo, Jansson & Newey
