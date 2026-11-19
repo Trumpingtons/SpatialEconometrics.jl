@@ -614,7 +614,18 @@ sufficient condition for bounded `d̄` is `maxᵢ hᵢᵢ ≤ h̄ < 1/2`, which 
 For Jin & Lee's `C = (W′ − Δ)M` the same holds with `max|Δᵢᵢ|` in place of
 `d̄`, which Lemma 2(b) bounds under A3 alone.
 
-*Proof.* Write `Ws = (W + W′)/2` and `X = Ws + D`. Since `M` is an
+**(b) The spectral form.** With `X = Ws + D = Σⱼ λⱼφⱼφⱼ′` and
+`πⱼ = ‖P_Bφⱼ‖²`, the overlap of the basis with eigenvector `φⱼ`,
+
+    ‖Cs‖_F² ≥ Σⱼ λⱼ²(1 − 2πⱼ) = ‖X‖_F² (1 − 2π̄_w),   π̄_w = Σⱼ λⱼ²πⱼ / Σⱼ λⱼ².
+
+So A5 holds whenever the λ²-weighted mean overlap `π̄_w` stays below 1/2:
+the basis must not absorb half of `X`'s energy. That condition does not
+mention K/n at all; (a) is the special case that bounds every `πⱼ`-weighted
+sum by `K‖X‖_op²`. It is the moment-matrix analogue of the spectral overlap
+that the package reports for a smoother against `W`'s dominant modes.
+
+*Proof of (a) and (b).* Write `Ws = (W + W′)/2` and `X = Ws + D`. Since `M` is an
 orthogonal projection, `MCsM = M(Ws + D)M = MXM`, and `‖Cs‖_F ≥ ‖MCsM‖_F`.
 The four pieces `MXM`, `P_BXM`, `MXP_B`, `P_BXP_B` are orthogonal in the
 Frobenius inner product and sum to `X`, so
@@ -627,30 +638,39 @@ For a row-standardised row with at most `m` entries, `Σⱼ Wᵢⱼ² ≥ 1/m`. 
 `|eᵢ′P_BWeᵢ| ≤ ‖P_Beᵢ‖‖Weᵢ‖ = √hᵢᵢ‖Weᵢ‖`. Row `i` of `M∘M` has diagonal
 `(1 − hᵢᵢ)²` and off-diagonal sum `Σ_{j≠i} hᵢⱼ² = hᵢᵢ(1 − hᵢᵢ)`, so its
 dominance margin is `(1 − hᵢᵢ)(1 − 2hᵢᵢ)`, and
-`‖(M∘M)⁻¹‖_∞ ≤ 1/((1 − h̄)(1 − 2h̄))`. ∎
+`‖(M∘M)⁻¹‖_∞ ≤ 1/((1 − h̄)(1 − 2h̄))`. For (b), the same orthogonal
+split gives `‖MXM‖_F² ≥ ‖X‖_F² − 2‖P_BX‖_F²` (with `X` symmetric,
+`‖XP_B‖_F = ‖P_BX‖_F`), and `‖P_BX‖_F² = tr(XP_BX) = Σⱼ λⱼ²φⱼ′P_Bφⱼ`. ∎
 
 **How sharp it is (`tc_a5.jl`).** Exact computation, no simulation, for the
 n = 900 kNN `W` (k = 6, so `κ` = 1/6 and the bound on `‖Ws‖_F²/n` is 0.083;
 the actual value is 0.153) with the Chebyshev and hat bases used above:
 
-| basis | K/n | max hᵢᵢ | ‖Cs‖_F²/n | d̄ | bound with measured ‖Ws‖_F, d̄ | with 1/(2m) | with the d̄ bound |
-|---|---|---|---|---|---|---|---|
-| hat | 0.006 | 0.02 | 0.148 | 0.022 | 0.137 | 0.068 | 0.066 |
-| hat | 0.019 | 0.11 | 0.134 | 0.087 | 0.093 | 0.024 | 0.003 |
-| hat | 0.029 | 0.17 | 0.125 | 0.113 | 0.058 | 0 | 0 |
-| hat | 0.056 | 0.38 | 0.102 | 0.184 | 0 | 0 | 0 |
-| hat | 0.251 | 0.94 | 0.041 | 398 | 0 | 0 | 0 |
-| Chebyshev | 0.008 | 0.03 | 0.145 | 0.030 | 0.130 | 0.061 | 0.058 |
-| Chebyshev | 0.032 | 0.41 | 0.123 | 0.159 | 0.039 | 0 | 0 |
-| Chebyshev | 0.102 | 0.98 | 0.083 | 40 | 0 | 0 | 0 |
+| basis | K/n | max hᵢᵢ | ‖Cs‖_F²/n | d̄ | (a), measured ‖Ws‖_F, d̄ | (a), 1/(2m) | (a), the d̄ bound | π̄_w | (b) spectral |
+|---|---|---|---|---|---|---|---|---|---|
+| hat | 0.006 | 0.02 | 0.148 | 0.022 | 0.137 | 0.068 | 0.066 | 0.031 | 0.143 |
+| hat | 0.019 | 0.11 | 0.134 | 0.087 | 0.093 | 0.024 | 0.003 | 0.119 | 0.117 |
+| hat | 0.029 | 0.17 | 0.125 | 0.113 | 0.058 | 0 | 0 | 0.183 | 0.098 |
+| hat | 0.056 | 0.38 | 0.102 | 0.184 | 0 | 0 | 0 | 0.334 | 0.052 |
+| hat | 0.112 | 0.78 | 0.069 | 0.75 | 0 | 0 | 0 | 0.559 | 0 |
+| hat | 0.251 | 0.94 | 0.041 | 398 | 0 | 0 | 0 | 0.931 | 0 |
+| Chebyshev | 0.008 | 0.03 | 0.145 | 0.030 | 0.130 | 0.061 | 0.058 | 0.046 | 0.139 |
+| Chebyshev | 0.032 | 0.41 | 0.123 | 0.159 | 0.039 | 0 | 0 | 0.188 | 0.096 |
+| Chebyshev | 0.051 | 0.75 | 0.110 | 0.34 | 0 | 0 | 0 | 0.278 | 0.069 |
+| Chebyshev | 0.102 | 0.98 | 0.083 | 40 | 0 | 0 | 0 | 0.935 | 0 |
 
-- **The bound is close at small K/n and vanishes by K/n ≈ 0.03–0.05.** With
-  the measured ingredients it is 0.137 against 0.148, and it is positive up
-  to K/n = 0.05 for a small `d̄`. The worst case `‖P_BX‖_F² ≤ K‖X‖_op²` is
-  what loses: it treats every basis direction as if it met `W`'s top
-  singular directions. So A5 is proved for K/n → 0 and for small K/n, and
-  stays an assumption beyond that; it is measured at 0.04–0.15 in every
-  design used here.
+- **(a) is close at small K/n and vanishes by K/n ≈ 0.03–0.05.** With the
+  measured ingredients it is 0.137 against 0.148. The worst case
+  `‖P_BX‖_F² ≤ K‖X‖_op²` is what loses: it treats every basis direction as
+  if it met `X`'s top eigenvectors.
+- **(b) is sharper and reaches about twice as far.** It is 0.143 against
+  0.148 at the smallest K/n, still 0.052–0.069 at K/n ≈ 0.05 where (a) is
+  zero, and it vanishes where `π̄_w` passes 1/2 (K/n ≈ 0.10–0.11 in both
+  bases). A likely cause, not measured: as `d̄` grows, more of `X`'s energy
+  sits on `D`'s entries at high-leverage units, which the basis covers
+  almost entirely. What (b) still drops is `‖P_BXP_B‖_F² ≥ 0`.
+  So A5 is proved while `π̄_w < 1/2` and stays an assumption beyond; it is
+  measured at 0.04–0.15 in every design used here.
 - **Leverage 1 makes `d` explode.** In the Chebyshev designs `d̄` is 40 at
   K/n = 0.10, 1.3 × 10⁴ at 0.19 and 1.9 × 10⁹ at 0.39, where `M∘M` is
   nearly singular, and at K/n = 0.39 that drives `‖Cs‖_F²/n` to 2.5. The
@@ -1184,11 +1204,11 @@ with bounded leverage cannot reach at n = 900; other `W`; and `n` other than
    smoother with `Sᵢᵢ` in place of `hᵢᵢ`, provided the moment is formed as
    `y₀′Ay₀` and not by the idempotent shortcut (`tc_smoother.jl`); the
    `V̂` part is sketched.
-2. A5: Proposition 5 derives it from `W` for K/n → 0 and small K/n
-   (positive up to K/n ≈ 0.05 in `tc_a5.jl`). Still open: a condition for
-   K/n → c > 0, which needs a bound on `‖P_BX‖_F` sharper than
-   `√K‖X‖_op`, for example in terms of the spectral overlap of `B` with
-   `W`'s leading eigenvectors.
+2. A5: Proposition 5 derives it from `W` for K/n → 0 and, in its spectral
+   form, whenever the weighted overlap `π̄_w` of `B` with the eigenvectors
+   of `Ws + D` stays below 1/2 (up to K/n ≈ 0.05–0.10 in `tc_a5.jl`).
+   Still open: a condition that keeps `‖P_BXP_B‖_F²`, which the bound drops,
+   and so covers the designs where `π̄_w ≥ 1/2` but A5 still holds.
 3. Theory step 2: the conjecture is checked numerically (`tc_vhat.jl`),
    and so are Kline, Saggio & Sølvsten's leave-one-out variances
    (`tc_vhat_lo.jl`, `tc_vhat_lo_lin.jl`). Neither is safe everywhere: HC2

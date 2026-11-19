@@ -9,6 +9,10 @@
 # This script computes, for the designs of tc_vhat.jl (Chebyshev surface) and tc_vhat_lo_hat.jl (hat basis),
 # the actual ‖Cs‖_F²/n against the bound in its three forms: with the measured ‖Ws‖_F and d̄, with
 # n/(2m) for ‖Ws‖_F², and with the h̄ < 1/2 bound for d̄ where it applies. No simulation: all are exact.
+#
+# The spectral form replaces the worst case ‖P_B X‖_F² ≤ K‖X‖_op² by the identity ‖P_B X‖_F² = Σⱼ λⱼ²πⱼ for
+# X = Σⱼ λⱼφⱼφⱼ′, πⱼ = ‖P_Bφⱼ‖², so ‖Cs‖_F² ≥ Σⱼ λⱼ²(1 − 2πⱼ) = ‖X‖_F²(1 − 2π̄_w), with π̄_w the λ²-weighted
+# mean overlap of B with X's eigenvectors (printed as pi_w, with the bound as "spectral").
 include(joinpath(@__DIR__, "tc_lib.jl"))
 using Printf
 
@@ -29,9 +33,14 @@ function row(name, B, W, n)
     dbd = h̄ < 0.5 ? colmax * sqrt(h̄) / ((1 - h̄) * (1 - 2h̄)) : NaN
     b3 = h̄ < 0.5 ? lb(sqrt(n / (2m)), dbd) : NaN
     kstar = norm(Ws)^2 / n / (2 * (opW + d̄)^2)               # K/n below which bound 1 is positive
-    @printf("%-10s K %3d K/n %.3f maxh %.3f | ‖Cs‖F²/n %.4f | ‖Ws‖F²/n %.4f (≥ 1/(2m) = %.4f) ‖W‖op %.3f d̄ %.3f (bound %s) | lower bound: measured %.4f, with 1/(2m) %.4f, with d̄ bound %s | bound positive for K/n < %.4f\n",
+    E = eigen(Symmetric(Ws + Diagonal(D.d)))
+    πj = vec(sum((D.Q' * E.vectors) .^ 2, dims = 1))
+    λ2 = E.values .^ 2
+    πw = dot(λ2, πj) / sum(λ2)
+    spec = max(dot(λ2, 1 .- 2 .* πj) / n, 0.0)
+    @printf("%-10s K %3d K/n %.3f maxh %.3f | ‖Cs‖F²/n %.4f | ‖Ws‖F²/n %.4f (≥ 1/(2m) = %.4f) ‖W‖op %.3f d̄ %.3f (bound %s) | lower bound: measured %.4f, with 1/(2m) %.4f, with d̄ bound %s | bound positive for K/n < %.4f | spectral: pi_w %.3f bound %.4f\n",
             name, D.K, D.K / n, h̄, cs, norm(Ws)^2 / n, 1 / (2m), opW, d̄, isnan(dbd) ? "n/a, h̄ ≥ 1/2" : @sprintf("%.3f", dbd),
-            b1, b2, isnan(b3) ? "n/a" : @sprintf("%.4f", b3), kstar)
+            b1, b2, isnan(b3) ? "n/a" : @sprintf("%.4f", b3), kstar, πw, spec)
 end
 
 n = 900

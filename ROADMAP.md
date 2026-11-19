@@ -1227,8 +1227,12 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      Proposition 5 derives A5 from `W`: `‖Cs‖_F²/n ≥ κ/2 −
      2(K/n)(c_W + d̄)²` with `κn ≤ ‖W‖_F²`, so A5 holds for K/n → 0. In
      `tc_a5.jl` the bound is close at small K/n (0.137 against 0.148) and
-     vanishes by K/n ≈ 0.05, so beyond that A5 stays an assumption. It also
-     shows `d` exploding (to 10⁹) where the leverage reaches 1.
+     vanishes by K/n ≈ 0.05. A spectral form, `‖Cs‖_F² ≥ ‖X‖_F²(1 − 2π̄_w)`
+     with `π̄_w` the λ²-weighted overlap of `B` with the eigenvectors of
+     `X = Ws + D`, needs no rate on K/n and is sharper (0.143 against
+     0.148); it vanishes where `π̄_w` passes 1/2, at K/n ≈ 0.10. Beyond that
+     A5 stays an assumption. `tc_a5.jl` also shows `d` exploding (to 10⁹)
+     where the leverage reaches 1.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:
