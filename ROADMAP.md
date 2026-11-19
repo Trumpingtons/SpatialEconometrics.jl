@@ -1180,8 +1180,15 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      variances, but conservative under rough heteroskedasticity: 1.01 to
      1.13 (normal) and 1.03 to 1.17 (`χ²₃`) as K/n goes from 0.05 to 0.39.
      Cattaneo, Jansson & Newey's `(M∘M)⁻¹û²` fails here (1.1–2.7 × V at
-     K/n ≥ 0.28), because the basis has leverage up to 1. Still open: a
-     proof for K/n → 0, and a leave-out estimator for the rough case.
+     K/n ≥ 0.28), because the basis has leverage up to 1. Kline, Saggio &
+     Sølvsten's leave-one-out `y₀ᵢûᵢ/Mᵢᵢ` is exactly unbiased per unit at any
+     leverage below 1; in `tc_vhat_lo.jl` it brings the rough cases to
+     0.974–1.030 (all 30 cells 0.968–1.030). But with a strong signal
+     (`tc_vhat_lo_lin.jl`, linear part 90% of `V`) its quadratic part
+     collapses, through a product term in `f` divided by `MᵢᵢMⱼⱼ`: the
+     total is 10–17% low at K/n = 0.28 and negative at 0.39, where HC2 is
+     within 4%. Neither estimator is safe everywhere. Still open: an
+     `f`-free estimate of `σᵢ²σⱼ²`, coverage, and a proof.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:

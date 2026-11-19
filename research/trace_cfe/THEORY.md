@@ -615,7 +615,86 @@ estimator needs `max hᵢᵢ < 1/2`. These designs have `max hᵢᵢ` from 0.75 
 estimate reaches 1.1–2.7 × V. A Gaussian removal of `Cov(sᵢ, sⱼ)` makes it
 worse, and even goes negative. A remedy must therefore cope with leverage near
 1: Kline, Saggio & Sølvsten's leave-out with sample splitting, or a local
-(hat-function) basis, whose leverage is bounded. Neither has been tried.
+(hat-function) basis, whose leverage is bounded.
+
+**Kline, Saggio & Sølvsten's leave-one-out variances (`tc_vhat_lo.jl`,
+2026-11-19).** Replace the plug-in by `sᵢ = y₀ᵢûᵢ/Mᵢᵢ`, which is
+`y₀ᵢ(y₀ᵢ − ŷ₋ᵢ)`, the product with the residual of a fit that leaves unit `i`
+out. Since `û = Mε` and `y₀ = f + ε`, `E[y₀ᵢûᵢ] = Mᵢᵢσᵢ²`, so `E sᵢ = σᵢ²`
+**exactly, for any variances and any `Mᵢᵢ > 0`**: no `(M∘M)⁻¹` is needed.
+That holds unit by unit only. The products below divide by `MᵢᵢMⱼⱼ`, and
+with a strong signal and leverage near 1 they ruin the quadratic part (the
+strong-signal check below). The linear part's noise term is linear in `s`,
+so it is unbiased too. What remains is the bias of products of dependent
+estimates. For `i ≠ j`, with third moments `μ₃`,
+
+    E[sᵢsⱼ] = σᵢ²σⱼ²(1 + Mᵢⱼ²/(MᵢᵢMⱼⱼ)) + [fᵢfⱼ(MΣM)ᵢⱼ + fᵢMᵢⱼMⱼⱼμ₃ⱼ + fⱼMᵢⱼMᵢᵢμ₃ᵢ]/(MᵢᵢMⱼⱼ),
+
+and `âᵢ²sᵢ` in the linear part has a bias of the same kind. Kline et al.
+remove these by sample splitting, which needs their condition
+`P_{iℓ,1}P_{iℓ,2} = 0`; a dense projection does not satisfy it.
+
+The check uses `tc_vhat.jl`'s design and seeds exactly, so the HC2 column is
+the committed one:
+
+| Variances, errors | HC2, K/n = 0.05 → 0.39 | leave-one-out | largest \|z\|, leave-one-out |
+|---|---|---|---|
+| constant, normal | 1.004–1.030 | 0.989–1.009 | 2.9 |
+| smooth, normal | 0.962–1.006 | 0.995–1.009 | 1.4 |
+| rough, normal | 1.010–1.134 | 0.974–1.016 | 2.4 |
+| constant, `χ²₃` | 1.000–1.048 | 0.990–1.022 | 2.0 |
+| smooth, `χ²₃` | 0.985–1.027 | 0.968–1.009 | 3.3 |
+| rough, `χ²₃` | 1.028–1.167 | 0.995–1.030 | 2.1 |
+
+- **It removes the rough-heteroskedasticity bias.** Where HC2 reaches 1.13
+  and 1.17 with `z` of 6–9, leave-one-out is within 3% of `V`, and only one
+  of the 30 cells has `|z| > 3` (smooth, `χ²₃`, K/n = 0.19: 0.968). The
+  oracle stays at 0.997–1.002, and HC2 itself serves as the power check: the
+  same test finds its bias at `z` up to 9.4.
+- **The parts are not separately unbiased.** The linear part falls with K/n,
+  to 0.84–0.87 of its true value at K/n = 0.39 with smooth variances (and
+  0.95–0.97 otherwise); the quadratic part runs up to 6% high
+  (rough, `χ²₃`, K/n = 0.19). The total stays within 3% because the
+  quadratic part dominates `V` here, and because `f` is weak. The
+  strong-signal check below shows what happens when it is not.
+- **It is noisier.** At K/n = 0.39 its sd is 0.44–0.78 of `V`, against HC2's
+  0.31–0.66; at small K/n the two are within 10% of each other. The effect
+  on coverage is not measured.
+
+**With a strong signal, leave-one-out fails (`tc_vhat_lo_lin.jl`).** The
+same design and seeds, with `f` scaled so that the linear part is 90% of
+`V`. The quadratic part's true value is unchanged; only `f` grows.
+
+| K/n | quadratic part, leave-one-out | total, leave-one-out | total, HC2 |
+|---|---|---|---|
+| 0.05 | 0.80–0.98 | 0.968–1.007 | 0.990–1.003 |
+| 0.10 | 0.73–0.96 | 0.957–0.994 | 0.995–1.010 |
+| 0.19 | 0.69–0.96 | 0.945–0.982 | 0.994–1.010 |
+| 0.28 | −0.19 to 0.16 | 0.830–0.894 | 0.990–1.035 |
+| 0.39 | −42 to −16 | −3.2 to −0.8 | 0.987–1.035 |
+
+- **The quadratic part collapses as K/n grows**, and is negative from
+  K/n = 0.28, when the leverage reaches 1. This is the
+  `fᵢfⱼ(MΣM)ᵢⱼ/(MᵢᵢMⱼⱼ)` term in `E[sᵢsⱼ]` above: it grows with `‖f‖²` and is
+  divided by `MᵢᵢMⱼⱼ`. Its sd is up to 28 × `V` at K/n = 0.39. The total is
+  10–17% low at K/n = 0.28 (`z` of −7 to −10), and negative at 0.39.
+- **The linear part is close to unbiased**: 0.93–1.04 in 27 of 30 cells; at
+  K/n = 0.39 two `χ²₃` cells reach 0.88 and one normal cell 1.11. The
+  prediction written before the run,
+  that the linear part's `2bᵢfᵢ(GQ′ΣM)ᵢᵢ/Mᵢᵢ` bias would show here at
+  10–16%, was wrong. The 16% shortfall in `tc_vhat_lo.jl` came with a weak
+  `f` and is not this term.
+- HC2 is good here (0.987–1.035), because its quadratic part, which carries
+  its rough-heteroskedasticity bias, is only 10% of `V`. The oracle stays at
+  0.998–1.000, which is the power check for the method.
+
+So neither estimator is safe everywhere. HC2 is biased up when the quadratic
+part dominates and the variances are rough. Leave-one-out is biased, and
+then unusable, when the signal is strong and the leverage is near 1. A
+hybrid, leave-one-out in the linear part and HC2 in the quadratic part,
+keeps HC2's quadratic bias. What is needed is an estimate of `σᵢ²σⱼ²` that
+is free of `f`, for example a leave-two-out product, or Kline et al.'s
+split, which a dense projection does not allow.
 
 ## Still to do
 
@@ -625,10 +704,13 @@ worse, and even goes negative. A remedy must therefore cope with leverage near
    nothing in the limit. Step 1 has no sketched parts left; Remarks 1 and 3
    are side cases.
 2. A primitive condition for A5, in terms of `W` and `K/n`.
-3. Theory step 2: the conjecture is checked numerically (`tc_vhat.jl`).
-   Still to do: prove the `K/n → 0` case, and find a `V̂` that works with
-   rough heteroskedasticity and leverage near 1, for example Kline, Saggio &
-   Sølvsten's sample splitting.
+3. Theory step 2: the conjecture is checked numerically (`tc_vhat.jl`),
+   and so are Kline, Saggio & Sølvsten's leave-one-out variances
+   (`tc_vhat_lo.jl`, `tc_vhat_lo_lin.jl`). Neither is safe everywhere: HC2
+   fails when the quadratic part dominates and the variances are rough, and
+   leave-one-out fails with a strong signal and leverage near 1. Still to
+   do: an `f`-free estimate of `σᵢ²σⱼ²` for the quadratic part, coverage, and
+   a proof of consistency.
 4. Remark 3 for a penalised smoother, with a numerical check.
 5. Reading: de Jong (1987), Bhansali, Giraitis & Kokoszka (2007), Kelejian &
    Prucha (2001) and Hall & Heyde's §3.2 are read. Cattaneo, Jansson & Newey

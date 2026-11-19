@@ -1,0 +1,39 @@
+normal smooth K  92 K/n 0.102 maxh 0.977 | oracle 0.978 (z  -2.1) [quad 1.000 lin 0.921] | hc2 0.966 (z  -0.7) [quad 0.934 lin 1.048] | lo 0.938 (z  -1.3) [quad 0.867 lin 1.120] | sd(V̂)/V: hc2 0.107 lo 0.106
+warm-up 3.1 s. E V̂/V with its z (R = 1000; |z| > 3 is a real bias); quad and lin are each part's mean over its true value.
+
+normal homo   K  46 K/n 0.051 maxh 0.747 | oracle 0.999 (z  -0.7) [quad 1.000 lin 0.998] | hc2 1.004 (z   1.4) [quad 1.007 lin 0.999] | lo 0.998 (z  -0.7) [quad 0.997 lin 0.998] | sd(V̂)/V: hc2 0.089 lo 0.096
+normal homo   K  92 K/n 0.102 maxh 0.977 | oracle 0.999 (z  -0.6) [quad 1.000 lin 0.999] | hc2 1.006 (z   2.0) [quad 1.011 lin 0.999] | lo 0.994 (z  -1.9) [quad 0.995 lin 0.993] | sd(V̂)/V: hc2 0.092 lo 0.099
+normal homo   K 172 K/n 0.191 maxh 1.000 | oracle 1.000 (z   0.1) [quad 1.000 lin 1.000] | hc2 1.009 (z   2.7) [quad 1.017 lin 0.996] | lo 0.990 (z  -2.9) [quad 0.991 lin 0.988] | sd(V̂)/V: hc2 0.103 lo 0.114
+normal homo   K 254 K/n 0.282 maxh 1.000 | oracle 1.000 (z   0.5) [quad 1.000 lin 1.001] | hc2 1.011 (z   1.5) [quad 1.015 lin 0.989] | lo 0.989 (z  -1.3) [quad 0.991 lin 0.976] | sd(V̂)/V: hc2 0.216 lo 0.266
+normal homo   K 352 K/n 0.391 maxh 1.000 | oracle 1.000 (z   0.4) [quad 1.000 lin 1.001] | hc2 1.030 (z   3.1) [quad 1.030 lin 0.982] | lo 1.009 (z   0.6) [quad 1.010 lin 0.960] | sd(V̂)/V: hc2 0.308 lo 0.490
+
+normal smooth K  46 K/n 0.051 maxh 0.747 | oracle 1.000 (z   0.4) [quad 1.000 lin 1.002] | hc2 1.004 (z   0.6) [quad 1.007 lin 0.993] | lo 1.009 (z   1.4) [quad 1.013 lin 0.997] | sd(V̂)/V: hc2 0.200 lo 0.215
+normal smooth K  92 K/n 0.102 maxh 0.977 | oracle 1.000 (z   0.2) [quad 1.000 lin 1.001] | hc2 1.006 (z   1.1) [quad 1.011 lin 0.995] | lo 1.003 (z   0.5) [quad 1.013 lin 0.978] | sd(V̂)/V: hc2 0.191 lo 0.203
+normal smooth K 172 K/n 0.191 maxh 1.000 | oracle 1.002 (z   1.3) [quad 1.000 lin 1.008] | hc2 0.998 (z  -0.4) [quad 0.999 lin 0.994] | lo 0.995 (z  -0.7) [quad 1.006 lin 0.970] | sd(V̂)/V: hc2 0.187 lo 0.206
+normal smooth K 254 K/n 0.282 maxh 1.000 | oracle 1.000 (z   0.0) [quad 1.000 lin 1.000] | hc2 0.962 (z  -3.7) [quad 0.958 lin 0.981] | lo 1.007 (z   0.5) [quad 1.025 lin 0.900] | sd(V̂)/V: hc2 0.328 lo 0.453
+normal smooth K 352 K/n 0.391 maxh 1.000 | oracle 1.000 (z   1.5) [quad 1.000 lin 1.011] | hc2 0.998 (z  -0.2) [quad 0.999 lin 0.969] | lo 1.008 (z   0.6) [quad 1.010 lin 0.868] | sd(V̂)/V: hc2 0.323 lo 0.439
+
+normal rough  K  46 K/n 0.051 maxh 0.747 | oracle 1.000 (z  -0.5) [quad 1.000 lin 0.999] | hc2 1.010 (z   2.4) [quad 1.019 lin 0.997] | lo 0.997 (z  -0.7) [quad 0.997 lin 0.996] | sd(V̂)/V: hc2 0.134 lo 0.143
+normal rough  K  92 K/n 0.102 maxh 0.977 | oracle 0.999 (z  -0.6) [quad 1.000 lin 0.999] | hc2 1.024 (z   5.3) [quad 1.042 lin 0.997] | lo 0.993 (z  -1.5) [quad 0.996 lin 0.989] | sd(V̂)/V: hc2 0.142 lo 0.145
+normal rough  K 172 K/n 0.191 maxh 1.000 | oracle 0.999 (z  -0.7) [quad 1.000 lin 0.998] | hc2 1.042 (z   6.5) [quad 1.073 lin 0.984] | lo 0.986 (z  -2.3) [quad 0.986 lin 0.985] | sd(V̂)/V: hc2 0.204 lo 0.198
+normal rough  K 254 K/n 0.282 maxh 1.000 | oracle 1.000 (z   0.1) [quad 1.000 lin 1.000] | hc2 1.069 (z   6.7) [quad 1.082 lin 0.998] | lo 0.974 (z  -2.4) [quad 0.974 lin 0.971] | sd(V̂)/V: hc2 0.325 lo 0.344
+normal rough  K 352 K/n 0.391 maxh 1.000 | oracle 1.000 (z   0.4) [quad 1.000 lin 1.001] | hc2 1.134 (z   9.4) [quad 1.135 lin 0.991] | lo 1.016 (z   0.8) [quad 1.016 lin 0.950] | sd(V̂)/V: hc2 0.452 lo 0.643
+
+chisq  homo   K  46 K/n 0.051 maxh 0.747 | oracle 0.998 (z  -2.5) [quad 1.000 lin 0.995] | hc2 1.000 (z   0.1) [quad 1.011 lin 0.984] | lo 0.991 (z  -1.9) [quad 0.997 lin 0.981] | sd(V̂)/V: hc2 0.151 lo 0.158
+chisq  homo   K  92 K/n 0.102 maxh 0.977 | oracle 0.998 (z  -2.2) [quad 1.000 lin 0.995] | hc2 1.010 (z   2.0) [quad 1.027 lin 0.985] | lo 0.990 (z  -2.0) [quad 0.998 lin 0.978] | sd(V̂)/V: hc2 0.154 lo 0.160
+chisq  homo   K 172 K/n 0.191 maxh 1.000 | oracle 0.997 (z  -3.0) [quad 1.000 lin 0.993] | hc2 1.024 (z   4.6) [quad 1.051 lin 0.980] | lo 0.996 (z  -0.7) [quad 1.012 lin 0.970] | sd(V̂)/V: hc2 0.169 lo 0.172
+chisq  homo   K 254 K/n 0.282 maxh 1.000 | oracle 0.999 (z  -2.6) [quad 1.000 lin 0.993] | hc2 1.048 (z   4.3) [quad 1.061 lin 0.980] | lo 1.022 (z   1.6) [quad 1.033 lin 0.965] | sd(V̂)/V: hc2 0.356 lo 0.431
+chisq  homo   K 352 K/n 0.391 maxh 1.000 | oracle 1.000 (z  -1.5) [quad 1.000 lin 0.996] | hc2 1.045 (z   2.8) [quad 1.045 lin 0.969] | lo 1.018 (z   0.8) [quad 1.018 lin 0.955] | sd(V̂)/V: hc2 0.500 lo 0.682
+
+chisq  smooth K  46 K/n 0.051 maxh 0.747 | oracle 1.000 (z  -0.3) [quad 1.000 lin 0.999] | hc2 1.008 (z   0.8) [quad 1.023 lin 0.963] | lo 0.980 (z  -2.0) [quad 0.986 lin 0.959] | sd(V̂)/V: hc2 0.333 lo 0.329
+chisq  smooth K  92 K/n 0.102 maxh 0.977 | oracle 1.000 (z  -0.0) [quad 1.000 lin 1.000] | hc2 1.027 (z   2.6) [quad 1.045 lin 0.979] | lo 0.975 (z  -2.6) [quad 0.978 lin 0.966] | sd(V̂)/V: hc2 0.324 lo 0.307
+chisq  smooth K 172 K/n 0.191 maxh 1.000 | oracle 0.997 (z  -1.5) [quad 1.000 lin 0.991] | hc2 1.025 (z   2.6) [quad 1.047 lin 0.974] | lo 0.968 (z  -3.3) [quad 0.980 lin 0.939] | sd(V̂)/V: hc2 0.309 lo 0.305
+chisq  smooth K 254 K/n 0.282 maxh 1.000 | oracle 0.999 (z  -0.9) [quad 1.000 lin 0.993] | hc2 0.985 (z  -1.1) [quad 0.989 lin 0.955] | lo 0.982 (z  -1.0) [quad 0.998 lin 0.886] | sd(V̂)/V: hc2 0.438 lo 0.549
+chisq  smooth K 352 K/n 0.391 maxh 1.000 | oracle 1.000 (z  -0.3) [quad 1.000 lin 0.998] | hc2 1.016 (z   1.0) [quad 1.017 lin 0.923] | lo 1.009 (z   0.5) [quad 1.011 lin 0.841] | sd(V̂)/V: hc2 0.489 lo 0.594
+
+chisq  rough  K  46 K/n 0.051 maxh 0.747 | oracle 0.999 (z  -0.6) [quad 1.000 lin 0.999] | hc2 1.028 (z   3.3) [quad 1.049 lin 0.998] | lo 1.008 (z   0.8) [quad 1.018 lin 0.992] | sd(V̂)/V: hc2 0.275 lo 0.279
+chisq  rough  K  92 K/n 0.102 maxh 0.977 | oracle 1.000 (z  -0.1) [quad 1.000 lin 1.000] | hc2 1.058 (z   6.0) [quad 1.100 lin 0.997] | lo 1.007 (z   0.7) [quad 1.020 lin 0.987] | sd(V̂)/V: hc2 0.308 lo 0.281
+chisq  rough  K 172 K/n 0.191 maxh 1.000 | oracle 1.000 (z  -0.1) [quad 1.000 lin 1.000] | hc2 1.130 (z   6.7) [quad 1.212 lin 0.978] | lo 1.030 (z   2.1) [quad 1.056 lin 0.983] | sd(V̂)/V: hc2 0.616 lo 0.450
+chisq  rough  K 254 K/n 0.282 maxh 1.000 | oracle 1.000 (z  -0.7) [quad 1.000 lin 0.998] | hc2 1.167 (z   6.3) [quad 1.201 lin 0.982] | lo 1.008 (z   0.4) [quad 1.018 lin 0.956] | sd(V̂)/V: hc2 0.838 lo 0.594
+chisq  rough  K 352 K/n 0.391 maxh 1.000 | oracle 1.000 (z  -0.7) [quad 1.000 lin 0.997] | hc2 1.154 (z   7.4) [quad 1.155 lin 1.025] | lo 0.995 (z  -0.2) [quad 0.995 lin 0.969] | sd(V̂)/V: hc2 0.657 lo 0.784
+
