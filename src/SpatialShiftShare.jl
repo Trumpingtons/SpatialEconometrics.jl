@@ -16,6 +16,7 @@ import Random: AbstractRNG
 
 export ShiftShareDesign, shift_share_design,
        ShiftShareFit, fit_shift_share,
+       ShockLevelFit, fit_shock_level,
        ExposureConcentration, exposure_concentration,
        ShockAggregates, shock_aggregate,
        BalanceTest, balance_test,
@@ -34,6 +35,24 @@ function _resid_on(V::AbstractVecOrMat{T}, Z::AbstractMatrix{T},
                    w::AbstractVector{T}) where {T<:AbstractFloat}
     sw = sqrt.(w)
     return V .- Z * ((Z .* sw) \ (V .* sw))
+end
+
+# Group index 1..G of each of the K shocks, from one label per shock; each
+# shock its own group when there are no labels.
+function _shock_groups(shock_clusters::Union{Nothing, AbstractVector}, K::Int)
+    isnothing(shock_clusters) && return collect(1:K)
+    labels = unique(shock_clusters)
+    index = Dict(l => j for (j, l) in enumerate(labels))
+    return [index[l] for l in shock_clusters]
+end
+
+# Sums of the rows of `M` within groups.
+function _group_sums(M::AbstractVecOrMat{T}, groups::Vector{Int}) where {T<:AbstractFloat}
+    S = zeros(T, maximum(groups), size(M, 2))
+    for k in eachindex(groups)
+        @views S[groups[k], :] .+= M[k, :]
+    end
+    return S
 end
 
 # Weighted mean, used for the shock-level regressions where the weight is
@@ -137,9 +156,10 @@ across shocks for every region. When they do not — the usual case when the
 shares cover only part of the economy, such as manufacturing employment
 only — the sum of exposure is itself a regional characteristic that
 correlates with the regressor, and **it must be included as a control**.
-This function reports `complete_shares = false` and warns once; it does not
-silently add the control, because whether the exposure sum belongs on the
-right-hand side is the user's identification decision, not a default.
+This function reports `complete_shares = false` and warns when the controls
+do not already span the sum; it does not silently add the control, because
+whether the exposure sum belongs on the right-hand side is the user's
+identification decision, not a default.
 
 # Errors
 
@@ -210,7 +230,12 @@ function shift_share_design(W::AbstractMatrix{<:Real},
     esum = vec(sum(Wm; dims = 2))
     complete = maximum(esum) - minimum(esum) <= sqrt(eps(T)) * max(one(T), maximum(abs, esum))
 
-    if !complete
+    # The total is a confounder only when the controls do not already span it.
+    controlled = complete || begin
+        rt = _resid_on(esum, Z, wv)
+        sqrt(dot(rt, wv .* rt)) <= sqrt(eps(T)) * sqrt(dot(esum, wv .* esum))
+    end
+    if !controlled
         @warn "shift_share_design: exposure shares do not sum to a constant " *
               "across shocks (range $(minimum(esum)) to $(maximum(esum))). " *
               "Borusyak, Hull & Jaravel (2022, §3.2) show the sum of exposure " *
@@ -579,7 +604,11 @@ of two half-lines or the whole line, as `ci_akm0` reports.
 `X̊` is identified only when the share matrix has at least as many regions
 as shocks and is of full column rank. A design with more shocks than
 regions is refused by name rather than returning a least-norm solution that
-would look like an answer.
+would look like an answer. The rank is numerical: singular values below
+`sqrt(eps)` of the largest count as zero, so shares that are collinear up to
+rounding, such as industries whose shares were imputed in fixed proportions
+from a common total, are refused too. Their projection would otherwise rest
+on rounding noise, and the standard error with it.
 
 # Measured coverage
 
@@ -690,24 +719,20 @@ function fit_shift_share(y::AbstractVector{<:Real}, d::ShiftShareDesign{T};
         "the shock-level projection in Adao-Kolesar-Morales Remark 5 step 2 " *
         "is underdetermined and the standard error is not identified. Pool " *
         "shocks into coarser groups, or add regions."))
-    rk = rank(d.W)
+    # Numerical rank: singular values below sqrt(eps) of the largest count as
+    # zero, so that shares collinear up to rounding are refused as well.
+    rk = rank(d.W; rtol = sqrt(eps(T)))
     rk == K || throw(ArgumentError(
-        "fit_shift_share: the share matrix has rank $rk with $K columns, so " *
-        "the shock-level projection is not unique and the standard error is " *
-        "not identified. Two or more shocks have collinear exposure patterns; " *
-        "pool them."))
+        "fit_shift_share: the share matrix has numerical rank $rk with $K " *
+        "columns, so the shock-level projection is not unique and the standard " *
+        "error is not identified. Two or more shocks have collinear exposure " *
+        "patterns, at least up to rounding; pool them."))
     sw = sqrt.(w)
     X̊ = (d.W .* sw) \ (X̃ .* sw)
     R̂ = d.W' * (w .* ε)
 
     # The shock-level terms, summed within clusters of shocks when given.
-    groups = if isnothing(shock_clusters)
-        collect(1:K)
-    else
-        labels = unique(shock_clusters)
-        index = Dict(l => j for (j, l) in enumerate(labels))
-        [index[l] for l in shock_clusters]
-    end
+    groups = _shock_groups(shock_clusters, K)
     G = maximum(groups)
     function _cluster(v)
         s = zeros(T, G)
@@ -782,6 +807,244 @@ Base.show(io::IO, m::ShiftShareFit) = begin
         println(io, "  design. Adao, Kolesar & Morales (2019) report rejection of a")
         println(io, "  true null in up to 55% of placebo samples. Use vcov = :akm.")
     end
+end
+
+# ═══════════════════════════════════════════════════════════════════════
+# Shock-level regression, with the Borusyak-Hull-Jaravel standard error
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+    ShockLevelFit
+
+A shift-share regression estimated at the level of the shocks, returned by
+[`fit_shock_level`](@ref). Subtypes `StatsAPI.RegressionModel`.
+
+# Fields
+
+- `beta::T`, `se::T` — the coefficient of interest and its standard error.
+- `vcov::Matrix{T}` — `1 × 1`, for interface compatibility.
+- `ci::Tuple{T, T}` — the confidence interval with the null imposed, the
+  values `b` its test does not reject. An end is `±Inf` when the test
+  rejects no value on that side.
+- `p_value::T` — the p-value of the test with the null imposed, of
+  `beta == beta0`.
+- `beta0::T`, `level::T` — the null value and the confidence level.
+- `first_stage_F::T` — for the IV design, the squared t-statistic of the
+  shock-level first stage; `NaN` for the direct design.
+- `residuals::Vector{T}` — the shock-level residuals, one per shock.
+- `aggregates::ShockAggregates{T}` — the shock-level data of the regression.
+- `n_shocks::Int`, `n_clusters::Int` — the observations and the clusters of
+  the shock-level regression.
+- `is_iv::Bool`
+"""
+struct ShockLevelFit{T<:AbstractFloat} <: StatsAPI.RegressionModel
+    beta::T
+    se::T
+    vcov::Matrix{T}
+    ci::Tuple{T, T}
+    p_value::T
+    beta0::T
+    level::T
+    first_stage_F::T
+    residuals::Vector{T}
+    aggregates::ShockAggregates{T}
+    n_shocks::Int
+    n_clusters::Int
+    is_iv::Bool
+    coefnames::Vector{String}
+end
+
+StatsAPI.coef(m::ShockLevelFit) = [m.beta]
+StatsAPI.vcov(m::ShockLevelFit) = m.vcov
+StatsAPI.stderror(m::ShockLevelFit) = [m.se]
+StatsAPI.nobs(m::ShockLevelFit) = m.n_shocks
+StatsAPI.residuals(m::ShockLevelFit) = m.residuals
+StatsAPI.coefnames(m::ShockLevelFit) = m.coefnames
+
+# Weighted IV of `yb` on `[C xb]` with instruments `[C g]` and weights `s`,
+# with the cluster-robust standard error of the coefficient on `xb`, as
+# ivreg2 computes it with analytic weights and no small-sample correction.
+function _shock_iv(yb::Vector{T}, xb::Vector{T}, g::Vector{T}, s::Vector{T},
+                   C::Matrix{T}, groups::Vector{Int}) where {T<:AbstractFloat}
+    sw = sqrt.(s)
+    Xr = hcat(C, xb)
+    Zr = hcat(C, g)
+    Π = (Zr .* sw) \ (Xr .* sw)        # first-stage coefficients
+    X̂ = Zr * Π                         # fitted regressors
+    θ = (X̂ .* sw) \ (yb .* sw)
+    u = yb .- Xr * θ
+    B = inv(Symmetric((X̂ .* s)' * X̂))
+    H = _group_sums(X̂ .* (s .* u), groups)
+    V = B * (H' * H) * B
+    return θ[end], sqrt(max(zero(T), V[end, end])), u
+end
+
+# Hansen's J statistic, clustered, of the moment that `g` is uncorrelated
+# with `e` after the controls `C`: with both residualised on `C` by weighted
+# least squares, the squared weighted sum of their products over its
+# cluster-robust variance. It equals the two-step efficient GMM criterion
+# that ivreg2 reports as `e(j)` for `ivreg2 e C (= g) [aw = s], cluster(...)`,
+# whether or not the controls are partialled out, and stays defined when
+# there are more controls than clusters.
+function _shock_j(e::Vector{T}, g::Vector{T}, s::Vector{T}, C::Matrix{T},
+                  groups::Vector{Int}) where {T<:AbstractFloat}
+    sw = sqrt.(s)
+    u = e .- C * ((C .* sw) \ (e .* sw))
+    g̃ = g .- C * ((C .* sw) \ (g .* sw))
+    h = _group_sums(s .* g̃ .* u, groups)
+    v = sum(abs2, h)
+    return v > zero(T) ? dot(g̃, s .* u)^2 / v : T(NaN)
+end
+
+"""
+    fit_shock_level(y, design; treatment = nothing, shock_controls = nothing,
+                    shock_clusters = nothing, intercept = true, beta0 = 0, level = 0.95)
+
+Estimate a shift-share regression as a regression across the shocks, with
+the standard error and the null-imposed confidence interval of Borusyak,
+Hull & Jaravel (2022).
+
+The outcome and the treatment (or, with `treatment = nothing`, the
+shift-share regressor itself) are residualised on the design's regional
+controls and averaged within each shock, weighting each region by its
+regression weight times its share in the shock, as in
+[`shock_aggregate`](@ref). The shock-level averages are then regressed on
+each other, instrumented by the shocks, weighting each shock by its average
+exposure `ŝ_k`. Borusyak, Hull & Jaravel show that the coefficient equals
+that of the regional regression, and that the usual standard error of the
+shock-level regression is valid when the shocks are as good as randomly
+assigned, however the regions' residuals are correlated.
+
+# Keywords
+
+- `shock_controls` — a `K × P` matrix of shock-level controls, such as a
+  period indicator in a stacked design. `intercept = true` adds a constant.
+- `shock_clusters` — one label per shock; the standard error is then
+  clustered by label, so the shocks may be correlated within a cluster, as
+  Borusyak, Hull & Jaravel cluster industries by their 3-digit SIC code.
+- `beta0`, `level` — the null value and the confidence level of the
+  interval with the null imposed.
+
+# Standard error and interval
+
+The standard error is the cluster-robust one of the weighted shock-level
+IV regression, without a small-sample correction, as Stata's `ivreg2`
+computes it. The interval collects the values `b` for which Hansen's J
+statistic of the moment that the shocks are uncorrelated with the
+residual `ȳ - b x̄`, after the shock-level controls, stays below the
+critical value of a chi-squared with one degree of freedom: the test with
+the null imposed of the authors' `ssiv_null_imposed`. Its ends are found by
+bisection; an end is infinite when the test rejects no value on that side
+up to `1e6` standard errors away from the estimate.
+
+# Incomplete shares
+
+When the shares do not sum to the same total in every region, Borusyak,
+Hull & Jaravel include that total among the regional controls, which
+[`shift_share_design`](@ref) asks for, or add a shock of value zero whose
+share is the rest of each region's total, so that the shares are complete.
+
+# References
+
+Borusyak, Hull & Jaravel (2022), *Review of Economic Studies* 89(1),
+181–213.
+"""
+function fit_shock_level(y::AbstractVector{<:Real}, d::ShiftShareDesign{T};
+                         treatment::Union{Nothing, AbstractVector{<:Real}} = nothing,
+                         shock_controls::Union{Nothing, AbstractVecOrMat{<:Real}} = nothing,
+                         shock_clusters::Union{Nothing, AbstractVector} = nothing,
+                         intercept::Bool = true,
+                         beta0::Real = 0,
+                         level::Real = 0.95) where {T<:AbstractFloat}
+    N, K = size(d.W)
+    all(isfinite, y) || throw(ArgumentError("fit_shock_level: `y` contains a non-finite entry."))
+    isnothing(treatment) || all(isfinite, treatment) || throw(ArgumentError(
+        "fit_shock_level: `treatment` contains a non-finite entry."))
+    0 < level < 1 || throw(ArgumentError(
+        "fit_shock_level: `level` must lie strictly between 0 and 1, got $level."))
+    isnothing(shock_clusters) || length(shock_clusters) == K || throw(DimensionMismatch(
+        "fit_shock_level: `shock_clusters` has $(length(shock_clusters)) entries " *
+        "but the design has $K shocks; it takes one label per shock."))
+
+    a = shock_aggregate(d, y; treatment = treatment)
+    s = copy(d.s_bar)
+    g = copy(d.g)
+
+    C = intercept ? ones(T, K, 1) : zeros(T, K, 0)
+    if !isnothing(shock_controls)
+        Cc = convert(Matrix{T}, shock_controls isa AbstractVector ?
+                     reshape(shock_controls, :, 1) : shock_controls)
+        size(Cc, 1) == K || throw(DimensionMismatch(
+            "fit_shock_level: `shock_controls` has $(size(Cc, 1)) rows but there " *
+            "are $K shocks. These are shock-level controls, one row per shock."))
+        all(isfinite, Cc) || throw(ArgumentError(
+            "fit_shock_level: `shock_controls` contains a non-finite entry."))
+        C = hcat(C, Cc)
+    end
+    K > size(C, 2) + 1 || throw(ArgumentError(
+        "fit_shock_level: $K shocks cannot support a shock-level regression with " *
+        "$(size(C, 2) + 1) parameters."))
+    if size(C, 2) > 0
+        cn = vcat(intercept ? ["(intercept)"] : String[],
+                  ["shock control[$j]" for j in 1:(size(C, 2) - intercept)])
+        check_design_rank(hcat(C, g), vcat(cn, "shock"), "fit_shock_level";
+                          context = "the shock-level controls and the shocks")
+    end
+
+    groups = _shock_groups(shock_clusters, K)
+    G = maximum(groups)
+    β, se, u = _shock_iv(a.y_bar, a.x_bar, g, s, C, groups)
+
+    F = if a.is_iv
+        zb = _aggregate(d, _resid_on(d.X, d.Z, d.weights))
+        π̂, sπ, _ = _shock_iv(a.x_bar, zb, g, s, C, groups)
+        (π̂ / sπ)^2
+    else
+        T(NaN)
+    end
+
+    # The test with the null imposed, and its inversion.
+    crit = T(_norminv(1 - (1 - Float64(level)) / 2))^2
+    J(b) = _shock_j(a.y_bar .- T(b) .* a.x_bar, g, s, C, groups)
+    b0 = T(beta0)
+    J0 = J(b0)
+    p0 = isfinite(J0) ? T(_chi2_sf(Float64(max(J0, zero(T))), 1)) : T(NaN)
+    function _end(direction)
+        J(β) <= crit || return T(NaN)
+        step = max(se, sqrt(eps(T)) * max(one(T), abs(β)))
+        inside, outside = β, β + direction * step
+        while J(outside) <= crit
+            inside = outside
+            step *= 2
+            step > 1e6 * max(se, eps(T)) && return direction * T(Inf)
+            outside = β + direction * step
+        end
+        for _ in 1:200
+            mid = (inside + outside) / 2
+            (mid == inside || mid == outside) && break
+            J(mid) <= crit ? (inside = mid) : (outside = mid)
+        end
+        return (inside + outside) / 2
+    end
+    ci = (_end(-one(T)), _end(one(T)))
+
+    name = a.is_iv ? "treatment (shift-share IV, shock level)" : "shift-share regressor (shock level)"
+    return ShockLevelFit{T}(β, se, fill(se^2, 1, 1), ci, p0, b0, T(level), F, u, a,
+                            K, G, a.is_iv, [name])
+end
+
+Base.show(io::IO, m::ShockLevelFit) = begin
+    println(io, "ShockLevelFit: ", m.is_iv ? "shift-share IV" : "direct shift-share regression",
+            ", estimated across the shocks")
+    println(io, "  shocks $(m.n_shocks)",
+            m.n_clusters < m.n_shocks ? " in $(m.n_clusters) clusters" : "")
+    m.is_iv && @printf(io, "  first-stage F : %.3f\n", m.first_stage_F)
+    println(io)
+    _print_coef_table(io, m.coefnames, [m.beta], [m.se])
+    println(io)
+    @printf(io, "  %g%% interval with the null imposed: [%.6f, %.6f]\n",
+            100 * m.level, m.ci[1], m.ci[2])
+    @printf(io, "  p-value with the null imposed, beta = %g: %.4f\n", m.beta0, m.p_value)
 end
 
 # ═══════════════════════════════════════════════════════════════════════

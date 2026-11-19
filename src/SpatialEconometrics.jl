@@ -101,7 +101,7 @@ import .SpatialSimulation: SpatialDGP, SAR_DGP, SEM_DGP, SDM_DGP, SLX_DGP, SAC_D
 import .SpatialTables: CoefTable, coeftable, summary_stats, to_latex, to_csv, to_markdown, regression_table
 import .SpatialDiscreteChoice: SpatialProbitModel, fit_spatial_probit, BayesianSpatialProbitModel, fit_bayesian_spatial_probit, SpatialOrderedProbitModel, fit_spatial_ordered_probit, SpatialProbitEffects, marginal_effects
 import .SpatialCausal: ExposureMap, exposure, ring_exposure, InterferenceReport, check_interference, SpatialDiDResult, fit_spatial_did, SyntheticControlResult, fit_synthetic_control, donor_weights, PlaceboTest, placebo_test, SpilloverGaps, spillover_gaps
-import .SpatialShiftShare: ShiftShareDesign, shift_share_design, ShiftShareFit, fit_shift_share, ExposureConcentration, exposure_concentration, ShockAggregates, shock_aggregate, BalanceTest, balance_test, RotembergWeights, rotemberg_weights, ShiftShareMoran, shift_share_moran
+import .SpatialShiftShare: ShiftShareDesign, shift_share_design, ShiftShareFit, fit_shift_share, ShockLevelFit, fit_shock_level, ExposureConcentration, exposure_concentration, ShockAggregates, shock_aggregate, BalanceTest, balance_test, RotembergWeights, rotemberg_weights, ShiftShareMoran, shift_share_moran
 import .SpatialNetworks: network_weights, group_weights, PeerIdentification, peer_identification, PeerEffectsFit, fit_peer_effects, MultiplexSAR, fit_multiplex_sar, network_moran
 import .SpatialCommonFactors: CDTestResult, pesaran_cd, AlphaExponentResult, alpha_exponent, DependenceVerdict, dependence_verdict, SpCCEModel, fit_sp_cce
 import .SpatioTemporalModels: STARModel, fit_star, InteractiveFEModel, fit_interactive_fe, factor_projection, IRFResult, space_time_irf, spatial_forecast
@@ -550,6 +550,7 @@ export
     # SpatialShiftShare
     ShiftShareDesign, shift_share_design,
     ShiftShareFit, fit_shift_share,
+    ShockLevelFit, fit_shock_level,
     ExposureConcentration, exposure_concentration,
     ShockAggregates, shock_aggregate,
     BalanceTest, balance_test,
