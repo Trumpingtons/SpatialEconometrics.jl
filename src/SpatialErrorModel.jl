@@ -9,6 +9,7 @@ using ForwardDiff
 using StatsAPI
 
 import ..SpatialUtils
+import ..SpatialPanelEconometrics: PanelEstimationApproach, LeeYuTransformation, DirectQML
 import ..SpatialUtils: precompute_chebyshev_traces, chebyshev_logdet,
        precompute_neumann_traces, g_traces,
        brent_maximize, panel_spatial_lag!, panel_spatial_lag,
@@ -126,6 +127,16 @@ stacked units-fastest.
 - `varnames`: covariate names.
 - `lambda_bounds`: search interval for `lambda`, default
   `(-0.995, 0.995)`.
+- `approach` (panel only): [`LeeYuTransformation`](@ref) (default), or
+  `DirectQML(bias_correct = false)`, the direct approach of Elhorst (2003)
+  and of splm's `spml(..., model = "within")` (Millo & Piras 2012): the data
+  are demeaned, then filtered by `(I - lambda*W)`, and the likelihood
+  counts all `N*T` observations, with `sigma2 = RSS / (N*T)`. Under
+  individual effects the two give the same estimates and standard errors
+  that differ by `sqrt(T / (T - 1))`; under time effects the estimates
+  differ too, since Lee and Yu's transformation drops one cross-sectional
+  dimension and adds `-T*log(1 - lambda)` to the log-likelihood. The bias
+  correction of `DirectQML()` is not available for the error model.
 - `estimator` (cross-section only): `:ml` (default), Gaussian maximum
   likelihood, or `:gmm`, Kelejian & Prucha's (2010) generalized moments
   estimator, which stays consistent, with valid standard errors, when the
@@ -202,10 +213,17 @@ spatial Cliff-Ord-type model with heteroskedastic innovations: small and
 large sample results. *Journal of Regional Science*, 50(2), 592–614.
 https://doi.org/10.1111/j.1467-9787.2009.00618.x
 
+Elhorst, J. P. (2003). Specification and estimation of spatial panel data
+models. *International Regional Science Review*, 26(3), 244–268.
+https://doi.org/10.1177/0160017603253791
+
 Kelejian, H. H., & Prucha, I. R. (2010). Specification and estimation of
 spatial autoregressive models with autoregressive and heteroskedastic
 disturbances. *Journal of Econometrics*, 157(1), 53–67.
 https://doi.org/10.1016/j.jeconom.2009.10.025
+
+Millo, G., & Piras, G. (2012). splm: spatial panel data models in R.
+*Journal of Statistical Software*, 47(1). https://doi.org/10.18637/jss.v047.i01
 """
 function fit_spatial_error(
     W::M,
@@ -375,9 +393,14 @@ function fit_spatial_error(
     lambda_bounds::Tuple{T, T}=(T(-0.995), T(0.995)),
     max_exact_n::Int=1000,
     vcov_probes::Int=250,
-    rng::AbstractRNG=Random.default_rng()
+    rng::AbstractRNG=Random.default_rng(),
+    approach::PanelEstimationApproach=LeeYuTransformation()
 ) where {FE<:FixedEffectsSpec, T<:AbstractFloat, M<:AbstractSparseMatrix{T}}
 
+    if approach isa DirectQML && approach.bias_correct
+        throw(ArgumentError("fit_spatial_error: the bias correction of DirectQML() is not available for the error model; use LeeYuTransformation() or DirectQML(bias_correct = false), the direct approach of splm"))
+    end
+    direct = approach isa DirectQML
     NT, K = size(X)
     vnames = isnothing(varnames) ? ["x$i" for i in 1:K] : varnames
 
@@ -389,23 +412,33 @@ function fit_spatial_error(
         coefnames_vec = vcat(vnames, ["λ"])
     end
 
-    # Spatial lag of y and X for filtering
-    Wy = similar(y); panel_spatial_lag!(Wy, W, y, N, T_per)
-    WX = panel_spatial_lag(W, X_aug, N, T_per)
-
-    # Within-transform
+    # Within-transform, and the spatial lags for filtering: of the data for
+    # Lee and Yu, which are then transformed; of the transformed data for the
+    # direct approach, which filters the demeaned data, as splm does. The two
+    # orders agree under individual effects; under time effects they differ
+    # unless the columns of W also sum to one.
     y_tilde = within_transform!(copy(y), N, T_per, fe_spec)
-    Wy_tilde = within_transform!(copy(Wy), N, T_per, fe_spec)
     X_tilde = within_transform(X_aug, N, T_per, fe_spec)
+    if direct
+        Wy_tilde = similar(y_tilde); panel_spatial_lag!(Wy_tilde, W, y_tilde, N, T_per)
+        WX_tilde_direct = panel_spatial_lag(W, X_tilde, N, T_per)
+    else
+        Wy = similar(y); panel_spatial_lag!(Wy, W, y, N, T_per)
+        WX = panel_spatial_lag(W, X_aug, N, T_per)
+        Wy_tilde = within_transform!(copy(Wy), N, T_per, fe_spec)
+    end
     # The transformed design is the one that gets solved, so it is the one
     # to check: a regressor the within transform absorbs leaves a column of
     # zeros here while the column the caller passed looks perfectly fine.
     check_design_rank(X_tilde, coefnames_vec, "fit_spatial_error";
                       context = """Under individual fixed effects a regressor that does not vary over time is swept out entirely, and under time fixed effects one that does not vary across units is; such a coefficient cannot be estimated from the within variation. Drop the column, or change `fe_spec`.""")
-    WX_tilde = within_transform(WX, N, T_per, fe_spec)
+    WX_tilde = direct ? WX_tilde_direct : within_transform(WX, N, T_per, fe_spec)
 
     N_eff, T_eff = effective_dims(N, T_per, fe_spec)
-    NT_eff = N_eff * T_eff
+    # The dimensions the likelihood counts: those left by Lee and Yu's
+    # transformation, or all N*T for the direct approach
+    N_opt, T_opt = direct ? (N, T_per) : (N_eff, T_eff)
+    NT_eff = N_opt * T_opt
 
     SpatialUtils._check_spatial_bounds(W, lambda_bounds, method; name = "lambda_bounds", caller = "fit_spatial_error")
     if method isa ChebyshevApprox
@@ -425,10 +458,10 @@ function fit_spatial_error(
         res_filt = y_filt .- X_filt * β_filt
         σ2_filt = dot(res_filt, res_filt) / NT_eff
         ld = logdet_fn(λ)
-        if has_time_fe(fe_spec)
+        if has_time_fe(fe_spec) && !direct
             ld -= log(one(λ) - λ)
         end
-        return const_term + T_eff * ld - T(0.5) * NT_eff * log(σ2_filt)
+        return const_term + T_opt * ld - T(0.5) * NT_eff * log(σ2_filt)
     end
 
     λ_hat, max_ll = brent_maximize(concentrated_panel_sem_ll, lambda_bounds[1], lambda_bounds[2])
@@ -447,7 +480,8 @@ function fit_spatial_error(
     σ2_hat = dot(res, res) / NT_eff
 
     vcov_mat, λ_se = _sem_panel_vcov(X_filt, W, λ_hat, σ2_hat, N, T_per,
-                                     N_eff, T_eff, fe_spec;
+                                     N_opt, T_opt, fe_spec;
+                                     project_constant=has_time_fe(fe_spec) && !direct,
                                      max_exact_n=max_exact_n,
                                      n_probes=vcov_probes, rng=rng)
     full_coef = vcat(β_hat, λ_hat)
@@ -469,6 +503,7 @@ function _sem_panel_vcov(
     N_eff::Int,
     T_eff::Int,
     fe_spec::FixedEffectsSpec;
+    project_constant::Bool=has_time_fe(fe_spec),
     max_exact_n::Int=1000,
     n_probes::Int=250,
     rng::AbstractRNG=Random.default_rng()
@@ -482,7 +517,7 @@ function _sem_panel_vcov(
     # closed-form subtraction for the third; g_traces projects G itself, so
     # all three are handled the same way.
     tr_G, tr_G2, tr_GtG = g_traces(W, λ;
-                                   project_constant=has_time_fe(fe_spec),
+                                   project_constant=project_constant,
                                    max_exact_n=max_exact_n,
                                    n_probes=n_probes, rng=rng)
 
