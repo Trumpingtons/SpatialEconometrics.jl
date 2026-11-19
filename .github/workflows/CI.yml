@@ -50,6 +50,9 @@ jobs:
       # log. Stopping the step at 55 minutes keeps the log, and with it the
       # last testset and memory reading. The other jobs keep the 120-minute
       # job limit, since macOS and nightly have run 90 and 55 minutes healthy.
+      # The likely cause, found 2026-11-19: the suite was one ~11,000-line
+      # top-level block, compiled whole before any test ran (32 min and a
+      # 16 GiB peak locally); it is now one file per testset (test/README.md).
       - uses: julia-actions/julia-runtest@v1
         timeout-minutes: ${{ (matrix.version == '1' && matrix.os == 'ubuntu-latest') && 55 || 115 }}
         env:

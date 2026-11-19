@@ -246,7 +246,7 @@ our own because:
 SpatialEconometrics/
 ├── src/            # 33 modules: the umbrella plus 32 submodules
 ├── ext/            # Makie and Turing package extensions (see ext/README.md)
-├── test/           # runtests.jl — 62 top-level testsets (see test/README.md)
+├── test/           # runtests.jl + testsets/: 62 top-level testsets, one file each (see test/README.md)
 ├── skills/         # a Claude Code skill for the package (see skills/README.md)
 ├── examples/       # 33 runnable examples, one per topic
 ├── docs/           # Documenter source for the manual and API reference

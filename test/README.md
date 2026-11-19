@@ -1,7 +1,16 @@
 # Test suite
 
-The whole suite is one file, `runtests.jl`: 62 top-level testsets inside a
-single outer testset, "SpatialEconometrics.jl Full Suite Verification".
+`runtests.jl` holds the shared setup and a single outer testset,
+"SpatialEconometrics.jl Full Suite Verification", which includes the 62
+top-level testsets in order from `testsets/`, one file each (`01_…` to
+`45_…`). The list `_TESTSET_FILES` in `runtests.jl` sets the order.
+
+Until 2026-11-19 the testsets sat inline in that outer block, about 11,000
+lines. Julia lowers and compiles a top-level expression as a whole before it
+runs any of it, and that took 32 minutes and a 16 GiB peak before the first
+test ran (Julia 1.13.4), against 8 minutes for the tests themselves. That is
+more than the 16 GB of an `ubuntu-latest` runner, which is the likely cause of
+the CI runners lost at 63–66 minutes. Each file is now compiled separately.
 
 | Run | Result (2026-11-18) |
 |---|---|
@@ -78,5 +87,10 @@ practice:
   Assert the implication, `@test !guard || claim`, so that a failed guard
   cannot silently remove coverage.
 
-Structs used by the tests are defined at the top of the file, because
-Julia does not allow them inside a testset.
+Structs used by the tests are defined at the top of `runtests.jl`, because
+Julia does not allow them inside a testset. So are the two helpers shared
+across testsets: the `_HAVE_MAKIE`/`_HAVE_TURING` flags (25, 26) and
+`cf_grid_W` (38, 39). A new testset goes in a new file under `testsets/`,
+which must hold exactly one top-level `@testset`, and its name goes in
+`_TESTSET_FILES`. A file can be run on its own after the setup part of
+`runtests.jl` has been evaluated.
