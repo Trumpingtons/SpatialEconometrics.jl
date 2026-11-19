@@ -230,9 +230,8 @@ conditions differ from ours in three places:
   inside the conditional variance, where a law of large numbers with `p`
   moments is enough.
 
-**Against Lee (2004)** (as restated, with its proof, in Appendix 1A of the
-book chapter "Spatial econometric models: model specifications and basic
-statistics" held in `ExtRef/`). It extends Kelejian & Prucha to entries of
+**Against Lee (2004)** (as restated, with its proof, in Appendix 1A of
+chapter 1 of Lee 2023, held in `ExtRef/`). It extends Kelejian & Prucha to entries of
 uniform order `1/hₙ` and a variance of order `n/hₙ`, with
 `h_n^{1+2/δ}/n → 0`. It still assumes bounded row and column sums, so it
 does not cover a dense `M` either.
@@ -487,7 +486,7 @@ images of Springer's free copy; Cattaneo, Jansson & Newey (2018), §3 (arXiv
 from the page images of the copies in `ExtRef/`, Bhansali, Giraitis &
 Kokoszka (2007), all of it; Kelejian & Prucha (2001), §3.1 and the proof of
 Theorem 1; Hall & Heyde (1980), §3.2; and Lee (2004)'s CLT, as restated in
-the book chapter there. The others have not been read.
+Lee (2023), ch. 1, §1.8.3 and Appendix 1A. The others have not been read.
 - Bhansali, R. J., Giraitis, L., & Kokoszka, P. S. (2007). Convergence of
   quadratic forms with nonvanishing diagonal. *Statistics & Probability
   Letters*, 77(7), 726–734. doi:10.1016/j.spl.2006.11.007
@@ -505,6 +504,10 @@ the book chapter there. The others have not been read.
 - Kline, P., Saggio, R., & Sølvsten, M. (2020). Leave-out estimation of
   variance components. *Econometrica*, 88(5), 1859–1898.
   doi:10.3982/ECTA16410
+- Lee, L.-F. (2023). Spatial econometric models: model specifications and
+  basic statistics. In *Spatial Econometrics: Spatial Autoregressive Models*
+  (ch. 1, pp. 1–56). World Scientific. doi:10.1142/9789811270499_0001.
+  The book is doi:10.1142/13253; Crossref lists Lee as its only author.
 - Lee, L.-F. (2004). Asymptotic distributions of quasi-maximum likelihood
   estimators for spatial autoregressive models. *Econometrica*, 72(6),
   1899–1925. doi:10.1111/j.1468-0262.2004.00558.x
