@@ -312,9 +312,13 @@ end
     marginal_effects(m::SpatialProbitModel)
 
 Decompose the marginal effect of each covariate into direct, indirect, and total
-components. For covariate `k` the effect matrix is `diag(φ(index)) (I-ρW)⁻¹ βₖ`;
-the direct effect averages its diagonal, the total averages its row sums, and
-the indirect effect is the difference (LeSage & Pace, 2009).
+components. The fitted probabilities are `Φ(indexᵢ)`, `indexᵢ = (S X β)ᵢ / σᵢ`,
+with `S = (I-ρW)⁻¹` and `σᵢ = √(S S')ᵢᵢ`, the standard deviation of the latent
+`y*ᵢ`; `σᵢ` does not depend on `X`, so for covariate `k` the matrix of
+derivatives `∂Pᵢ/∂xⱼₖ` is `diag(φ(index) ./ σ) S βₖ`. The direct effect
+averages its diagonal, the total averages its row sums, and the indirect effect
+is the difference (LeSage & Pace, 2009). The effects are derivatives per unit
+of the covariate, not discrete changes, so they are not bounded by one.
 
 Requires a dense inverse of `I - ρW` — O(N³), so intended for moderate N.
 """
@@ -323,7 +327,8 @@ function marginal_effects(m::SpatialProbitModel{T}) where {T}
     K = size(m.X_aug, 2) - 1
     A = sparse(one(T) * I, N, N) - m.rho * m.W
     S = inv(Matrix(A))
-    φ_vec = _normpdf.(m.index)
+    σ_lat = sqrt.(max.(T(1e-12), vec(sum(abs2, S, dims=2))))  # as in the fitted probabilities
+    φ_vec = _normpdf.(m.index) ./ σ_lat  # the derivative of Φ(index) with respect to (S X β)ᵢ
 
     direct = zeros(T, K)
     indirect = zeros(T, K)
