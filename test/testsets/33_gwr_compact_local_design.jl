@@ -116,12 +116,15 @@
             Xa = hcat(ones(N), X)
             tree = GW._build_tree(coords)
 
+            # A span of 48 is scanned exhaustively, so the selection is the
+            # exact argmin of the curve.
+            kmin = 3 + 3
+            kmax = kmin + 47
             bw = GW._select_bandwidth_aicc(Xa, y, coords, tree,
-                                           GaussianKernel(), AdaptiveBandwidth)
+                                           GaussianKernel(), AdaptiveBandwidth;
+                                           search = :scan, k_min = kmin, k_max = kmax)
             # Rebuild the AICc curve from the dense arithmetic and check
             # the argmin agrees exactly, not approximately.
-            kmin = clamp(max(4, 3 + 2), 1, N - 1)
-            kmax = clamp(min(N - 1, 500), kmin, N - 1)
             aiccs = [GW._gwr_fit_at_bandwidth(Xa, y, coords, tree,
                          AdaptiveBandwidth(k), GaussianKernel())[8]
                      for k in kmin:kmax]

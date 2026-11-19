@@ -122,6 +122,23 @@ end
     return exp(-d / h)
 end
 
+# Whether the kernel is zero beyond the bandwidth. Only the bisquare is. The
+# Gaussian and exponential kernels give every observation a positive weight,
+# as in GWR4 and mgwr, so their support is the whole sample.
+_compact_support(::BisquareKernel) = true
+_compact_support(::KernelFunction) = false
+
+"""
+    _gwr_aicc(RSS, tr_S, N)
+
+The corrected AIC of Hurvich, Simonoff and Tsai (1998) as GWR4 and mgwr
+report it, with the constant `N log(2π)` of the Gaussian log-likelihood:
+`N log(RSS / N) + N log(2π) + N (N + tr_S) / (N - 2 - tr_S)`. The
+denominator is floored at 1.
+"""
+_gwr_aicc(RSS::T, tr_S::T, N::Integer) where {T} =
+    N * log(RSS / N) + N * log(2 * T(π)) + N * (N + tr_S) / max(N - 2 - tr_S, one(T))
+
 # ─── GWR result type ─────────────────────────────────────────────────
 
 """
@@ -270,22 +287,23 @@ function _get_bandwidth_distance(tree::KDTree, coords::AbstractMatrix{T}, i::Int
                                  nidx::Union{Nothing,Vector{Int}}=nothing,
                                  ndist::Union{Nothing,Vector{Float64}}=nothing) where {T}
     point = @view coords[i, :]
-    # +1 includes self. Never ask the tree for more neighbours than it
-    # holds, because knn throws on k > N. AdaptiveBandwidth(N) was therefore
-    # an error rather than the natural 'every point' case, and the bandwidth
-    # search used to put it in range.
-    nq = min(bw.k + 1, size(coords, 1))
+    # The k nearest include the observation itself, as in GWR4 and mgwr, and
+    # the distance to the k-th is widened by a factor of 1.0000001, as mgwr
+    # does, so that under a bisquare the k-th keeps a weight just above zero.
+    # Never ask the tree for more neighbours than it holds, because knn
+    # throws on k > N.
+    nq = clamp(bw.k, 1, size(coords, 1))
     # `knn` allocates its two result vectors. At k = 500 that is 8 KiB per
     # observation, for one number. `knn!` writes into buffers the caller
     # already owns, which is why they are threaded this far down.
     if nidx === nothing || ndist === nothing
         _, dists = knn(tree, point, nq, true)
-        return T(dists[end])
+        return T(dists[end]) * T(1.0000001)
     end
     length(nidx) == nq || resize!(nidx, nq)
     length(ndist) == nq || resize!(ndist, nq)
     knn!(nidx, ndist, tree, point, nq, true)
-    return T(ndist[nq])
+    return T(ndist[nq]) * T(1.0000001)
 end
 
 """
@@ -310,6 +328,10 @@ The kernel's support at observation `i`, written into caller-owned buffers.
 Returns `(n, h_i, w_self)`: `idx[1:n]` are the neighbour indices in
 **ascending order** and `wv[1:n]` their kernel weights, `h_i` is the
 bandwidth in distance units, and `w_self` is the weight `i` gives itself.
+
+Only the bisquare kernel vanishes beyond `h_i`, so only its support is
+searched for. The Gaussian and exponential kernels weight every
+observation, and their support is all `N` of them.
 
 This replaces a dense length-`N` weight vector allocated per call. The
 kernel vanishes outside its support, so only `b` of those `N` entries were
@@ -342,7 +364,11 @@ function _local_support!(sc, tree::KDTree, coords::AbstractMatrix{T}, i::Int,
     wv = sc.wv
     h_i = _local_bandwidth(tree, coords, i, bw, sc)
     empty!(idx)
-    inrange!(idx, tree, @view(coords[i, :]), h_i, true)
+    if _compact_support(kernel)
+        inrange!(idx, tree, @view(coords[i, :]), h_i, true)
+    else
+        append!(idx, 1:size(coords, 1))
+    end
     n = length(idx)
     length(wv) < n && resize!(wv, n)
     @inbounds for t in 1:n
@@ -521,22 +547,83 @@ function _gwr_fit_at_bandwidth(X::Matrix{T}, y::Vector{T}, coords::Matrix{T}, tr
     TSS = sum((y .- mean(y)).^2)
     sigma2 = RSS / max(N - tr_S, one(T))
     R2 = one(T) - RSS / TSS
-    AICc = N * log(RSS / N) + N * (N + tr_S) / max(N - 2 - tr_S, one(T))
+    AICc = _gwr_aicc(RSS, tr_S, N)
 
     return coef_local, residuals, fitted, tr_S, RSS, R2, sigma2, AICc
 end
 
 # ─── Bandwidth selection via AICc golden-section search ───────────────
 
+"""
+    _golden_section_k(f, a, c; delta = 0.38197, tol = 1e-6, max_iter = 200)
+
+The integer `k` between `a` and `c` that mgwr's golden-section search
+returns for the objective `f`: the `golden_section` of mgwr's `search.py`
+with `int_score = True`, step for step, so that a bandwidth selected here
+is the one mgwr and its articles report. Both trial points are rounded to
+integers (to even on ties, as NumPy does), each `k` is evaluated once, and
+the search stops when the two trial scores differ by at most `tol` or
+after `max_iter` steps. It finds a local minimum: on an objective with
+several, it can stop at one that is not the smallest.
+"""
+function _golden_section_k(f, a::Real, c::Real; delta::Float64=0.38197,
+                           tol::Float64=1e-6, max_iter::Int=200)
+    a = Float64(a); c = Float64(c)
+    b = a + delta * abs(c - a)
+    d = c - delta * abs(c - a)
+    cache = Dict{Int, Float64}()
+    score(k) = get!(() -> Float64(f(k)), cache, k)
+    diff = 1.0e9
+    opt = round(Int, b)
+    it = 0
+    while abs(diff) > tol && it < max_iter
+        it += 1
+        b = round(b); d = round(d)
+        sb = score(Int(b)); sd = score(Int(d))
+        if sb <= sd
+            opt = Int(b); c = d; d = b; b = a + delta * abs(c - a)
+        else
+            opt = Int(d); a = b; b = d; d = c - delta * abs(c - a)
+        end
+        diff = sb - sd
+    end
+    return opt
+end
+
+"""
+    _select_bandwidth_aicc(X, y, coords, tree, kernel, AdaptiveBandwidth;
+                           search = :golden, k_min = nothing, k_max = nothing)
+
+The adaptive bandwidth, a number of nearest observations counting the
+observation itself, that minimises the AICc of the local regressions of
+`y` on `X` (`X` with its intercept, if any).
+
+- `search = :golden` (default): mgwr's golden-section search
+  ([`_golden_section_k`](@ref)) from `k_min` to `k_max`, by default from
+  `40 + 2K` to `N`, mgwr's own interval, for `K` columns of `X`. This is
+  the bandwidth mgwr, GWR4 and their articles report.
+- `search = :scan`: every `k` from `k_min` to `k_max` over a short range,
+  and a coarse grid refined around its best point over a long one, by
+  default from `K + 3` to `min(N, 500)`. It finds the smallest AICc where
+  the golden section can stop at a local minimum.
+"""
 function _select_bandwidth_aicc(X::Matrix{T}, y::Vector{T}, coords::Matrix{T}, tree::KDTree,
                                  kernel::KernelFunction, ::Type{AdaptiveBandwidth};
-                                 k_min::Int=size(X, 2) + 2,
-                                 k_max::Int=min(size(X, 1) - 1, 500)) where {T}
+                                 search::Symbol=:golden,
+                                 k_min::Union{Nothing, Int}=nothing,
+                                 k_max::Union{Nothing, Int}=nothing) where {T}
     N, K = size(X)
-    k_min = clamp(max(k_min, K + 2), 1, N - 1)
-    k_max = clamp(k_max, k_min, N - 1)
 
     aicc_at(k) = _gwr_fit_at_bandwidth(X, y, coords, tree, AdaptiveBandwidth(k), kernel)[8]
+
+    if search === :golden
+        c = clamp(isnothing(k_max) ? N : k_max, 2, N)
+        a = clamp(isnothing(k_min) ? 40 + 2K : k_min, 2, c)
+        return AdaptiveBandwidth(_golden_section_k(aicc_at, a, c))
+    end
+    search === :scan || throw(ArgumentError("search must be :golden or :scan, got :$search"))
+    k_min = clamp(isnothing(k_min) ? K + 3 : k_min, 2, N)
+    k_max = clamp(isnothing(k_max) ? min(N, 500) : k_max, k_min, N)
 
     # The AICc curve in k is not unimodal. On the Columbus data it reverses
     # direction eleven times. The golden-section search this replaced
@@ -654,9 +741,20 @@ model spatial dependence in the error, which is what `fit_spatial` and
 # Keywords
 - `bandwidth`: a [`FixedBandwidth`](@ref) or [`AdaptiveBandwidth`](@ref).
   `nothing` (the default) selects an adaptive bandwidth by minimizing
-  AICc, which costs an extra search but is the sensible default.
-- `kernel`: a [`KernelFunction`](@ref).
+  AICc, which costs an extra search but is the sensible default. An
+  adaptive bandwidth of `k` uses the `k` nearest observations, the
+  observation itself included, as in GWR4 and mgwr.
+- `kernel`: a [`KernelFunction`](@ref). The bisquare is zero beyond the
+  bandwidth; the Gaussian and exponential kernels weight every observation.
 - `varnames`: covariate names. Defaults to `x1, x2, ...`.
+- `search`: how the adaptive bandwidth is selected when `bandwidth` is
+  `nothing`. `:golden` (default) is mgwr's golden-section search from
+  `40 + 2K` to `N` neighbours, which gives the bandwidth mgwr and GWR4
+  report; `:scan` scans the range for the smallest AICc, which the golden
+  section can miss when the AICc has several local minima.
+
+`AICc` is the corrected AIC as GWR4 and mgwr report it, with the constant
+`N log(2π)` of the Gaussian log-likelihood.
 
 # Returns
 A [`GWRModel`](@ref).
@@ -700,7 +798,8 @@ function fit_gwr(
     coords::AbstractMatrix{T};
     bandwidth::Union{Nothing, BandwidthType}=nothing,
     kernel::KernelFunction=BisquareKernel(),
-    varnames::Union{Nothing, Vector{String}}=nothing
+    varnames::Union{Nothing, Vector{String}}=nothing,
+    search::Symbol=:golden
 ) where {T<:AbstractFloat}
 
     N, K_raw = size(X)
@@ -717,7 +816,8 @@ function fit_gwr(
 
     # Bandwidth selection
     if isnothing(bandwidth)
-        bw = _select_bandwidth_aicc(X_aug, Vector{T}(y), coords_mat, tree, kernel, AdaptiveBandwidth)
+        bw = _select_bandwidth_aicc(X_aug, Vector{T}(y), coords_mat, tree, kernel, AdaptiveBandwidth;
+                                    search = search)
     else
         bw = bandwidth
     end
@@ -1106,7 +1206,8 @@ end
 
 """
     fit_mgwr(X, y, coords; kernel = BisquareKernel(), varnames = nothing,
-             max_iter = 50, tol = 1e-4)
+             max_iter = 200, tol = 1e-5, search = :golden, bw_min = nothing,
+             bw_max = nothing, bws_same_times = 5)
 
 Fit a multiscale GWR, giving every covariate its own bandwidth.
 
@@ -1125,13 +1226,22 @@ As [`fit_gwr`](@ref): `X` without an intercept, `y`, and `N x 2` `coords`.
 # Keywords
 - `kernel`: a [`KernelFunction`](@ref).
 - `varnames`: covariate names.
-- `max_iter`, `tol`: back-fitting iteration cap and convergence tolerance.
-  Back-fitting runs in two phases: bandwidths are re-selected each sweep
-  until they stop moving, then held fixed while the coefficients converge.
-  The second phase is where the sweeps go. Columbus settles its bandwidths
-  after 5 sweeps and then needs about 100 more, so `max_iter` has to be
-  generous. Those later sweeps are cheap, since the AICc search is what
-  costs.
+- `max_iter`, `tol`: back-fitting iteration cap and convergence tolerance,
+  as in mgwr. Back-fitting starts from a GWR and fits every term in turn
+  to its partial residual, re-selecting its bandwidth each sweep. It stops
+  when mgwr's score of change, the root mean square change of the fitted
+  terms over the square root of the sum of the squared fits, falls below
+  `tol`.
+- `search`: how each bandwidth is selected, as in [`fit_gwr`](@ref):
+  `:golden` (default) is mgwr's golden-section search, `:scan` scans the
+  range for the smallest AICc.
+- `bw_min`, `bw_max`: the range of each term's bandwidth, in neighbours
+  counting the observation itself, one value for all terms or one per
+  term, intercept first. `nothing` is mgwr's default range, from 42 to `N`
+  for the golden section. The article of Oshan, Li, Kang, Wolf and
+  Fotheringham (2019) set `bw_min = 2`.
+- `bws_same_times`: the bandwidths are held fixed once they have stayed the
+  same for this many sweeps, as in mgwr (default 5).
 - `inference`: which method supplies the degrees of freedom, which is what
   identifies `enp`, `hat_trace` and `AICc`.
   * `true` (default): exact, by accumulating the smoother operators. Needs
@@ -1160,10 +1270,9 @@ As [`fit_gwr`](@ref): `X` without an intercept, `y`, and `N x 2` `coords`.
 An [`MGWRModel`](@ref).
 
 !!! warning
-    Back-fitting is not guaranteed to converge, and `converged` now requires
-    both that the bandwidths settled and that the coefficients reached
-    `tol`. Check `m.converged` before reading the coefficients. If it is
-    `false`, raise `max_iter` or loosen `tol`. Convergence is slow when the
+    Back-fitting is not guaranteed to converge. `converged` says that the
+    score of change fell below `tol`. Check `m.converged` before reading
+    the coefficients. If it is `false`, raise `max_iter` or loosen `tol`. Convergence is slow when the
     covariates are spatially correlated with each other, because the
     additive components then compete for the same variation. The
     contraction factor on Columbus is about 0.94 per sweep.
@@ -1190,6 +1299,12 @@ Fotheringham, A. S., Yang, W. & Kang, W. (2017). Multiscale
 geographically weighted regression. *Annals of the American Association of
 Geographers*, 107(6).
 
+Oshan, T. M., Li, Z., Kang, W., Wolf, L. J. & Fotheringham, A. S. (2019).
+mgwr: a Python implementation of multiscale geographically weighted
+regression for investigating process spatial heterogeneity and scale.
+*ISPRS International Journal of Geo-Information*, 8(6), 269 - the
+back-fitting and bandwidth search followed here.
+
 Yu, H., Fotheringham, A. S., Li, Z., Oshan, T., Kang, W. & Wolf, L. J.
 (2020). Inference in multiscale geographically weighted regression.
 *Geographical Analysis*, 52(1) - the degrees-of-freedom accumulator.
@@ -1200,8 +1315,12 @@ function fit_mgwr(
     coords::AbstractMatrix{T};
     kernel::KernelFunction=BisquareKernel(),
     varnames::Union{Nothing, Vector{String}}=nothing,
-    max_iter::Int=250,
-    tol::T=T(1e-4),
+    max_iter::Int=200,
+    tol::T=T(1e-5),
+    search::Symbol=:golden,
+    bw_min::Union{Nothing, Int, Vector{Int}}=nothing,
+    bw_max::Union{Nothing, Int, Vector{Int}}=nothing,
+    bws_same_times::Int=5,
     inference::Union{Bool, Symbol}=true,
     max_inference_n::Int=2000,
     probes::Int=200,
@@ -1238,54 +1357,51 @@ function fit_mgwr(
               "inference = :stochastic, which estimates them in O(N) memory."
     end
 
-    # Initialize with GWR
-    m_gwr = fit_gwr(X, y, coords; kernel=kernel, varnames=isnothing(varnames) ? nothing : varnames)
+    # Back-fitting as mgwr's `multi_bw` does it (Fotheringham, Yang and Kang
+    # 2017; Oshan, Li, Kang, Wolf and Fotheringham 2019). It starts from a GWR
+    # whose bandwidth is selected the same way. Each sweep fits every term in
+    # turn to its partial residual, the term plus the current residual, with
+    # its bandwidth re-selected by AICc. Once the bandwidths have stayed the
+    # same for `bws_same_times` sweeps they are held fixed. The sweeps stop
+    # when mgwr's score of change in the fitted terms falls below `tol`.
+    m_gwr = fit_gwr(X, y, coords; kernel=kernel, search=search,
+                    varnames=isnothing(varnames) ? nothing : varnames)
     coef_local = copy(m_gwr.coef_local)
     bandwidths = fill(m_gwr.bandwidth, K)
+    per_term(v) = v isa Vector ? (length(v) == K ? v :
+        throw(ArgumentError("fit_mgwr: bw_min and bw_max need one value per coefficient, intercept first ($K)"))) : fill(v, K)
+    k_mins = per_term(bw_min)
+    k_maxs = per_term(bw_max)
+
+    XB = X_aug .* coef_local
+    err = Vector{T}(y) .- vec(sum(XB; dims=2))
+    new_XB = similar(XB)
+    previous = copy(bandwidths)
 
     converged = false
     iter = 0
-    # Phase 1 re-selects every bandwidth each sweep. Phase 2 holds them
-    # fixed and lets the coefficients converge. Splitting them matters three
-    # ways. The AICc search is ~95% of a sweep's cost, so the many sweeps
-    # the coefficients actually need are only affordable without it. The
-    # smoother S is a fixed linear operator only once the bandwidths stop
-    # moving, which is what makes tr(S) well defined. And re-selecting
-    # forever lets a flat AICc curve flip the argmin on numerical noise.
     frozen = false
     froze_at = 0
+    stable = 0
 
     for outer_iter in 1:max_iter
         iter = outer_iter
-        max_change = zero(T)
-        bw_changed = false
 
         for k in 1:K
-            # Partial residual for variable k
-            partial_y = Vector{T}(y)
-            for j in 1:K
-                j == k && continue
-                partial_y .-= X_aug[:, j] .* coef_local[:, j]
-            end
-
-            # Optimize bandwidth for this variable. k_min stays at the
-            # selector's statistical floor of K + 2 = 3 for these univariate
-            # sweeps. It used to be pinned at 20, which bound on every
-            # Columbus covariate, whose grid optima are 9 to 15. That
-            # reported a floor rather than a selection.
+            # The partial residual of term k: its current fit plus the
+            # residual, which already holds the terms fitted this sweep.
+            partial_y = XB[:, k] .+ err
             x_k = X_aug[:, k:k]
             if frozen
                 bw_k = AdaptiveBandwidth(round(Int, bandwidths[k]))
             else
                 bw_k = _select_bandwidth_aicc(x_k, partial_y, coords_mat, tree,
-                                              kernel, AdaptiveBandwidth)
-                bw_changed |= Float64(bw_k.k) != bandwidths[k]
+                                              kernel, AdaptiveBandwidth;
+                                              search = search, k_min = k_mins[k], k_max = k_maxs[k])
             end
 
-            # Fit local regression for this variable. One scalar weighted
-            # regression per observation, so the compact support replaces two
-            # length-N broadcasts and two length-N dots with `b` terms.
-            coef_k_old = coef_local[:, k]
+            # One scalar weighted regression per observation, on the kernel's
+            # support.
             xk1 = @view x_k[:, 1]
             _tforeach_chunks(N) do rows
                 sc = _support_scratch(T)
@@ -1306,15 +1422,30 @@ function fit_mgwr(
                 end
             end
 
+            @views new_XB[:, k] .= X_aug[:, k] .* coef_local[:, k]
+            @views err .= partial_y .- new_XB[:, k]
             bandwidths[k] = Float64(bw_k.k)
-            max_change = max(max_change, maximum(abs.(coef_local[:, k] .- coef_k_old)))
         end
 
-        if !frozen && !bw_changed
+        stable = outer_iter > 1 && bandwidths == previous ? stable + 1 : 0
+        copyto!(previous, bandwidths)
+        # mgwr's score of change: the root mean square change in the fitted
+        # terms, relative to the square root of the sum of the squared fits.
+        score = sqrt((sum(abs2, new_XB .- XB) / N) / sum(abs2, vec(sum(new_XB; dims=2))))
+        XB, new_XB = new_XB, XB
+
+        if !frozen && stable >= bws_same_times
             frozen = true
             froze_at = outer_iter
-        elseif frozen && max_change < tol
+        end
+        if score < tol
             converged = true
+            if !frozen
+                # The bandwidths of this last sweep are the ones reported,
+                # and the smoother for the degrees of freedom is built on them.
+                frozen = true
+                froze_at = outer_iter
+            end
             break
         end
     end
@@ -1418,7 +1549,7 @@ function fit_mgwr(
         end
 
         sigma2 = RSS / max(N - tr_S, one(T))
-        AICc = N * log(RSS / N) + N * (N + tr_S) / max(N - 2 - tr_S, one(T))
+        AICc = _gwr_aicc(RSS, tr_S, N)
         se_local = sqrt.(sigma2 .* Brow2)
         enp_se = zeros(T, K)
         df_method = :exact
@@ -1426,7 +1557,7 @@ function fit_mgwr(
         enp = enp_est
         tr_S = sum(enp)
         sigma2 = RSS / max(N - tr_S, one(T))
-        AICc = N * log(RSS / N) + N * (N + tr_S) / max(N - 2 - tr_S, one(T))
+        AICc = _gwr_aicc(RSS, tr_S, N)
         df_method = :stochastic
 
         # se_local has no stochastic counterpart: it needs ||B_k[i, :]||^2

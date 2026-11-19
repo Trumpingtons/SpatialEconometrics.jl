@@ -36,7 +36,7 @@
     let RSS = sum(abs2, residuals(m_mgwr)), t = m_mgwr.hat_trace
         @test isapprox(m_mgwr.sigma2, RSS / (N - t); rtol = 1e-10)
         @test isapprox(m_mgwr.AICc,
-                       N * log(RSS / N) + N * (N + t) / (N - 2 - t);
+                       N * log(RSS / N) + N * log(2pi) + N * (N + t) / (N - 2 - t);
                        rtol = 1e-10)
         @test m_mgwr.AICc > N * log(RSS / N) + N + 1.0
     end
