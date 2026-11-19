@@ -1148,8 +1148,13 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      **Theorem 1 proved and step 2 analysed, 2026-11-19**
      (`research/trace_cfe/THEORY.md`; not checked by anyone else). The CLT
      for the moment now has a full proof: martingale differences and Hall &
-     Heyde's Corollary 3.1, with a new lemma bounding the triangular part by
-     `⌈log₂n⌉‖A‖_op`; it needs `(log n)²‖Cs‖_op²/‖Cs‖_F² → 0`. For step 2,
+     Heyde's Corollary 3.1. It needs only `‖Cs‖_op/‖Cs‖_F → 0`: the
+     triangular part is bounded in the Schatten-4 norm with no log factor
+     (Macaev's theorem, via Bhansali, Giraitis & Kokoszka 2007, Lemma 2.1),
+     checked in `tc_schatten.jl` against a matrix whose triangular part grows
+     like log n in the operator norm. Against Kelejian & Prucha (2001), it
+     drops bounded row sums and the rate `n`, but uses fourth moments where
+     they need `2 + η` for a zero diagonal. For step 2,
      the noise term removes the `O(K/n)` bias of the linear part, but the
      plug-in `σ̂ᵢ² = ûᵢ²/Mᵢᵢ` is biased by `Σⱼ hᵢⱼ²(σⱼ² − σᵢ²)/(1 − hᵢᵢ)`.
      In `tc_vhat.jl` (n = 900, R = 1000, the oracle at 0.997–1.002) the

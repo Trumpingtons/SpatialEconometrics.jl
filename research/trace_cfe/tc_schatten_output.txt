@@ -1,0 +1,20 @@
+Power check: the interleaved Hilbert matrix (‖A‖op < π for every n)
+hilbert                      n   250 | ‖L‖op/‖A‖op 1.903 | ‖L‖₄/‖A‖₄ 0.822 | ‖L‖op²/(‖A‖op‖A‖F) 0.2304 | ‖L′L‖F/(‖A‖op‖A‖F) 0.674 | ‖A‖op/‖A‖F 0.0636
+hilbert                      n   500 | ‖L‖op/‖A‖op 2.118 | ‖L‖₄/‖A‖₄ 0.828 | ‖L‖op²/(‖A‖op‖A‖F) 0.2014 | ‖L′L‖F/(‖A‖op‖A‖F) 0.686 | ‖A‖op/‖A‖F 0.0449
+hilbert                      n  1000 | ‖L‖op/‖A‖op 2.335 | ‖L‖₄/‖A‖₄ 0.833 | ‖L‖op²/(‖A‖op‖A‖F) 0.1728 | ‖L′L‖F/(‖A‖op‖A‖F) 0.693 | ‖A‖op/‖A‖F 0.0317
+hilbert                      n  2000 | ‖L‖op/‖A‖op 2.553 | ‖L‖₄/‖A‖₄ 0.836 | ‖L‖op²/(‖A‖op‖A‖F) 0.1459 | ‖L′L‖F/(‖A‖op‖A‖F) 0.699 | ‖A‖op/‖A‖F 0.0224
+hilbert                      n  4000 | ‖L‖op/‖A‖op 2.772 | ‖L‖₄/‖A‖₄ 0.838 | ‖L‖op²/(‖A‖op‖A‖F) 0.1215 | ‖L′L‖F/(‖A‖op‖A‖F) 0.702 | ‖A‖op/‖A‖F 0.0158
+
+The moment's Cs (kNN W, Chebyshev surface basis, K ≈ 2√n)
+JL Cs, K = 36                n   400 | ‖L‖op/‖A‖op 0.689 | ‖L‖₄/‖A‖₄ 0.705 | ‖L‖op²/(‖A‖op‖A‖F) 0.0824 | ‖L′L‖F/(‖A‖op‖A‖F) 0.314 | ‖A‖op/‖A‖F 0.1736
+exact-diag As, K = 36        n   400 | ‖L‖op/‖A‖op 0.689 | ‖L‖₄/‖A‖₄ 0.706 | ‖L‖op²/(‖A‖op‖A‖F) 0.0822 | ‖L′L‖F/(‖A‖op‖A‖F) 0.314 | ‖A‖op/‖A‖F 0.1732
+JL Cs, K = 55                n   900 | ‖L‖op/‖A‖op 0.676 | ‖L‖₄/‖A‖₄ 0.704 | ‖L‖op²/(‖A‖op‖A‖F) 0.0510 | ‖L′L‖F/(‖A‖op‖A‖F) 0.315 | ‖A‖op/‖A‖F 0.1116
+exact-diag As, K = 55        n   900 | ‖L‖op/‖A‖op 0.673 | ‖L‖₄/‖A‖₄ 0.703 | ‖L‖op²/(‖A‖op‖A‖F) 0.0506 | ‖L′L‖F/(‖A‖op‖A‖F) 0.315 | ‖A‖op/‖A‖F 0.1118
+JL Cs, K = 78                n  1600 | ‖L‖op/‖A‖op 0.686 | ‖L‖₄/‖A‖₄ 0.707 | ‖L‖op²/(‖A‖op‖A‖F) 0.0376 | ‖L′L‖F/(‖A‖op‖A‖F) 0.326 | ‖A‖op/‖A‖F 0.0800
+exact-diag As, K = 78        n  1600 | ‖L‖op/‖A‖op 0.685 | ‖L‖₄/‖A‖₄ 0.707 | ‖L‖op²/(‖A‖op‖A‖F) 0.0375 | ‖L′L‖F/(‖A‖op‖A‖F) 0.326 | ‖A‖op/‖A‖F 0.0800
+JL Cs, K = 105               n  2500 | ‖L‖op/‖A‖op 0.674 | ‖L‖₄/‖A‖₄ 0.708 | ‖L‖op²/(‖A‖op‖A‖F) 0.0286 | ‖L′L‖F/(‖A‖op‖A‖F) 0.327 | ‖A‖op/‖A‖F 0.0629
+exact-diag As, K = 105       n  2500 | ‖L‖op/‖A‖op 0.674 | ‖L‖₄/‖A‖₄ 0.708 | ‖L‖op²/(‖A‖op‖A‖F) 0.0286 | ‖L′L‖F/(‖A‖op‖A‖F) 0.327 | ‖A‖op/‖A‖F 0.0629
+
+real	0m35.504s
+user	0m0.000s
+sys	0m0.031s

@@ -4,7 +4,10 @@
 below says whether it is proved here, sketched, or assumed. "Proved" means
 proved from the stated results of the cited works. Revised the same day after
 reading de Jong (1987): Theorem 1 is now proved, not sketched, and step 2 has
-a first analysis. The numerical checks are in `tc_clt.jl` and its output. ROADMAP #13,
+a first analysis. Revised again after reading Bhansali, Giraitis & Kokoszka
+(2007), Kelejian & Prucha (2001) and Hall & Heyde (1980): Theorem 1 no longer
+needs a log factor, and it cites the martingale CLT as Hall & Heyde state it.
+The numerical checks are in `tc_clt.jl`, `tc_schatten.jl` and their output. ROADMAP #13,
 research item, theory step 1.
 
 ## Setting
@@ -94,18 +97,36 @@ operator norm of its sub-blocks, and no sub-block of `A` has a norm above
 `‖A‖_op`. ∎
 
 The log factor is known to be the right order for triangular truncation
-(Kwapień & Pełczyński 1970; not read). In `tc_clt.jl` the measured ratio
-`‖L‖_op/‖Cs‖_op` is only 0.64–0.69.
+(Kwapień & Pełczyński 1970; not read), and `tc_schatten.jl` shows it: for an
+interleaved Hilbert matrix with `‖A‖_op < π`, `‖L‖_op/‖A‖_op` grows from 1.90
+to 2.77 as n goes from 250 to 4000. In the moment's designs the ratio is only
+0.67–0.69.
 
-## Theorem 1: CLT for the moment (proved, given Hall & Heyde's Corollary 3.1)
+**Theorem 1 no longer uses this lemma.** In the Schatten-4 norm
+`‖X‖₄ = (Σ sᵢ⁴)^{1/4}` (`sᵢ` the singular values), triangular truncation is
+bounded with a constant free of n: `‖L‖₄ ≤ C₄‖A‖₄` (Macaev 1961, as used by
+Bhansali, Giraitis & Kokoszka 2007 in their Lemma 2.1; Macaev not read). With
+`‖A‖₄⁴ = ‖A²‖_F² ≤ ‖A‖_op²‖A‖_F²` this gives
+
+    ‖L′L‖_F = ‖L‖₄² ≤ C₄²‖A‖_op‖A‖_F,     ‖L‖_op² ≤ ‖L‖₄² ≤ C₄²‖A‖_op‖A‖_F.
+
+In `tc_schatten.jl`, `‖L‖₄/‖A‖₄` stays at 0.82–0.84 for the Hilbert matrix
+while its operator-norm ratio grows, and at 0.70–0.71 for the moment's
+matrices, n = 400 to 2500. The lemma is kept because its bound is elementary
+and gives the operator norm at the full rate, which the Schatten bound does
+not.
+
+## Theorem 1: CLT for the moment (proved, given Hall & Heyde's Corollary 3.1 and Macaev's theorem)
 
 Assume A1. Write `σ̲, σ̄` for the variance bounds and `μ̄₄ = supᵢ E εᵢ⁴`. If
 
-- (a′) `(log n)² ‖Cs‖_op² / ‖Cs‖_F² → 0`, and
+- (a) `‖Cs‖_op / ‖Cs‖_F → 0`, and
 - (c′) `maxᵢ bᵢ² / V → 0`,
 
-then `g(ρ₀)/√V → N(0, 1)`. Under A2–A5, (a′) holds at rate `log² n/n` by
-Lemma 2. (c′) is implied by A6, and it is weaker than A6 when the quadratic
+then `g(ρ₀)/√V → N(0, 1)`. Under A2–A5, (a) holds at rate `n^{−1/2}` by
+Lemma 2. (The first version of this theorem needed
+`(log n)²‖Cs‖_op²/‖Cs‖_F² → 0`, from Lemma 3.)
+(c′) is implied by A6, and it is weaker than A6 when the quadratic
 part dominates `V`.
 
 *Proof.* Write `c = Cs`, which is symmetric with zero diagonal, and
@@ -116,21 +137,27 @@ part dominates `V`.
 
     V = Σᵢ σᵢ²bᵢ² + 2Σ_{i≠j} σᵢ²σⱼ²cᵢⱼ²  ≥  max(σ̲²‖b‖², 2σ̲⁴‖Cs‖_F²).
 
-Hall & Heyde's (1980) Corollary 3.1 needs the two conditions below. Its
-nesting condition holds because `Fᵢ` does not depend on `n`.
+Hall & Heyde's (1980) Corollary 3.1 (p. 58, read from the page image) needs
+the two conditions below, with limit `η² = 1`. Its nesting condition (3.21)
+is not needed: by the Remarks on p. 59 it can be replaced by `η²` being
+measurable, which a constant trivially is (the stability of the limit is
+then lost, and it is not needed here). So the errors may form a triangular
+array.
 
 1. **Conditional variance.** `S = Σᵢ E(ξᵢ²|Fᵢ₋₁) = Σᵢ σᵢ²(bᵢ + 2uᵢ)²`, with
    `E S = V`, and `S − V = 4A + 4(B − E B)`, where:
    - `A = Σᵢσᵢ²bᵢuᵢ = (L′Σb)′ε`. So
-     `Var A ≤ σ̄²‖L′Σb‖² ≤ σ̄⁶‖L‖_op²‖b‖²`.
+     `Var A ≤ σ̄²‖L′Σb‖² ≤ σ̄⁶‖L‖_op²‖b‖²`. By the Schatten-4 bound after
+     Lemma 3, `‖L‖_op² ≤ C₄²‖Cs‖_op‖Cs‖_F`. Since
+     `V² ≥ 8σ̲⁶‖b‖²‖Cs‖_F²` (from `(x + y)² ≥ 4xy`),
+     `Var A/V² ≤ c‖Cs‖_op/‖Cs‖_F`.
    - `B = u′Σu = ε′Dε` with `D = L′ΣL`. For independent errors and a
-     symmetric `D`, `Var(ε′Dε) ≤ (μ̄₄ + 2σ̄⁴)‖D‖_F²`. Also
-     `‖D‖_F² ≤ ‖D‖_op tr D ≤ σ̄⁴‖L‖_op²‖L‖_F²`, and `‖L‖_F² = ‖Cs‖_F²/2`.
+     symmetric `D`, `Var(ε′Dε) ≤ (μ̄₄ + 2σ̄⁴)‖D‖_F²`. Since
+     `0 ≼ L′ΣL ≼ σ̄²L′L`, `‖D‖_F ≤ σ̄²‖L′L‖_F ≤ σ̄²C₄²‖Cs‖_op‖Cs‖_F`. With
+     `V ≥ 2σ̲⁴‖Cs‖_F²`, `Var B/V² ≤ c‖Cs‖_op²/‖Cs‖_F²`.
 
-   With the lower bounds on `V`, `Var(S)/V² ≤ c₁‖L‖_op²/V`, where `c₁`
-   depends only on `σ̲`, `σ̄` and `μ̄₄`. By Lemma 3,
-   `‖L‖_op²/V ≤ ⌈log₂ n⌉²‖Cs‖_op²/(2σ̲⁴‖Cs‖_F²)`, which tends to 0 by
-   (a′). So `S/V → 1` in probability.
+   The constants depend only on `σ̲`, `σ̄`, `μ̄₄` and `C₄`. Both ratios tend to
+   0 by (a), so `S/V → 1` in probability.
 2. **Lyapunov, which implies the conditional Lindeberg condition.**
    By independence, `E ξᵢ⁴ = E εᵢ⁴ · E(bᵢ + 2uᵢ)⁴ ≤ 8μ̄₄(bᵢ⁴ + 16 E uᵢ⁴)`.
    For a weighted sum of independent terms,
@@ -140,7 +167,37 @@ nesting condition holds because `Fᵢ` does not depend on `n`.
      norm is at most the operator norm.
 
    So `Σᵢ E ξᵢ⁴/V² ≤ c₂[maxᵢbᵢ²/V + ‖Cs‖_op²/‖Cs‖_F²]`, which tends to 0 by
-   (c′) and (a′). ∎
+   (c′) and (a). ∎
+
+**Against Kelejian & Prucha (2001)** (Theorem 1, Assumptions 1–3 and the
+proof in their appendix, read 2026-11-19 from the page images). Their CLT
+covers the same linear-quadratic form with independent, heteroskedastic
+errors, and they too use a martingale CLT (their Theorem A.1, from Gänssler &
+Stute 1977, a special case of Hall & Heyde's Corollary 3.1). Their
+conditions differ from ours in three places:
+- they need **bounded absolute row sums** of `A`, `sup Σᵢ|aᵢⱼ| < ∞`, which a
+  dense `M` breaks; Theorem 1 replaces this with (a);
+- they need `n⁻¹σ²_Q ≥ c > 0`, the rate `n`; Theorem 1 needs no rate;
+- they need only `2 + η` moments when `aᵢᵢ = 0` (their Assumption 3(a)), and
+  `4 + η` otherwise; Theorem 1 uses fourth moments throughout. Lowering this
+  would need a truncation argument, as in de Jong (1987), and is not done.
+
+**Against Lee (2004)** (as restated, with its proof, in Appendix 1A of the
+book chapter "Spatial econometric models: model specifications and basic
+statistics" held in `ExtRef/`). It extends Kelejian & Prucha to entries of
+uniform order `1/hₙ` and a variance of order `n/hₙ`, with
+`h_n^{1+2/δ}/n → 0`. It still assumes bounded row and column sums, so it
+does not cover a dense `M` either.
+
+**What Bhansali, Giraitis & Kokoszka (2007) add** (read 2026-11-19, from the
+page images). Their Theorem 2.1 is for a quadratic form alone, in i.i.d.
+variables, with a nonzero diagonal allowed. Under finite fourth moments it
+needs `Δₙ = (‖Ã′Ã‖_F + maxₜ Σₛ aₜₛ²)/‖A‖_F² → 0`, with `Ã` the strictly
+lower-triangular part, which their Lemma 2.1 shows is implied by
+`‖A‖_op/‖A‖_F → 0`. With the diagonal of order `o(‖A‖_F²)` it needs only
+`2 + δ` moments. It does not cover a linear part or heteroskedastic errors,
+so it does not contain Theorem 1. Its Lemma 2.1 is what removes the log
+factor here.
 
 **What de Jong (1987) adds** (read 2026-11-19, from the page images).
 His Theorem 5.2 treats the quadratic part alone: `Σ_{i≠j} aᵢⱼXᵢXⱼ`, with the
@@ -150,10 +207,10 @@ His Theorem 5.2 treats the quadratic part alone: `Σ_{i≠j} aᵢⱼXᵢXⱼ`, w
 - (2) `maxᵢ EXᵢ²1{|Xᵢ| > K(n)} → 0`;
 - (3) `σ(n)⁻² maxᵢ μᵢ² → 0`, where the `μᵢ` are the eigenvalues of `(aᵢⱼ)`.
 
-With `Xᵢ = εᵢ/σᵢ` and `aᵢⱼ = σᵢσⱼcᵢⱼ`, condition (3) is our condition (a)
-without the log factor, and (1)–(2) hold with uniformly bounded `2 + δ`
-moments. So **the quadratic part alone needs neither fourth moments nor
-Lemma 3.** The martingale proof above is needed for the linear and quadratic
+With `Xᵢ = εᵢ/σᵢ` and `aᵢⱼ = σᵢσⱼcᵢⱼ`, condition (3) is our condition (a),
+and (1)–(2) hold with uniformly bounded `2 + δ`
+moments. So **the quadratic part alone needs no fourth
+moments.** The martingale proof above is needed for the linear and quadratic
 parts jointly, which de Jong's theorem does not cover.
 
 ## Corollary: the estimator (sketched)
@@ -324,19 +381,24 @@ worse, and even goes negative. A remedy must therefore cope with leverage near
    rough heteroskedasticity and leverage near 1, for example Kline, Saggio &
    Sølvsten's sample splitting.
 4. Remark 3 for a penalised smoother, with a numerical check.
-5. de Jong (1987) is read: its Theorem 5.2 is Theorem 1's quadratic part.
-   Bhansali, Giraitis & Kokoszka (2007) is still unread, because it is
-   paywalled; it is in `ExtRef/TO-FETCH.md`. Cattaneo, Jansson & Newey
+5. Reading: de Jong (1987), Bhansali, Giraitis & Kokoszka (2007), Kelejian &
+   Prucha (2001) and Hall & Heyde's §3.2 are read. Cattaneo, Jansson & Newey
    (2018) §3 and Kline, Saggio & Sølvsten (2020) §4.2 have been read via
-   alphaXiv. Hall & Heyde's Corollary 3.1 is used as it is usually stated,
-   and has not been read here.
+   alphaXiv. Macaev's theorem (1961) is used as Bhansali et al. state it,
+   and has not been read.
+6. Fewer moments: Theorem 1 uses fourth moments, where Kelejian & Prucha and
+   Bhansali et al. need only `2 + δ` for a zero diagonal.
 
 ## References
 
-All have been checked to exist (via Scite, or by resolving the DOI). Read for
-this note: de Jong (1987), §2 and §5, from the page images of Springer's free
-copy; Cattaneo, Jansson & Newey (2018), §3 (arXiv 1507.02493); Kline, Saggio &
-Sølvsten (2020), §4.2 (arXiv 1806.01494). The others have not been read.
+All have been checked to exist (via Scite, or by resolving the DOI), except
+Macaev (1961). Read for this note: de Jong (1987), §2 and §5, from the page
+images of Springer's free copy; Cattaneo, Jansson & Newey (2018), §3 (arXiv
+1507.02493); Kline, Saggio & Sølvsten (2020), §4.2 (arXiv 1806.01494); and,
+from the page images of the copies in `ExtRef/`, Bhansali, Giraitis &
+Kokoszka (2007), all of it; Kelejian & Prucha (2001), §3.1 and the proof of
+Theorem 1; Hall & Heyde (1980), §3.2; and Lee (2004)'s CLT, as restated in
+the book chapter there. The others have not been read.
 - Bhansali, R. J., Giraitis, L., & Kokoszka, P. S. (2007). Convergence of
   quadratic forms with nonvanishing diagonal. *Statistics & Probability
   Letters*, 77(7), 726–734. doi:10.1016/j.spl.2006.11.007
@@ -354,6 +416,12 @@ Sølvsten (2020), §4.2 (arXiv 1806.01494). The others have not been read.
 - Kline, P., Saggio, R., & Sølvsten, M. (2020). Leave-out estimation of
   variance components. *Econometrica*, 88(5), 1859–1898.
   doi:10.3982/ECTA16410
+- Lee, L.-F. (2004). Asymptotic distributions of quasi-maximum likelihood
+  estimators for spatial autoregressive models. *Econometrica*, 72(6),
+  1899–1925. doi:10.1111/j.1468-0262.2004.00558.x
+- Macaev, V. I. (1961). A class of completely continuous operators. *Doklady
+  Akademii Nauk SSSR*, 139, 548–551 (in Russian). Cited from Bhansali et al.;
+  not checked or read.
 - Kwapień, S., & Pełczyński, A. (1970). The main triangle projection in matrix
   spaces and its applications. *Studia Mathematica*, 34, 43–67.
   doi:10.4064/sm-34-1-43-67
