@@ -58,9 +58,11 @@ Su (2012) estimates `ρ` with linear moments only.
 
 ## Theory
 
-`THEORY.md` holds the proof sketch for theory step 1, a CLT for the moment
-when `M` is dense, with its numerical check. It is a sketch and has not been
-checked by anyone else.
+`THEORY.md` holds theory step 1, a CLT for the moment when `M` is dense
+(Theorem 1, proved given Hall & Heyde's martingale CLT; the estimator's
+corollary is still a sketch), and a first analysis of step 2, the robust
+variance, each with its numerical check. None of it has been checked by
+anyone else.
 
 ## Scripts
 
@@ -77,6 +79,7 @@ Every script uses fixed seeds, and its output is committed beside it as
 | `tc_decomp.jl` | Splits the robust variance's bias into its quadratic and linear parts, before the noise term was subtracted | 6 s |
 | `tc_jinlee.jl` | Jin & Lee (2012, §3.2) against the exact diagonal in the concurvity design: their `P = W′ − Diag(W′M)Diag(M)⁻¹` (JL-W) and their two-step REsd with `G(ρ̂)′` (JL-G), all with the same robust variance; 16 cells at K = 100 and 4 at K = 199, 500 replications each | 15 min |
 | `tc_clt.jl` | Theory step 1: the conditions of the CLT for a dense `M` (norm ratios, the `Δ` bound, Lindeberg for the linear part) and the distribution of the standardised moment, for local and global bases with K ≈ 2√n and K ≈ 0.15n, plus a power check with two complete groups. See `THEORY.md` | 45 s |
+| `tc_vhat.jl` | Theory step 2: the bias of the robust variance at the true `ρ`, K/n from 0.05 to 0.39, constant, smooth and rough variances, normal and χ²₃ errors, R = 1,000. Plug-ins: oracle, HC2, Cattaneo–Jansson–Newey and a Gaussian-corrected version of it, with the homoskedastic one as the power check. The first output line is a 5-replication warm-up; ignore it. See `THEORY.md` | — |
 | `tc_commute.jl` | The two zero-diagonal corrections on a torus: equal with a Fourier basis (`MW = WM`), different with a Chebyshev basis | 10 s |
 | `tc_misalign.jl` | The delta-method variance of `ρ̂` at `ρ₀ = 0`, split into quadratic, linear and derivative parts: checked against simulation, along a basis-misalignment path, in the concurvity design, and with `W′` and a symmetrised `W` | 1 min |
 | `tc_concurvity.jl` | `x2 = (1−ω)·smooth(u,v) + ω·noise` with free smooths of `(u, v)` and `x2`, K = 100, 500 replications per cell, against an oracle | 24 s |
@@ -155,10 +158,13 @@ The corrected run replaces that output.
   projection, and Geniaux's own E3 design.
 - Large n: `A` is a dense n × n matrix. At n = 900 that is cheap; at Geniaux's
   n = 25,357 it would need iterative solves.
-- Theory: a dense `P_B` breaks the bounded-row-sum condition of the Kelejian &
-  Prucha CLT, so a different CLT for linear-quadratic forms is needed, along
-  with the rate at which K may grow.
-- The 1–3% conservative quadratic plug-in bias of the robust variance.
+- Theory: the CLT for the moment is proved (`THEORY.md`, Theorem 1), but the
+  estimator's corollary (the LLN for `g′` and the choice of root), a
+  primitive form of A5 and a proof of step 2 for K/n → 0 are still owed.
+- The robust variance under rough heteroskedasticity: conservative by up to
+  13–17% at K/n ≈ 0.3–0.4 (`tc_vhat.jl`). Cattaneo, Jansson & Newey's
+  unbiased plug-in needs leverage below 1/2 and fails here; a leave-out
+  estimator (Kline, Saggio & Sølvsten 2020) is untried.
 
 ## References
 

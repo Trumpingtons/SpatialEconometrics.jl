@@ -1,8 +1,10 @@
 # A CLT for the zero-diagonal closed-form moment when the basis grows
 
-**Status: a proof sketch, written 2026-11-19. It has not been checked by
-anyone else.** Each step below says whether it is proved here, sketched, or
-assumed. The numerical checks are in `tc_clt.jl` and its output. ROADMAP #13,
+**Status: written 2026-11-19, and not checked by anyone else.** Each step
+below says whether it is proved here, sketched, or assumed. "Proved" means
+proved from the stated results of the cited works. Revised the same day after
+reading de Jong (1987): Theorem 1 is now proved, not sketched, and step 2 has
+a first analysis. The numerical checks are in `tc_clt.jl` and its output. ROADMAP #13,
 research item, theory step 1.
 
 ## Setting
@@ -54,12 +56,18 @@ At `ρ₀`, `y₀ = f + ε`. Since `Mf = 0`, `Cf = PMf = 0`, so
 (a) `‖M‖_op = 1`, so `‖C‖_op ≤ ‖P‖_op ≤ c_W + maxᵢ|Δᵢᵢ|`, and
 `‖Cs‖_op ≤ ‖C‖_op`.
 
-(b) `Δᵢᵢ = (W′M)ᵢᵢ/Mᵢᵢ = −(W′P_B)ᵢᵢ/(1 − hᵢᵢ)`, because `diag(W) = 0`. By
-Cauchy–Schwarz, `|(W′P_B)ᵢᵢ| = |(Weᵢ)′(P_Beᵢ)| ≤ ‖Weᵢ‖ √hᵢᵢ`. So
+(b) For any `n × n` matrix `A`, `|(A′M)ᵢᵢ| = |(Aeᵢ)′(Meᵢ)| ≤ ‖A‖_op ‖Meᵢ‖`,
+and `‖Meᵢ‖² = Mᵢᵢ = 1 − hᵢᵢ`. So `Δ = Diag(A′M)Diag(M)⁻¹` satisfies
 
-    |Δᵢᵢ| ≤ c_W √hᵢᵢ / (1 − hᵢᵢ),
+    |Δᵢᵢ| ≤ ‖A‖_op / √(1 − hᵢᵢ),
 
-which is bounded under A3 and tends to 0 when `maxᵢ hᵢᵢ → 0`.
+which is bounded under A3. This covers REsd's `A = G(ρ)`, whose diagonal is
+not zero. When `diag(A) = 0`, as for `A = W`, there is a finer bound:
+`(A′M)ᵢᵢ = −(A′P_B)ᵢᵢ`, and Cauchy–Schwarz gives
+
+    |Δᵢᵢ| ≤ ‖Aeᵢ‖ √hᵢᵢ / (1 − hᵢᵢ),
+
+which tends to 0 when `maxᵢ hᵢᵢ → 0`.
 
 (c) With A2 and A3, `‖C‖_op = O(1)`, and with A5,
 `‖Cs‖_op / ‖Cs‖_F = O(n^{−1/2})`.
@@ -70,46 +78,83 @@ and column sums of the moment matrix. A dense `M` has row sums of order up to
 ratios, and the operator norm survives the projection. In `tc_clt.jl`,
 `‖Cs‖_op` stays at 0.83–1.08 and the bound in (b) holds in every design.
 
-## Theorem 1: CLT for the moment (sketched)
+## Lemma 3: the triangular part (proved)
 
-Under A1–A6, `g(ρ₀)/√V → N(0, 1)`, provided
+Let `L` be the strictly lower-triangular part of a symmetric `A`. Then
+`‖L‖_op ≤ ⌈log₂ n⌉ ‖A‖_op`.
 
-- (a) `‖Cs‖_op / ‖Cs‖_F → 0`, which Lemma 2(c) and A5 give at rate
-  `n^{−1/2}`; and
-- (b) `‖L‖_op / ‖Cs‖_F → 0`.
+*Proof.* Pad the index set to `2^m` with `m = ⌈log₂ n⌉`. At level
+`k = 1, …, m`, cut the indices into consecutive blocks of size `2^{m−k+1}`,
+and each block into two halves. Let `L_k` hold the entries of `A` whose row is
+in the second half and whose column is in the first half of the same block.
+Each pair `i > j` belongs to exactly one level: the finest one at which `i`
+and `j` share a block but not a half. So `L = Σ_k L_k`. Within one level the
+blocks have disjoint rows and disjoint columns, so `‖L_k‖_op` is the largest
+operator norm of its sub-blocks, and no sub-block of `A` has a norm above
+`‖A‖_op`. ∎
 
-The norm of the triangular truncation grows like `log n` (Kwapień &
-Pełczyński 1970; not read). If that bound applies here, (a) gives (b) at rate
-`log n/√n`. Measured, `‖L‖_op/‖Cs‖_op` stays at 0.64–0.69 with no visible
-growth in `n`.
+The log factor is known to be the right order for triangular truncation
+(Kwapień & Pełczyński 1970; not read). In `tc_clt.jl` the measured ratio
+`‖L‖_op/‖Cs‖_op` is only 0.64–0.69.
 
-**Sketch.** Because `diag(Cs) = 0`, `ε′Cε = ε′Csε = 2Σᵢ εᵢ(Lε)ᵢ`. Write
-`g = Σᵢ ξᵢ` with `ξᵢ = εᵢ(bᵢ + 2(Lε)ᵢ)`. Since `(Lε)ᵢ` depends only on
-`ε₁, …, εᵢ₋₁`, the `ξᵢ` are martingale differences. Apply the martingale CLT
-(Hall & Heyde 1980, Corollary 3.1; not read here, but this is the route of
-Kelejian & Prucha 2001). Two conditions are needed:
+## Theorem 1: CLT for the moment (proved, given Hall & Heyde's Corollary 3.1)
 
-1. **The conditional variance:**
-   `Σᵢ σᵢ²(bᵢ + 2(Lε)ᵢ)² / V → 1` in probability. Its mean is exactly 1.
-   Its variance has two parts:
-   - the linear cross term `4Σᵢσᵢ²bᵢ(Lε)ᵢ = 4(L′Σb)′ε`, with variance
-     `16 Σⱼ σⱼ²(L′Σb)ⱼ² ≤ c‖L‖_op²‖b‖²`;
-   - the quadratic form `4ε′L′ΣLε`, with variance
-     `≤ c‖L′ΣL‖_F² ≤ c‖L‖_op²‖L‖_F²`. The fourth-moment diagonal terms are
-     bounded by the same quantity.
+Assume A1. Write `σ̲, σ̄` for the variance bounds and `μ̄₄ = supᵢ E εᵢ⁴`. If
 
-   Since `V ≥ 2σ̲⁴‖Cs‖_F²` and `V ≥ σ̲²‖b‖²`, both parts are
-   `O(‖L‖_op²/‖Cs‖_F²)` relative to `V²`, which tends to 0 by (b).
-2. **Lyapunov:** `Σᵢ E ξᵢ⁴ / V² → 0`. By independence and Rosenthal's
-   inequality,
-   `E ξᵢ⁴ ≤ c(bᵢ⁴ + ‖ℓᵢ‖⁴)`, where `ℓᵢ` is row `i` of `L`. Then:
-   - `Σbᵢ⁴ ≤ maxbᵢ²‖b‖²`, which is `o(V²)` by A6;
-   - `Σ‖ℓᵢ‖⁴ ≤ maxᵢ‖ℓᵢ‖²‖L‖_F² ≤ ‖Cs‖_op²‖Cs‖_F²`, which is `o(V²)` by (a).
+- (a′) `(log n)² ‖Cs‖_op² / ‖Cs‖_F² → 0`, and
+- (c′) `maxᵢ bᵢ² / V → 0`,
 
-   Only fourth moments are used, while Kelejian & Prucha assume `4 + η`.
+then `g(ρ₀)/√V → N(0, 1)`. Under A2–A5, (a′) holds at rate `log² n/n` by
+Lemma 2. (c′) is implied by A6, and it is weaker than A6 when the quadratic
+part dominates `V`.
 
-To check in a full proof: the constants in the two variance bounds, and that
-nothing in the step depends on bounded row sums of `L`.
+*Proof.* Write `c = Cs`, which is symmetric with zero diagonal, and
+`uᵢ = Σ_{j<i} cᵢⱼεⱼ`, so that `u = Lε`. Then `ε′Cε = 2Σᵢ εᵢuᵢ`, and
+`g = Σᵢ ξᵢ` with `ξᵢ = εᵢ(bᵢ + 2uᵢ)`. Since `uᵢ` depends only on
+`ε₁, …, εᵢ₋₁`, the `ξᵢ` are martingale differences for
+`Fᵢ = σ(ε₁, …, εᵢ)`. Also
+
+    V = Σᵢ σᵢ²bᵢ² + 2Σ_{i≠j} σᵢ²σⱼ²cᵢⱼ²  ≥  max(σ̲²‖b‖², 2σ̲⁴‖Cs‖_F²).
+
+Hall & Heyde's (1980) Corollary 3.1 needs the two conditions below. Its
+nesting condition holds because `Fᵢ` does not depend on `n`.
+
+1. **Conditional variance.** `S = Σᵢ E(ξᵢ²|Fᵢ₋₁) = Σᵢ σᵢ²(bᵢ + 2uᵢ)²`, with
+   `E S = V`, and `S − V = 4A + 4(B − E B)`, where:
+   - `A = Σᵢσᵢ²bᵢuᵢ = (L′Σb)′ε`. So
+     `Var A ≤ σ̄²‖L′Σb‖² ≤ σ̄⁶‖L‖_op²‖b‖²`.
+   - `B = u′Σu = ε′Dε` with `D = L′ΣL`. For independent errors and a
+     symmetric `D`, `Var(ε′Dε) ≤ (μ̄₄ + 2σ̄⁴)‖D‖_F²`. Also
+     `‖D‖_F² ≤ ‖D‖_op tr D ≤ σ̄⁴‖L‖_op²‖L‖_F²`, and `‖L‖_F² = ‖Cs‖_F²/2`.
+
+   With the lower bounds on `V`, `Var(S)/V² ≤ c₁‖L‖_op²/V`, where `c₁`
+   depends only on `σ̲`, `σ̄` and `μ̄₄`. By Lemma 3,
+   `‖L‖_op²/V ≤ ⌈log₂ n⌉²‖Cs‖_op²/(2σ̲⁴‖Cs‖_F²)`, which tends to 0 by
+   (a′). So `S/V → 1` in probability.
+2. **Lyapunov, which implies the conditional Lindeberg condition.**
+   By independence, `E ξᵢ⁴ = E εᵢ⁴ · E(bᵢ + 2uᵢ)⁴ ≤ 8μ̄₄(bᵢ⁴ + 16 E uᵢ⁴)`.
+   For a weighted sum of independent terms,
+   `E uᵢ⁴ ≤ max(μ̄₄, 3σ̄⁴)(Σⱼcᵢⱼ²)²`. Then:
+   - `Σᵢbᵢ⁴ ≤ maxᵢbᵢ²‖b‖² ≤ maxᵢbᵢ² V/σ̲²`;
+   - `Σᵢ(Σⱼcᵢⱼ²)² ≤ maxᵢ‖cᵢ‖² ‖Cs‖_F² ≤ ‖Cs‖_op²‖Cs‖_F²`, because a row
+     norm is at most the operator norm.
+
+   So `Σᵢ E ξᵢ⁴/V² ≤ c₂[maxᵢbᵢ²/V + ‖Cs‖_op²/‖Cs‖_F²]`, which tends to 0 by
+   (c′) and (a′). ∎
+
+**What de Jong (1987) adds** (read 2026-11-19, from the page images).
+His Theorem 5.2 treats the quadratic part alone: `Σ_{i≠j} aᵢⱼXᵢXⱼ`, with the
+`Xᵢ` independent and not necessarily identically distributed, `EXᵢ = 0`,
+`EXᵢ² = 1` and `aᵢᵢ = 0`. It gives normality under three conditions:
+- (1) `K(n)⁴σ(n)⁻² maxᵢ Σⱼaᵢⱼ² → 0` for some sequence `K(n)`;
+- (2) `maxᵢ EXᵢ²1{|Xᵢ| > K(n)} → 0`;
+- (3) `σ(n)⁻² maxᵢ μᵢ² → 0`, where the `μᵢ` are the eigenvalues of `(aᵢⱼ)`.
+
+With `Xᵢ = εᵢ/σᵢ` and `aᵢⱼ = σᵢσⱼcᵢⱼ`, condition (3) is our condition (a)
+without the log factor, and (1)–(2) hold with uniformly bounded `2 + δ`
+moments. So **the quadratic part alone needs neither fourth moments nor
+Lemma 3.** The martingale proof above is needed for the linear and quadratic
+parts jointly, which de Jong's theorem does not cover.
 
 ## Corollary: the estimator (sketched)
 
@@ -145,8 +190,11 @@ bound on K, not an upper one.**
 plugged into `P`, and its derivative in `ρ̃` has mean 0 (Neyman
 orthogonality). The plug-in adds `(ρ̃ − ρ₀)·O_p(√n) = O_p(1)` to `g`, which
 is `o_p(√V)`. So REsd has the same limit as the infeasible `P(ρ₀)`. A full
-proof needs `‖∂P/∂ρ‖_op` bounded near `ρ₀`. That holds if `‖G(ρ)‖_op` is
-bounded, i.e. `sup‖(I − ρW)⁻¹‖_op < ∞`, which is the usual SAR condition.
+proof needs `‖∂P/∂ρ‖_op` bounded near `ρ₀`. Since `∂G/∂ρ = G²` and `Δ` is
+linear in `G′`, `∂P/∂ρ = G′² − Δ[G′²]`: the same diagonal correction applied
+to `G′²`. By Lemma 2(b), `|Δ[G′²]ᵢᵢ| ≤ ‖G‖_op²/√(1 − hᵢᵢ)`. So the bound holds
+if `‖G(ρ)‖_op` is bounded, i.e. `sup‖(I − ρW)⁻¹‖_op < ∞`, which is the usual
+SAR condition, and the leverage is bounded away from 1.
 
 **Remark 3 (a penalised smoother).** If `M = I − S_λ` with `S_λ` symmetric
 and its eigenvalues in `[0, 1]`, as for a ridge-penalised spline, then
@@ -191,27 +239,111 @@ The full output, with n = 900 and 1600 and every quantity, is in
   check. A symmetric two-sided size is not a sensitive test of normality
   here; the skewness and the KS distance are.
 
+## Theory step 2: the robust variance (first analysis, 2026-11-19)
+
+The estimator, as coded in `tc_lib.jl` and `tc_jinlee.jl`, is
+
+    V̂ = 2σ̂′(Cs∘Cs)σ̂ + Σᵢ (âᵢ² − noiseᵢ) σ̂ᵢ²,   σ̂ᵢ² = ûᵢ²/Mᵢᵢ,  û = My₀(ρ̂).
+
+**The linear part.** Since `CP_B = PMP_B = 0`, `â = (C + C′)P_By₀ = b + η`, with
+`η = C′P_Bε`. So `E âᵢ² = bᵢ² + Var ηᵢ`, and
+`Σᵢ Var ηᵢ = tr(C′P_BΣP_BC) ≤ σ̄²‖C‖_op² K`. So without the noise term, the
+linear part is biased upwards by `O(K)`, against `V ≍ n`: a relative bias of
+`O(K/n)`. That matches the 3–10% excess measured at K/n of 0.1–0.2 before the
+term was added. The noise term, `diag(H(Q′Σ̂Q)H′)` with `H = C′Q`, estimates
+`Var ηᵢ` and removes it.
+
+**The plug-in variances are the weak point when K/n does not vanish.**
+`E ûᵢ² = Σⱼ Mᵢⱼ²σⱼ²`, with `Mᵢⱼ = −hᵢⱼ` for `j ≠ i` and
+`Σ_{j≠i} hᵢⱼ² = hᵢᵢ(1 − hᵢᵢ)`. So
+
+    E σ̂ᵢ² − σᵢ² = Σ_{j≠i} hᵢⱼ²(σⱼ² − σᵢ²) / (1 − hᵢᵢ),
+
+which is at most `hᵢᵢ · maxⱼ|σⱼ² − σᵢ²|`. It is zero under
+homoskedasticity, `O(K/n)` on average otherwise, and does not vanish if
+`K/n → c > 0`. The products `σ̂ᵢ²σ̂ⱼ²` in the quadratic part add a
+correlation bias of the same order: `Cov(ûᵢ², ûⱼ²)` involves
+`(Σₖ MᵢₖMⱼₖσₖ²)²`, and summing `cᵢⱼ²hᵢⱼ²` over all pairs gives at most
+`maxᵢⱼ cᵢⱼ² · K`, so the relative bias is `O(K/n)`. This is probably the 1–3%
+conservative bias seen in `tc_null.jl`.
+
+**The conjecture for step 2,** under A1–A6 with bounded eighth moments, which
+the variance of the degree-4 terms of `V̂` needs:
+- `V̂/V → 1` in probability when `K/n → 0`;
+- the same when `K/n → c > 0` under homoskedasticity;
+- `V̂` is inconsistent under heteroskedasticity with `K/n → c > 0`.
+
+This is the many-covariates problem for heteroskedasticity-robust variances
+(Cattaneo, Jansson & Newey 2018; Kline, Saggio & Sølvsten 2020). It suggests a
+leave-out estimator of the `σᵢ²` and of the products `σᵢ²σⱼ²`, in the manner
+of Kline et al., as the remedy. If it works, that would be the first part of
+this project that is genuinely new.
+
+**Numerical check (`tc_vhat.jl`, 2026-11-19).**
+- Setup: n = 900, a kNN `W`, a Chebyshev surface basis plus one covariate, with
+  K/n from 0.05 to 0.39, normal and `χ²₃` errors, and R = 1000. Everything is
+  evaluated at the true ρ, and `E V̂/V` is reported with its `z`.
+- Checks of the check: the oracle `V̂` (true `σ²`) gives 0.997–1.002 in every
+  cell, and the simulated `Var g/V` agrees with 1. The homoskedastic `V̂` fails
+  under heteroskedasticity (0.67–0.75 at small K/n, `z` down to −118), so the
+  test has power.
+
+Results for the current `V̂` (HC2 plug-in):
+
+| Variances | K/n = 0.05 | 0.10 | 0.19 | 0.28 | 0.39 |
+|---|---|---|---|---|---|
+| homoskedastic, normal | 1.004 | 1.006 | 1.009 | 1.011 | 1.030 |
+| smooth in space, normal | 1.004 | 1.006 | 0.998 | 0.962 | 0.998 |
+| rough (iid log-normal), normal | 1.010 | 1.024 | 1.042 | 1.069 | 1.134 |
+| rough, `χ²₃` | 1.028 | 1.058 | 1.130 | 1.167 | 1.154 |
+
+So the conjecture holds in part:
+- **Rough heteroskedasticity:** the bias grows with K/n, as predicted. It is
+  upward (conservative), about 1/3 of K/n for normal errors, and `z` is 5–9
+  from K/n = 0.1.
+- **Smooth heteroskedasticity:** no bias is detectable. This is consistent
+  with the formula, because `σⱼ² − σᵢ²` is small where `hᵢⱼ²` puts its mass.
+- **Homoskedastic errors:** at most 3%.
+
+**Cattaneo, Jansson & Newey's `(M∘M)⁻¹û²` cannot be used here.** Their
+estimator needs `max hᵢᵢ < 1/2`. These designs have `max hᵢᵢ` from 0.75 to
+1.0, because the Chebyshev basis has boundary leverage. At K/n ≥ 0.28 the
+estimate reaches 1.1–2.7 × V. A Gaussian removal of `Cov(sᵢ, sⱼ)` makes it
+worse, and even goes negative. A remedy must therefore cope with leverage near
+1: Kline, Saggio & Sølvsten's leave-out with sample splitting, or a local
+(hat-function) basis, whose leverage is bounded. Neither has been tried.
+
 ## Still to do
 
-1. Turn the sketches into proofs. Theorem 1 needs the variance-bound
-   constants and either the triangular-truncation bound or a direct bound on
-   `‖L‖_op`. The Corollary needs the LLN for `g′` written out.
+1. Theorem 1 is proved (2026-11-19). The Corollary still needs the LLN for
+   `g′` and the root-selection argument written out, and Remark 2 needs the
+   same.
 2. A primitive condition for A5, in terms of `W` and `K/n`.
-3. Theory step 2: the consistency of the robust variance `V̂`, including the
-   noise term for the estimated `P_By₀`.
+3. Theory step 2: the conjecture is checked numerically (`tc_vhat.jl`).
+   Still to do: prove the `K/n → 0` case, and find a `V̂` that works with
+   rough heteroskedasticity and leverage near 1, for example Kline, Saggio &
+   Sølvsten's sample splitting.
 4. Remark 3 for a penalised smoother, with a numerical check.
-5. Read the CLT literature cited here before relying on it: de Jong (1987)
-   for clean quadratic forms, and Bhansali, Giraitis & Kokoszka (2007) for
-   conditions on `‖A‖_op/‖A‖_F`. Either may already contain Theorem 1's
-   quadratic part.
+5. de Jong (1987) is read: its Theorem 5.2 is Theorem 1's quadratic part.
+   Bhansali, Giraitis & Kokoszka (2007) is still unread, because it is
+   paywalled; it is in `ExtRef/TO-FETCH.md`. Cattaneo, Jansson & Newey
+   (2018) §3 and Kline, Saggio & Sølvsten (2020) §4.2 have been read via
+   alphaXiv. Hall & Heyde's Corollary 3.1 is used as it is usually stated,
+   and has not been read here.
 
 ## References
 
-All five have been checked against Scite and exist. None has been read for
-this note.
+All have been checked to exist (via Scite, or by resolving the DOI). Read for
+this note: de Jong (1987), §2 and §5, from the page images of Springer's free
+copy; Cattaneo, Jansson & Newey (2018), §3 (arXiv 1507.02493); Kline, Saggio &
+Sølvsten (2020), §4.2 (arXiv 1806.01494). The others have not been read.
 - Bhansali, R. J., Giraitis, L., & Kokoszka, P. S. (2007). Convergence of
   quadratic forms with nonvanishing diagonal. *Statistics & Probability
   Letters*, 77(7), 726–734. doi:10.1016/j.spl.2006.11.007
+- Cattaneo, M. D., Jansson, M., & Newey, W. K. (2018). Inference in linear
+  regression models with many covariates and heteroscedasticity. *Journal of
+  the American Statistical Association*, 113(523), 1350–1361.
+  doi:10.1080/01621459.2017.1328360
 - de Jong, P. (1987). A central limit theorem for generalized quadratic forms.
   *Probability Theory and Related Fields*, 75, 261–277. doi:10.1007/BF00354037
 - Hall, P., & Heyde, C. C. (1980). *Martingale Limit Theory and Its
@@ -219,6 +351,9 @@ this note.
 - Kelejian, H. H., & Prucha, I. R. (2001). On the asymptotic distribution of
   the Moran I test statistic with applications. *Journal of Econometrics*,
   104(2), 219–257. doi:10.1016/S0304-4076(01)00064-1
+- Kline, P., Saggio, R., & Sølvsten, M. (2020). Leave-out estimation of
+  variance components. *Econometrica*, 88(5), 1859–1898.
+  doi:10.3982/ECTA16410
 - Kwapień, S., & Pełczyński, A. (1970). The main triangle projection in matrix
   spaces and its applications. *Studia Mathematica*, 34, 43–67.
   doi:10.4064/sm-34-1-43-67

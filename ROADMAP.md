@@ -1145,6 +1145,20 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      K/n ≈ 0.15 and a Chebyshev basis with leverage 0.75. The power check
      (two complete groups) stays far from normal.
   2. The consistency of the robust variance, including the noise term.
+     **Theorem 1 proved and step 2 analysed, 2026-11-19**
+     (`research/trace_cfe/THEORY.md`; not checked by anyone else). The CLT
+     for the moment now has a full proof: martingale differences and Hall &
+     Heyde's Corollary 3.1, with a new lemma bounding the triangular part by
+     `⌈log₂n⌉‖A‖_op`; it needs `(log n)²‖Cs‖_op²/‖Cs‖_F² → 0`. For step 2,
+     the noise term removes the `O(K/n)` bias of the linear part, but the
+     plug-in `σ̂ᵢ² = ûᵢ²/Mᵢᵢ` is biased by `Σⱼ hᵢⱼ²(σⱼ² − σᵢ²)/(1 − hᵢᵢ)`.
+     In `tc_vhat.jl` (n = 900, R = 1000, the oracle at 0.997–1.002) the
+     robust variance is unbiased under constant and spatially smooth
+     variances, but conservative under rough heteroskedasticity: 1.01 to
+     1.13 (normal) and 1.03 to 1.17 (`χ²₃`) as K/n goes from 0.05 to 0.39.
+     Cattaneo, Jansson & Newey's `(M∘M)⁻¹û²` fails here (1.1–2.7 × V at
+     K/n ≥ 0.28), because the basis has leverage up to 1. Still open: a
+     proof for K/n → 0, and a leave-out estimator for the rough case.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:
