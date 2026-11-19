@@ -1167,7 +1167,12 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      identification (`liminf J/n > 0`) and a bounded `(I − ρ₀W)⁻¹`, for the
      root at which `g′ < 0`. The code's rule (the root nearest the OLS ratio)
      is not covered by the proof, but in `tc_roots.jl` it picked the same
-     root in 7999 of 8000 replications. For step 2,
+     root in 7999 of 8000 replications. Jin & Lee's two-step REsd has the
+     same limit as the infeasible estimator with `G(ρ₀)` (Proposition 1):
+     `C(r)f = 0` and `diag C(r) = 0` for every `r` make the plug-in's
+     first-order effect mean-zero. In `tc_resd.jl` its gap to the infeasible
+     estimator falls from 0.116 to 0.027 of the latter's sd as n goes from
+     400 to 2500, while a fixed wrong plug-in stays at 0.20–0.24. For step 2,
      the noise term removes the `O(K/n)` bias of the linear part, but the
      plug-in `σ̂ᵢ² = ûᵢ²/Mᵢᵢ` is biased by `Σⱼ hᵢⱼ²(σⱼ² − σᵢ²)/(1 − hᵢᵢ)`.
      In `tc_vhat.jl` (n = 900, R = 1000, the oracle at 0.997–1.002) the

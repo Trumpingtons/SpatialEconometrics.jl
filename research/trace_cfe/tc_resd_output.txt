@@ -1,0 +1,11 @@
+n   400 K   36 | max|C*f| 1.8e-15 max|diag C*| 1.4e-17 | sd: ρ̃ 0.1530 ρ̂ 0.1599 ρ̂* 0.1621 | sd(ρ̂ − ρ̂*)/sd(ρ̂*) 0.0465  ×√n 0.930 | bad plug-in: sd(ρ̂_bad − ρ̂*)/sd(ρ̂*) 0.1709 bias -0.0862 | coverage ρ̂ 0.900 ρ̂* 0.900
+warm-up: 10 replications at n = 400 in 3.6 s
+n  2500 K  100 | max|C*f| 3.8e-15 max|diag C*| 6.9e-18 | sd: ρ̃ 0.0511 ρ̂ 0.0437 ρ̂* 0.0436 | sd(ρ̂ − ρ̂*)/sd(ρ̂*) 0.0263  ×√n 1.316 | bad plug-in: sd(ρ̂_bad − ρ̂*)/sd(ρ̂*) 0.2618 bias +0.0273 | coverage ρ̂ 1.000 ρ̂* 1.000
+5 replications at n = 2500 in 5.9 s. R = 500 per cell; MC SE of a coverage near 0.95: 0.010.
+
+n   400 K   36 | max|C*f| 1.8e-15 max|diag C*| 1.4e-17 | sd: ρ̃ 0.1444 ρ̂ 0.1301 ρ̂* 0.1335 | sd(ρ̂ − ρ̂*)/sd(ρ̂*) 0.1161  ×√n 2.322 | bad plug-in: sd(ρ̂_bad − ρ̂*)/sd(ρ̂*) 0.2423 bias -0.0102 | coverage ρ̂ 0.946 ρ̂* 0.948
+n   900 K   64 | max|C*f| 2.1e-15 max|diag C*| 1.4e-17 | sd: ρ̃ 0.0954 ρ̂ 0.0904 ρ̂* 0.0916 | sd(ρ̂ − ρ̂*)/sd(ρ̂*) 0.0588  ×√n 1.763 | bad plug-in: sd(ρ̂_bad − ρ̂*)/sd(ρ̂*) 0.2122 bias -0.0122 | coverage ρ̂ 0.948 ρ̂* 0.950
+n  1600 K   81 | max|C*f| 3.4e-15 max|diag C*| 1.4e-17 | sd: ρ̃ 0.0692 ρ̂ 0.0671 ρ̂* 0.0673 | sd(ρ̂ − ρ̂*)/sd(ρ̂*) 0.0359  ×√n 1.436 | bad plug-in: sd(ρ̂_bad − ρ̂*)/sd(ρ̂*) 0.2027 bias -0.0069 | coverage ρ̂ 0.950 ρ̂* 0.952
+n  2500 K  100 | max|C*f| 3.8e-15 max|diag C*| 6.9e-18 | sd: ρ̃ 0.0513 ρ̂ 0.0497 ρ̂* 0.0497 | sd(ρ̂ − ρ̂*)/sd(ρ̂*) 0.0266  ×√n 1.329 | bad plug-in: sd(ρ̂_bad − ρ̂*)/sd(ρ̂*) 0.2080 bias -0.0018 | coverage ρ̂ 0.952 ρ̂* 0.952
+
+total 594.5 s

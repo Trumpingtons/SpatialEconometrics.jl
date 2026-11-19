@@ -8,7 +8,8 @@ a first analysis. Revised again after reading Bhansali, Giraitis & Kokoszka
 (2007), Kelejian & Prucha (2001) and Hall & Heyde (1980): Theorem 1 no longer
 needs a log factor, and it cites the martingale CLT as Hall & Heyde state it.
 Revised a third time the same day: Theorem 1 needs only `2 + δ` moments,
-and the Corollary (the estimator's limit and the choice of root) is proved.
+and the Corollary (the estimator's limit and the choice of root) and
+Proposition 1 (the two-step REsd, formerly Remark 2) are proved.
 The numerical checks are in `tc_clt.jl`, `tc_schatten.jl`, `tc_clt_moments.jl`
 and their output. ROADMAP #13,
 research item, theory step 1.
@@ -21,7 +22,7 @@ research item, theory step 1.
 - The moment is Jin & Lee's (2012): `g(ρ) = y₀(ρ)′ C y₀(ρ)`, with
   `y₀(ρ) = y − ρWy`, `C = PM` and `diag(C) = 0`. For the first step,
   `P = W′ − Δ` with `Δ = Diag(W′M)Diag(M)⁻¹`. The two-step REsd replaces `W′`
-  by `G(ρ̃)′`; see Remark 2.
+  by `G(ρ̃)′`; see Proposition 1.
 - The root `ρ̂` solves `g(ρ̂) = 0`, a quadratic in `ρ`.
 - Write `Cs = (C + C′)/2`, `Σ = Diag(σ₁², …, σₙ²)`, and `L` for the strictly
   lower-triangular part of `Cs`.
@@ -358,16 +359,82 @@ For a surface of smoothness `s` in `d` dimensions with `‖r‖_∞ = O(K^{−s/
 this means `K ≫ n^{d/(4s)}`. **That is the binding rate, and it is a lower
 bound on K, not an upper one.**
 
-**Remark 2 (REsd, the two-step, sketched).** For every `ρ`, `P(ρ) = G(ρ)′ −
-Δ(ρ)` makes `P(ρ)M` zero-diagonal. So `E g` at `ρ₀` is 0 whatever `ρ̃` is
-plugged into `P`, and its derivative in `ρ̃` has mean 0 (Neyman
-orthogonality). The plug-in adds `(ρ̃ − ρ₀)·O_p(√n) = O_p(1)` to `g`, which
-is `o_p(√V)`. So REsd has the same limit as the infeasible `P(ρ₀)`. A full
-proof needs `‖∂P/∂ρ‖_op` bounded near `ρ₀`. Since `∂G/∂ρ = G²` and `Δ` is
-linear in `G′`, `∂P/∂ρ = G′² − Δ[G′²]`: the same diagonal correction applied
-to `G′²`. By Lemma 2(b), `|Δ[G′²]ᵢᵢ| ≤ ‖G‖_op²/√(1 − hᵢᵢ)`. So the bound holds
-if `‖G(ρ)‖_op` is bounded, i.e. `sup‖(I − ρW)⁻¹‖_op < ∞`, which is the usual
-SAR condition, and the leverage is bounded away from 1.
+**Proposition 1 (REsd, the two-step; proved, given the Corollary).** Write
+`C(r) = (G(r)′ − Δ(r))M`, with `G(r) = W(I − rW)⁻¹` and
+`Δ(r) = Diag(G(r)′M)Diag(M)⁻¹`, so `diag C(r) = 0` for every `r`. Jin &
+Lee's REsd takes the first-step root `ρ̃` (with `C₁ = (W′ − Δ)M`) and then
+the root `ρ̂` of `y₀(ρ)′C(ρ̃)y₀(ρ)`, by the sign rule. Let `ρ̂*` be the
+infeasible root with `C(ρ₀)`. Assume A1–A9, with A5, A6 and A9 holding for both `C₁`
+and `C(ρ₀)`, and Theorem 1's conditions (a) and (c′) for `C(ρ₀)`. Then
+`ρ̂ − ρ̂* = o_p(n^{−1/2})`, and so `J*(ρ̂ − ρ₀)/√V* → N(0, 1)` with `J*` and
+`V*` those of `C(ρ₀)`: the plug-in costs nothing in the limit.
+
+*Proof.* Write `C_r` and `C_rr` for the derivatives in `r`, and `G = G(ρ₀)`.
+1. **Uniform bounds near `ρ₀`.** With `c_G` from A7, for `|r − ρ₀| ≤ ε =
+   1/(2c_G)` the Neumann series `(I − rW)⁻¹ = (I − ρ₀W)⁻¹ Σₖ ((r − ρ₀)G)ᵏ`
+   gives `‖(I − rW)⁻¹‖_op ≤ 2‖(I − ρ₀W)⁻¹‖_op`, so `‖G(r)‖_op` is bounded
+   on that interval. Since `∂G/∂r = G(r)²` and `∂²G/∂r² = 2G(r)³`, and `Δ` is
+   linear in `G′` (`Δ[A] = Diag(AM)Diag(M)⁻¹` for `A = G′`, `(G²)′`,
+   `(G³)′`), Lemma 2(b) gives `|Δ[A]ᵢᵢ| ≤ ‖A‖_op/√(1 − h̄)`. So
+   `‖C(r)‖_op`, `‖C_r(r)‖_op` and `‖C_rr(r)‖_op` are bounded uniformly on the
+   interval, which contains `ρ̃` with probability → 1 (the Corollary for
+   `C₁`: `ρ̃ − ρ₀ = O_p(n^{−1/2})`).
+2. **Orthogonality.** `Mf = 0` gives `C(r)f = 0`, and `diag C(r) = 0`, for
+   every `r`. Differentiating, `C_r f = 0` and `diag C_r = 0`. So, with
+   `η = f + ε`,
+
+       η′C_r(ρ₀)η = (C_r′f)′ε + ε′C_r ε,   E η′C_r(ρ₀)η = f′C_r f + tr(C_rΣ) = 0,
+
+   and both terms are `O_p(√n)` with second moments: the linear one has
+   variance at most `σ̄²‖C_r‖_op²‖f‖² = O(n)`, and the quadratic one, whose
+   matrix has a zero diagonal, has variance at most `2σ̄⁴‖C_r‖_F² = O(n)`.
+   This is the Neyman orthogonality of the remark that this proposition
+   replaces, now with its proof.
+3. **The three coefficients.** In the Corollary's notation, with `C(ρ̃)` in
+   place of a fixed `C`, the quadratic in `t = ρ − ρ₀` has coefficients
+   `g₀(ρ̃) = η′C(ρ̃)η`, `g₁(ρ̃) = −2η′G′Cs(ρ̃)η` and `a(ρ̃) = η′G′Cs(ρ̃)Gη`.
+   By Taylor's theorem in `r`, with `ρ̄` between `ρ̃` and `ρ₀`:
+   - `g₀(ρ̃) − g₀(ρ₀) = (ρ̃ − ρ₀)η′C_r(ρ₀)η + ½(ρ̃ − ρ₀)²η′C_rr(ρ̄)η
+     = O_p(n^{−1/2})O_p(√n) + O_p(n^{−1})O_p(n) = O_p(1)`, using step 2 for
+     the first term and `|η′C_rr(ρ̄)η| ≤ sup‖C_rr‖_op‖η‖² = O_p(n)` for the
+     second. Since `V* ≥ 2σ̲⁴‖Cs(ρ₀)‖_F² ≥ cn` by A5, this is `o_p(√V*)`.
+   - `g₁(ρ̃) − g₁(ρ₀) = O_p(n^{−1/2})·O_p(n) = o_p(n)`, by the uniform bound
+     on `‖C_r‖_op`; so `g₁(ρ̃) = −J* + o_p(n)`.
+   - `a(ρ̃) = O_p(n)`, by the uniform bound on `‖C‖_op`.
+4. **Conclusion.** These are exactly the orders the Corollary's steps 2–4
+   use, with `g₀(ρ̃)/√V* = g₀(ρ₀)/√V* + o_p(1) → N(0, 1)` by Theorem 1. So
+   the sign rule picks `t̂ = (g₀(ρ̃)/J*)(1 + o_p(1))`, and the infeasible
+   root is `t̂* = (g₀(ρ₀)/J*)(1 + o_p(1))`. Their difference is
+   `[g₀(ρ̃) − g₀(ρ₀)]/J* + o_p(√n/n) = O_p(1/n) + o_p(n^{−1/2})`. ∎
+
+Only the mean-zero property in step 2 needs the zero diagonal and `Mf = 0`.
+Without it, `(ρ̃ − ρ₀)E η′C_rη` would be of order `n^{−1/2}·n = √n`, the
+same order as `g₀`, and the plug-in would change the limit.
+
+**Numerical check (`tc_resd.jl`).** `tc_coverage_tails.jl`'s design with
+normal errors, `ρ₀ = 0.4`, R = 500 per cell (Monte Carlo SE of a coverage
+near 0.95: 0.010). `max|C(ρ₀)f|` and `max|diag C(ρ₀)|` are below `4e−15`,
+which checks step 2's identities.
+
+| n | K | sd(ρ̂ − ρ̂*)/sd(ρ̂*) | the same × √n | wrong plug-in `C(ρ₀ + 0.3)` | coverage, REsd | coverage, infeasible |
+|---|---|---|---|---|---|---|
+| 400 | 36 | 0.116 | 2.32 | 0.242 | 0.946 | 0.948 |
+| 900 | 64 | 0.059 | 1.76 | 0.212 | 0.948 | 0.950 |
+| 1600 | 81 | 0.036 | 1.44 | 0.203 | 0.950 | 0.952 |
+| 2500 | 100 | 0.027 | 1.33 | 0.208 | 0.952 | 0.952 |
+
+- **The plug-in effect vanishes, as the proposition says.** Relative to
+  `sd(ρ̂*)`, the gap between REsd and the infeasible estimator falls by a
+  factor of 4 over this range, at least as fast as `n^{−1/2}` (the scaled
+  column still falls). The proof predicts `ρ̂ − ρ̂* = O_p(1/n)` plus terms of
+  smaller order than `n^{−1/2}`.
+- **Power check:** the fixed wrong plug-in `C(ρ₀ + 0.3)` stays at 0.20–0.24
+  of `sd(ρ̂*)` at every n, so the check can tell a plug-in that matters
+  from one that does not. That estimator is still nearly unbiased (bias
+  −0.010 to −0.002), as any fixed `r` gives a valid moment.
+- REsd's sd is 3–10% below the first step's (0.1301 against 0.1444 at
+  n = 400; 0.0497 against 0.0513 at n = 2500), and its coverage with the
+  robust variance and the code's root rule is 0.946–0.952.
 
 **Remark 3 (a penalised smoother).** If `M = I − S_λ` with `S_λ` symmetric
 and its eigenvalues in `[0, 1]`, as for a ridge-penalised spline, then
@@ -554,7 +621,9 @@ worse, and even goes negative. A remedy must therefore cope with leverage near
 
 1. Theorem 1 and the Corollary are proved (2026-11-19), the Corollary
    under the sign rule for the root and the identification condition A9.
-   Remark 2 (REsd) still needs the same argument with `G(ρ̃)` plugged in.
+   Proposition 1 (REsd, the two-step) is proved too: the plug-in `ρ̃` costs
+   nothing in the limit. Step 1 has no sketched parts left; Remarks 1 and 3
+   are side cases.
 2. A primitive condition for A5, in terms of `W` and `K/n`.
 3. Theory step 2: the conjecture is checked numerically (`tc_vhat.jl`).
    Still to do: prove the `K/n → 0` case, and find a `V̂` that works with
