@@ -59,8 +59,8 @@ Su (2012) estimates `ρ` with linear moments only.
 ## Theory
 
 `THEORY.md` holds theory step 1, a CLT for the moment when `M` is dense
-(Theorem 1, proved given Hall & Heyde's martingale CLT; the estimator's
-corollary is still a sketch), and a first analysis of step 2, the robust
+(Theorem 1, proved given Hall & Heyde's martingale CLT, and the
+estimator's Corollary, proved under a sign rule for the root), and a first analysis of step 2, the robust
 variance, each with its numerical check. None of it has been checked by
 anyone else.
 
@@ -81,6 +81,7 @@ Every script uses fixed seeds, and its output is committed beside it as
 | `tc_clt.jl` | Theory step 1: the conditions of the CLT for a dense `M` (norm ratios, the `Δ` bound, Lindeberg for the linear part) and the distribution of the standardised moment, for local and global bases with K ≈ 2√n and K ≈ 0.15n, plus a power check with two complete groups. See `THEORY.md` | 45 s |
 | `tc_clt_moments.jl` | Theorem 1 with `2 + δ` moments: `tc_clt.jl`'s hat-basis design with standardised `t₃` and Pareto (tail index 3) errors, which have no fourth moment, n = 400 to 4900, R = 2,000; the power check is `t₃` errors with two complete groups. See `THEORY.md` | 2 min |
 | `tc_coverage_tails.jl` | Coverage of `ρ̂` (Jin & Lee's first step) under normal, χ²₃, t₃ and Pareto(3) errors, n = 400 to 2500, R = 1,000: robust, oracle (exact `V`) and homoskedastic intervals, the last as the power check. See `THEORY.md` | 80 s |
+| `tc_roots.jl` | The Corollary's root selection: the discriminant's sign, how often `cfe_root`'s rule (the root nearest the OLS ratio) differs from the sign rule the proof uses, and how far the other root lies, in `tc_coverage_tails.jl`'s design with normal and t₃ errors, R = 1,000 | 25 s |
 | `tc_schatten.jl` | Theorem 1 without the log factor: the triangular part's operator-norm and Schatten-4 ratios for the moment's matrices (n = 400 to 2500, K ≈ 2√n) and, as the power check, an interleaved Hilbert matrix whose operator-norm ratio grows like log n. See `THEORY.md` | 35 s |
 | `tc_vhat.jl` | Theory step 2: the bias of the robust variance at the true `ρ`, K/n from 0.05 to 0.39, constant, smooth and rough variances, normal and χ²₃ errors, R = 1,000. Plug-ins: oracle, HC2, Cattaneo–Jansson–Newey and a Gaussian-corrected version of it, with the homoskedastic one as the power check. The first output line is a 5-replication warm-up; ignore it. See `THEORY.md` | — |
 | `tc_commute.jl` | The two zero-diagonal corrections on a torus: equal with a Fourier basis (`MW = WM`), different with a Chebyshev basis | 10 s |

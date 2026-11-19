@@ -7,7 +7,8 @@ reading de Jong (1987): Theorem 1 is now proved, not sketched, and step 2 has
 a first analysis. Revised again after reading Bhansali, Giraitis & Kokoszka
 (2007), Kelejian & Prucha (2001) and Hall & Heyde (1980): Theorem 1 no longer
 needs a log factor, and it cites the martingale CLT as Hall & Heyde state it.
-Revised a third time the same day: Theorem 1 needs only `2 + δ` moments.
+Revised a third time the same day: Theorem 1 needs only `2 + δ` moments,
+and the Corollary (the estimator's limit and the choice of root) is proved.
 The numerical checks are in `tc_clt.jl`, `tc_schatten.jl`, `tc_clt_moments.jl`
 and their output. ROADMAP #13,
 research item, theory step 1.
@@ -45,6 +46,16 @@ The design (`W`, `B`, `f`) is fixed. Every statement is conditional on it.
 - **A6 (Lindeberg for the linear part).** `maxᵢ bᵢ² / ‖b‖² → 0`, where
   `b = MP′f`. It holds if `maxᵢ hᵢᵢ → 0` (Lemma 2b), but the measurements
   show that this is not necessary.
+
+For the estimator (the Corollary) only:
+- **A7 (stability).** `ρ₀` is such that `supₙ ‖(I − ρ₀W)⁻¹‖_op < ∞`, so
+  `G = W(I − ρ₀W)⁻¹` has `‖G‖_op ≤ c_G`. This is the usual SAR condition.
+- **A8.** `‖f‖²/n` is bounded.
+- **A9 (identification).** `liminf J/n > 0`, where
+  `J = −E g′(ρ₀) = 2[f′G′Cs f + tr(G′CsΣ)]`. The sign is part of the
+  assumption: if instead `limsup J/n < 0`, everything below holds with the
+  sign rule reversed. Assumed, not derived. In `tc_roots.jl`, `J/n` is
+  0.20–0.28.
 
 ## Lemma 1: the moment at the true ρ (proved)
 
@@ -260,25 +271,75 @@ moments. So **the quadratic part alone needs no fourth
 moments.** The martingale proof above is needed for the linear and quadratic
 parts jointly, which de Jong's theorem does not cover.
 
-## Corollary: the estimator (sketched)
+## Corollary: the estimator (proved, given Theorem 1)
 
-Expand `0 = g(ρ̂) = g(ρ₀) + g′(ρ₀)(ρ̂ − ρ₀) + a(ρ̂ − ρ₀)²`, where
-`a = (Wy)′C(Wy)`. Two things need showing:
-- `J := −E g′(ρ₀) = 2[f′W′Csf + tr(W′CsΣ)]`, with `liminf J/n > 0`. This
-  is the identification condition; it is assumed.
-- `g′(ρ₀) − E g′(ρ₀) = o_p(n)` and `a = O_p(n)`. Both are linear-quadratic
-  forms in `ε` whose matrices have bounded operator norm, by Lemma 2, and
-  Frobenius norm `O(√n)`. For `a`, `|a| ≤ ‖C‖_op‖Wy‖²` and
-  `E‖Wy‖² = O(n)` with second moments, so Markov gives `a = O_p(n)`. For
-  `g′`, whose matrix
-  `A` has a nonzero diagonal, the linear and off-diagonal parts are
-  `O_p(√n)` with second moments, and the diagonal part
-  `Σᵢ Aᵢᵢ(εᵢ² − σᵢ²)` is `O_p(n^{1/p}) = o_p(n)` by von Bahr & Esseen, as
-  in Theorem 1's proof. With fourth moments it would be `O_p(√n)`; `o_p(n)`
-  is all the expansion needs, because `ρ̂ − ρ₀ = O_p(n^{−1/2})` then follows
-  from Theorem 1 and `liminf J/n > 0`.
+Assume A1–A9, and choose `ρ̂` by the **sign rule**: of the two roots of
+`g`, take the one at which `g′(ρ̂) < 0`. Then, with probability tending to
+1, `g` has two distinct real roots and the sign rule picks exactly one, and
 
-Then `(ρ̂ − ρ₀) J/√V → N(0, 1)`, and `ρ̂` is `√n`-consistent.
+    J (ρ̂ − ρ₀) / √V → N(0, 1),
+
+so `ρ̂ − ρ₀ = O_p(n^{−1/2})`. Moreover `|g′(ρ̂)|/J → 1` in probability, so
+the feasible standard error `√V̂ / |g′(ρ̂)|` is valid whenever `V̂/V → 1`,
+which is step 2 and is open.
+
+*Proof.* Write `η = f + ε = y₀(ρ₀)` and `t = ρ − ρ₀`. Since `y = (I − ρ₀W)⁻¹η`,
+`Wy = Gη`, and `y₀(ρ) = η − tGη`. So `g` is exactly a quadratic in `t`:
+
+    g(ρ₀ + t) = g₀ + g₁t + a t²,   g₀ = g(ρ₀),   g₁ = g′(ρ₀) = −2η′G′Csη,   a = η′G′CsGη.
+
+(In the code, `g(ρ) = c − bρ + aρ²`, so `g′(ρ) = −(b − 2ρa)`.)
+
+1. **Orders.** Under A2, A3 and A7, `‖Cs‖_op` and `‖G‖_op` are bounded
+   (Lemma 2), and `‖Cs‖_F² ≤ n‖Cs‖_op²`.
+   - `g₀ = O_p(√n)`: Theorem 1 gives `g₀ = O_p(√V)`, and
+     `V ≤ 2σ̄⁴‖Cs‖_F² + σ̄²‖C′f‖² = O(n)` by A8.
+   - `a = O_p(n)`: `|a| ≤ ‖Cs‖_op‖G‖_op²‖η‖²`, and `E‖η‖² = ‖f‖² + Σσᵢ² = O(n)`,
+     so Markov's inequality applies. Only second moments are used.
+   - `g₁ = −J + o_p(n)`. Since `E ε = 0`, `E g₁ = −2[f′G′Csf + tr(G′CsΣ)] = −J`.
+     With `A = (G′Cs + CsG)/2`, which has `‖A‖_op ≤ c_G‖Cs‖_op` and
+     `‖A‖_F ≤ c_G‖Cs‖_F = O(√n)`,
+     `g₁ + J = −2[2f′Aε + Σ_{i≠j}Aᵢⱼεᵢεⱼ + Σᵢ Aᵢᵢ(εᵢ² − σᵢ²)]`. The linear
+     term has variance at most `4σ̄²‖A‖_op²‖f‖² = O(n)`, and the off-diagonal
+     term has second moment at most `2σ̄⁴‖A‖_F² = O(n)`: both are `O_p(√n)`.
+     The diagonal term is a sum of independent, mean-zero terms with `p`
+     moments, so by von Bahr & Esseen
+     `E|Σᵢ Aᵢᵢ(εᵢ² − σᵢ²)|^p ≤ 2^{p+1}μ̄ Σᵢ|Aᵢᵢ|^p ≤ 2^{p+1}μ̄ n‖A‖_op^p`. It is
+     therefore `O_p(n^{1/p})`, which is `o_p(n)` because `p > 1`. (With fourth
+     moments it would be `O_p(√n)`; `o_p(n)` is all that is needed.)
+2. **The discriminant and the two roots.** `D = g₁² − 4ag₀ = J²(1 + o_p(1)) −
+   O_p(n)·O_p(√n) = J²(1 + o_p(1))`, because `J² ≥ cn²` by A9. So `D > 0`
+   with probability → 1. At the two roots of a quadratic, `g′` equals `+√D`
+   and `−√D`, so the sign rule picks exactly one root, `t̂`, at which
+   `g′(ρ₀ + t̂) = g₁ + 2at̂ = −√D = −J(1 + o_p(1))`.
+3. **The chosen root is the consistent one.** From `g(ρ₀ + t̂) = 0`,
+   `t̂ (g₁ + a t̂) = −g₀`. Write `g₁ + at̂ = [(g₁ + 2at̂) + g₁]/2`; both terms
+   are `−J(1 + o_p(1))`, so `g₁ + at̂ = −J(1 + o_p(1))` and
+
+       t̂ = g₀ / J · (1 + o_p(1)) = O_p(√n/n) = O_p(n^{−1/2}).
+
+   This needs no prior consistency argument: the identity holds at the
+   chosen root whatever its size, because the derivative condition fixes
+   `g₁ + at̂` directly.
+4. **The limit.** `J t̂/√V = (g₀/√V)(1 + o_p(1)) → N(0, 1)` by Theorem 1 and
+   Slutsky's lemma. And `|g′(ρ̂)| = √D = J(1 + o_p(1))`. ∎
+
+**The other root** is `t̃ = g₀/(a t̂)` (the product of the roots is `g₀/a`), so
+`|t̃| = (J/|a|)(1 + o_p(1))`, of the order of a constant: it does not
+approach `ρ₀`. If `a` is near 0 it is far away; it is never a competitor in
+the limit.
+
+**The code's rule is not the sign rule.** `cfe_root` keeps the root in
+`(−1, 1)` nearest the OLS ratio `e₁′e₀/e₁′e₁`, which is not a consistent
+estimator of `ρ₀`, so the proof does not cover it. `tc_roots.jl` measures
+the difference in the coverage design (`ρ₀ = 0.4`, normal and `t₃` errors,
+n = 400 to 2500, R = 1000 each): the discriminant was positive in all 8000
+replications, the two rules disagreed once (`t₃`, n = 400), and the other
+root was at least 1.37 from `ρ₀` (median about 2). The sign rule needs the
+sign of `J`, which A9 assumes. It cannot be read off `g′` at either root,
+since those are `±√D` by construction; it needs a consistent preliminary
+estimate, such as a 2SLS fit, at which to evaluate `−g′`. A package
+implementation should do that, or report both roots.
 
 **The rate for K.** Nothing in Theorem 1 needs `K/n → 0`. A3 and A5 allow
 `K/n → c ∈ [0, 1)`. This is weaker than the published rate conditions for
@@ -491,9 +552,9 @@ worse, and even goes negative. A remedy must therefore cope with leverage near
 
 ## Still to do
 
-1. Theorem 1 is proved (2026-11-19). The Corollary still needs the LLN for
-   `g′` and the root-selection argument written out, and Remark 2 needs the
-   same.
+1. Theorem 1 and the Corollary are proved (2026-11-19), the Corollary
+   under the sign rule for the root and the identification condition A9.
+   Remark 2 (REsd) still needs the same argument with `G(ρ̃)` plugged in.
 2. A primitive condition for A5, in terms of `W` and `K/n`.
 3. Theory step 2: the conjecture is checked numerically (`tc_vhat.jl`).
    Still to do: prove the `K/n → 0` case, and find a `V̂` that works with

@@ -1163,7 +1163,11 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      `tc_coverage_tails.jl` this makes the 95% intervals for `ρ̂`
      conservative, not anti-conservative: robust coverage 0.953–0.977 under
      those laws, n = 400 to 2500, against 0.948–0.952 with normal errors.
-     For step 2,
+     The Corollary (the limit of `ρ̂`) is proved too, assuming
+     identification (`liminf J/n > 0`) and a bounded `(I − ρ₀W)⁻¹`, for the
+     root at which `g′ < 0`. The code's rule (the root nearest the OLS ratio)
+     is not covered by the proof, but in `tc_roots.jl` it picked the same
+     root in 7999 of 8000 replications. For step 2,
      the noise term removes the `O(K/n)` bias of the linear part, but the
      plug-in `σ̂ᵢ² = ûᵢ²/Mᵢᵢ` is biased by `Σⱼ hᵢⱼ²(σⱼ² − σᵢ²)/(1 − hᵢᵢ)`.
      In `tc_vhat.jl` (n = 900, R = 1000, the oracle at 0.997–1.002) the
