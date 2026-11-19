@@ -696,6 +696,59 @@ keeps HC2's quadratic bias. What is needed is an estimate of `σᵢ²σⱼ²` th
 is free of `f`, for example a leave-two-out product, or Kline et al.'s
 split, which a dense projection does not allow.
 
+**Leverage 1 rules out any estimate free of `f`.** An estimator that does
+not change when `f` moves within `span B` is a function of the maximal
+invariant `My₀ = û`. If `Mᵢᵢ = 0`, row `i` of `M` is zero, since
+`Mᵢᵢ = ‖Mᵢ·‖²`, so the law of `û` does not depend on `εᵢ` at all. But
+`ε′Aε = û′(Wε + Dû)`, in which `εᵢ` enters through `Wε`, so `V` depends on
+`σᵢ²`. No invariant estimator is then unbiased for `V`, and one that uses
+`y₀` picks up `f`, as leave-one-out does. For `Mᵢᵢ` small but positive, the
+information about `σᵢ²` in `û` shrinks with `Mᵢᵢ`. So step 2 needs leverage
+bounded away from 1 as an assumption, not only a better estimator.
+
+**Leverage is not the whole story for leave-one-out (`tc_vhat_lo_hat.jl`).**
+The same 30 cells with a tensor hat basis (`k × k` hats plus the covariate,
+`k` = 7 to 19), whose leverage stays at 0.38–0.94 up to K/n = 0.25. At
+K/n = 0.40 some unit has leverage 1, `M∘M` is singular and the cell is
+skipped. The script adds CJN's `(M∘M)⁻¹û²`. It runs twice: with `f` scaled
+so that the linear part is 90% of `V`, and (argument `weak`) with
+`tc_vhat.jl`'s `f`, where the quadratic part is 57–79% of `V`. Totals,
+E V̂/V over the six variance-and-error cells:
+
+| K/n (max leverage) | HC2, strong | HC2, weak | leave-one-out, strong | leave-one-out, weak | CJN, strong | CJN, weak |
+|---|---|---|---|---|---|---|
+| 0.06 (0.38) | 0.995–1.008 | 1.005–1.042 | 0.966–1.007 | 0.989–1.015 | 0.991–1.006 | 0.991–1.007 |
+| 0.11 (0.78) | 0.994–1.004 | 1.004–1.068 | 0.958–0.987 | 0.972–1.005 | 0.986–1.001 | 0.981–0.989 |
+| 0.19 (0.88) | 0.993–1.021 | 1.004–1.161 | 0.940–0.988 | 0.971–1.015 | 0.980–0.996 | 0.960–0.974 |
+| 0.25 (0.94) | 1.001–1.023 | 1.000–1.212 | 0.925–1.002 | 0.961–1.005 | 0.966–0.992 | 0.839–0.935 |
+
+- **Leave-one-out's strong-signal bias stays with bounded leverage.** Its
+  quadratic part is 0.68–0.99 at K/n ≤ 0.19, where the leverage is at most
+  0.88. This fits the `fᵢfⱼ(MΣM)ᵢⱼ/(MᵢᵢMⱼⱼ)` term: with constant variances
+  `(MΣM)ᵢⱼ = −σ²Pᵢⱼ`, which for a local basis is of order K/n between
+  neighbours, and `fᵢfⱼ ≈ fᵢ²` for a smooth `f`. So the relative bias is
+  of order the signal-to-noise ratio times K/n, and is negative.
+- **HC2's bias is in its quadratic part** (up to 1.44 of its true value), so
+  it shows when that part dominates and the variances are rough or `χ²₃`
+  (up to 1.21 at K/n = 0.25).
+- **CJN's bias does not depend on `f`.** Its quadratic part is identical in
+  the two runs (same seeds; it uses only `û`): 0.99–1.01 at K/n = 0.06,
+  0.985–0.988 at 0.11, 0.96–0.98 at 0.19 and 0.88–0.94 at 0.25. Its linear
+  part falls too in the weak-signal run (0.72–0.95 at K/n = 0.25), so its
+  total is worst there.
+- The oracle stays at 0.997–1.003 throughout, which is the power check for
+  the method; the same test finds the other biases at `z` up to 17.
+
+**Where step 2 stands.** At K/n ≤ 0.11 with leverage ≤ 0.78, CJN is within
+2% of `V` at both signal strengths (0.981–1.007); HC2 is within 7%, and
+leave-one-out within 4.2%. No estimator tried is within 5% everywhere at
+K/n ≥ 0.19. That fits a theorem for K/n → 0 with leverage bounded away
+from 1, which is the case to prove. For larger K/n, CJN's bias does not
+depend on `f`, so it may be removable from `û` alone; Cattaneo, Jansson &
+Newey's own correction is the place to start. The Gaussian correction tried
+in `tc_vhat.jl` made things worse there, but leverage reached 1 in that
+design.
+
 ## Still to do
 
 1. Theorem 1 and the Corollary are proved (2026-11-19), the Corollary
@@ -708,9 +761,12 @@ split, which a dense projection does not allow.
    and so are Kline, Saggio & Sølvsten's leave-one-out variances
    (`tc_vhat_lo.jl`, `tc_vhat_lo_lin.jl`). Neither is safe everywhere: HC2
    fails when the quadratic part dominates and the variances are rough, and
-   leave-one-out fails with a strong signal and leverage near 1. Still to
-   do: an `f`-free estimate of `σᵢ²σⱼ²` for the quadratic part, coverage, and
-   a proof of consistency.
+   leave-one-out fails with a strong signal, even with bounded leverage
+   (`tc_vhat_lo_hat.jl`). Leverage 1 rules out any estimator free of `f`.
+   CJN is within 2% at K/n ≤ 0.11 with bounded leverage, at both signal
+   strengths, and biased down beyond that by an amount that does not depend
+   on `f`. Still to do: prove consistency of CJN's `V̂` for K/n → 0 with
+   leverage bounded away from 1; correct its bias at larger K/n; coverage.
 4. Remark 3 for a penalised smoother, with a numerical check.
 5. Reading: de Jong (1987), Bhansali, Giraitis & Kokoszka (2007), Kelejian &
    Prucha (2001) and Hall & Heyde's §3.2 are read. Cattaneo, Jansson & Newey

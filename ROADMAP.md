@@ -1187,8 +1187,14 @@ scripts, their outputs and the method are in `research/trace_cfe/`.
      (`tc_vhat_lo_lin.jl`, linear part 90% of `V`) its quadratic part
      collapses, through a product term in `f` divided by `MᵢᵢMⱼⱼ`: the
      total is 10–17% low at K/n = 0.28 and negative at 0.39, where HC2 is
-     within 4%. Neither estimator is safe everywhere. Still open: an
-     `f`-free estimate of `σᵢ²σⱼ²`, coverage, and a proof.
+     within 4%. With a hat basis whose leverage stays ≤ 0.94
+     (`tc_vhat_lo_hat.jl`) leave-one-out is still up to 7.5% low with a strong
+     signal: its bias scales with the signal-to-noise ratio times K/n, not
+     with leverage. Leverage 1 rules out any estimator free of `f`. CJN's
+     `(M∘M)⁻¹û²`, which is free of `f`, is within 2% at K/n ≤ 0.11 at both
+     signal strengths and falls to 0.84–0.99 at K/n = 0.25. Still open: a
+     proof for K/n → 0 with bounded leverage, a correction for CJN's bias
+     at larger K/n, and coverage.
   3. Whether REsd's optimality under homoskedasticity (their
      Proposition 3) survives when K grows.
 - **Checks still owed** by the null-distribution rule:

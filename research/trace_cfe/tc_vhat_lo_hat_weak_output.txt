@@ -1,0 +1,40 @@
+normal smooth K 101 K/n 0.112 maxh 0.779 Vl/V 0.90 | oracle 0.989 (z  -1.4) [quad 1.000 lin 0.988] | hc2 0.982 (z  -1.0) [quad 0.952 lin 0.986] | lo 0.873 (z  -1.3) [quad 0.157 lin 0.953] | cjn 0.982 (z  -1.3) [quad 0.921 lin 0.989] | sd(V̂)/V: hc2 0.039 lo 0.210
+warm-up (the line above, 5 replications) 5.8 s. E V̂/V with its z (R = 1000; |z| > 3 is a real bias).
+
+f unscaled (weak signal)
+normal homo   K  50 K/n 0.056 maxh 0.378 Vl/V 0.39 | oracle 0.999 (z  -0.9) [quad 1.000 lin 0.998] | hc2 1.005 (z   1.8) [quad 1.008 lin 1.000] | lo 0.999 (z  -0.3) [quad 0.997 lin 1.002] | cjn 1.000 (z  -0.1) [quad 0.999 lin 1.000] | sd(V̂)/V: hc2 0.091 lo 0.098
+normal homo   K 101 K/n 0.112 maxh 0.779 Vl/V 0.40 | oracle 1.000 (z  -0.1) [quad 1.000 lin 1.000] | hc2 1.004 (z   1.3) [quad 1.011 lin 0.993] | lo 0.992 (z  -2.5) [quad 0.993 lin 0.990] | cjn 0.989 (z  -3.5) [quad 0.988 lin 0.991] | sd(V̂)/V: hc2 0.095 lo 0.105
+normal homo   K 170 K/n 0.189 maxh 0.884 Vl/V 0.42 | oracle 0.999 (z  -0.7) [quad 1.000 lin 0.998] | hc2 1.004 (z   1.3) [quad 1.020 lin 0.983] | lo 0.985 (z  -4.4) [quad 0.992 lin 0.975] | cjn 0.974 (z  -7.8) [quad 0.970 lin 0.980] | sd(V̂)/V: hc2 0.102 lo 0.111
+normal homo   K 226 K/n 0.251 maxh 0.936 Vl/V 0.37 | oracle 1.000 (z  -0.2) [quad 1.000 lin 1.000] | hc2 1.000 (z   0.0) [quad 1.016 lin 0.973] | lo 0.970 (z  -1.6) [quad 0.981 lin 0.951] | cjn 0.925 (z  -7.2) [quad 0.911 lin 0.948] | sd(V̂)/V: hc2 0.268 lo 0.589
+normal homo   K/n 0.402: M∘M is singular (some unit has leverage 1), so the exact-diagonal moment and CJN do not exist; cell skipped
+
+normal smooth K  50 K/n 0.056 maxh 0.378 Vl/V 0.21 | oracle 1.000 (z  -0.4) [quad 1.000 lin 0.999] | hc2 1.016 (z   2.1) [quad 1.019 lin 1.003] | lo 1.013 (z   1.7) [quad 1.015 lin 1.005] | cjn 1.007 (z   0.9) [quad 1.008 lin 1.002] | sd(V̂)/V: hc2 0.232 lo 0.246
+normal smooth K 101 K/n 0.112 maxh 0.779 Vl/V 0.25 | oracle 1.002 (z   1.4) [quad 1.000 lin 1.007] | hc2 1.009 (z   1.2) [quad 1.017 lin 0.984] | lo 1.005 (z   0.6) [quad 1.013 lin 0.980] | cjn 0.983 (z  -2.2) [quad 0.985 lin 0.978] | sd(V̂)/V: hc2 0.232 lo 0.251
+normal smooth K 170 K/n 0.189 maxh 0.884 Vl/V 0.28 | oracle 1.003 (z   1.8) [quad 1.000 lin 1.012] | hc2 1.006 (z   0.8) [quad 1.020 lin 0.968] | lo 0.993 (z  -0.9) [quad 1.009 lin 0.951] | cjn 0.960 (z  -5.3) [quad 0.957 lin 0.967] | sd(V̂)/V: hc2 0.234 lo 0.247
+normal smooth K 226 K/n 0.251 maxh 0.936 Vl/V 0.26 | oracle 1.003 (z   1.3) [quad 1.000 lin 1.012] | hc2 1.006 (z   0.7) [quad 1.040 lin 0.910] | lo 0.978 (z  -2.4) [quad 1.020 lin 0.859] | cjn 0.839 (z -16.8) [quad 0.883 lin 0.718] | sd(V̂)/V: hc2 0.251 lo 0.290
+normal smooth K/n 0.402: M∘M is singular (some unit has leverage 1), so the exact-diagonal moment and CJN do not exist; cell skipped
+
+normal rough  K  50 K/n 0.056 maxh 0.378 Vl/V 0.39 | oracle 0.999 (z  -0.8) [quad 1.000 lin 0.998] | hc2 1.015 (z   3.5) [quad 1.026 lin 0.999] | lo 0.999 (z  -0.3) [quad 0.997 lin 1.000] | cjn 0.997 (z  -0.8) [quad 0.996 lin 0.998] | sd(V̂)/V: hc2 0.135 lo 0.142
+normal rough  K 101 K/n 0.112 maxh 0.779 Vl/V 0.41 | oracle 1.000 (z  -0.2) [quad 1.000 lin 1.000] | hc2 1.027 (z   5.7) [quad 1.053 lin 0.989] | lo 0.995 (z  -1.0) [quad 0.996 lin 0.995] | cjn 0.987 (z  -2.8) [quad 0.985 lin 0.990] | sd(V̂)/V: hc2 0.151 lo 0.156
+normal rough  K 170 K/n 0.189 maxh 0.884 Vl/V 0.43 | oracle 1.000 (z  -0.3) [quad 1.000 lin 0.999] | hc2 1.067 (z   9.8) [quad 1.136 lin 0.974] | lo 0.991 (z  -1.5) [quad 1.001 lin 0.979] | cjn 0.970 (z  -5.6) [quad 0.964 lin 0.977] | sd(V̂)/V: hc2 0.214 lo 0.186
+normal rough  K 226 K/n 0.251 maxh 0.936 Vl/V 0.43 | oracle 0.999 (z  -0.8) [quad 1.000 lin 0.998] | hc2 1.097 (z  13.1) [quad 1.199 lin 0.964] | lo 0.989 (z  -1.3) [quad 1.013 lin 0.957] | cjn 0.934 (z  -9.8) [quad 0.920 lin 0.952] | sd(V̂)/V: hc2 0.234 lo 0.276
+normal rough  K/n 0.402: M∘M is singular (some unit has leverage 1), so the exact-diagonal moment and CJN do not exist; cell skipped
+
+chisq  homo   K  50 K/n 0.056 maxh 0.378 Vl/V 0.39 | oracle 0.998 (z  -2.7) [quad 1.000 lin 0.995] | hc2 1.005 (z   1.0) [quad 1.016 lin 0.988] | lo 0.993 (z  -1.4) [quad 0.997 lin 0.987] | cjn 0.991 (z  -2.0) [quad 0.993 lin 0.988] | sd(V̂)/V: hc2 0.151 lo 0.156
+chisq  homo   K 101 K/n 0.112 maxh 0.779 Vl/V 0.40 | oracle 0.999 (z  -1.7) [quad 1.000 lin 0.996] | hc2 1.017 (z   3.4) [quad 1.042 lin 0.982] | lo 0.991 (z  -1.7) [quad 1.000 lin 0.979] | cjn 0.983 (z  -3.4) [quad 0.986 lin 0.979] | sd(V̂)/V: hc2 0.161 lo 0.164
+chisq  homo   K 170 K/n 0.189 maxh 0.884 Vl/V 0.42 | oracle 0.997 (z  -2.6) [quad 1.000 lin 0.993] | hc2 1.032 (z   5.9) [quad 1.075 lin 0.973] | lo 0.991 (z  -1.6) [quad 1.011 lin 0.963] | cjn 0.970 (z  -5.5) [quad 0.971 lin 0.969] | sd(V̂)/V: hc2 0.174 lo 0.177
+chisq  homo   K 226 K/n 0.251 maxh 0.936 Vl/V 0.37 | oracle 0.998 (z  -2.2) [quad 1.000 lin 0.994] | hc2 1.081 (z   4.6) [quad 1.148 lin 0.963] | lo 0.967 (z  -1.1) [quad 0.980 lin 0.945] | cjn 0.935 (z  -3.7) [quad 0.937 lin 0.931] | sd(V̂)/V: hc2 0.553 lo 0.956
+chisq  homo   K/n 0.402: M∘M is singular (some unit has leverage 1), so the exact-diagonal moment and CJN do not exist; cell skipped
+
+chisq  smooth K  50 K/n 0.056 maxh 0.378 Vl/V 0.21 | oracle 0.999 (z  -1.2) [quad 1.000 lin 0.997] | hc2 1.024 (z   2.0) [quad 1.034 lin 0.983] | lo 0.989 (z  -1.0) [quad 0.990 lin 0.983] | cjn 0.998 (z  -0.2) [quad 1.002 lin 0.981] | sd(V̂)/V: hc2 0.376 lo 0.370
+chisq  smooth K 101 K/n 0.112 maxh 0.779 Vl/V 0.25 | oracle 1.000 (z  -0.2) [quad 1.000 lin 0.999] | hc2 1.033 (z   2.7) [quad 1.057 lin 0.961] | lo 0.972 (z  -2.4) [quad 0.975 lin 0.964] | cjn 0.981 (z  -1.6) [quad 0.988 lin 0.960] | sd(V̂)/V: hc2 0.384 lo 0.370
+chisq  smooth K 170 K/n 0.189 maxh 0.884 Vl/V 0.28 | oracle 0.999 (z  -0.7) [quad 1.000 lin 0.995] | hc2 1.043 (z   3.3) [quad 1.088 lin 0.923] | lo 0.971 (z  -2.2) [quad 0.992 lin 0.917] | cjn 0.964 (z  -2.7) [quad 0.978 lin 0.926] | sd(V̂)/V: hc2 0.407 lo 0.409
+chisq  smooth K 226 K/n 0.251 maxh 0.936 Vl/V 0.26 | oracle 1.000 (z   0.1) [quad 1.000 lin 1.000] | hc2 1.083 (z   5.4) [quad 1.135 lin 0.937] | lo 0.961 (z  -2.4) [quad 0.975 lin 0.923] | cjn 0.861 (z  -7.9) [quad 0.897 lin 0.761] | sd(V̂)/V: hc2 0.486 lo 0.524
+chisq  smooth K/n 0.402: M∘M is singular (some unit has leverage 1), so the exact-diagonal moment and CJN do not exist; cell skipped
+
+chisq  rough  K  50 K/n 0.056 maxh 0.378 Vl/V 0.39 | oracle 1.000 (z  -0.5) [quad 1.000 lin 0.999] | hc2 1.042 (z   4.8) [quad 1.070 lin 1.000] | lo 1.015 (z   1.7) [quad 1.026 lin 0.998] | cjn 1.002 (z   0.3) [quad 1.005 lin 0.999] | sd(V̂)/V: hc2 0.279 lo 0.282
+chisq  rough  K 101 K/n 0.112 maxh 0.779 Vl/V 0.41 | oracle 1.000 (z  -0.0) [quad 1.000 lin 1.000] | hc2 1.068 (z   7.0) [quad 1.132 lin 0.975] | lo 1.002 (z   0.3) [quad 1.020 lin 0.976] | cjn 0.981 (z  -2.4) [quad 0.985 lin 0.975] | sd(V̂)/V: hc2 0.308 lo 0.257
+chisq  rough  K 170 K/n 0.189 maxh 0.884 Vl/V 0.43 | oracle 1.000 (z  -0.4) [quad 1.000 lin 0.999] | hc2 1.161 (z   8.4) [quad 1.299 lin 0.975] | lo 1.015 (z   1.6) [quad 1.040 lin 0.982] | cjn 0.967 (z  -3.4) [quad 0.958 lin 0.978] | sd(V̂)/V: hc2 0.602 lo 0.307
+chisq  rough  K 226 K/n 0.251 maxh 0.936 Vl/V 0.43 | oracle 0.999 (z  -0.8) [quad 1.000 lin 0.997] | hc2 1.212 (z  10.7) [quad 1.437 lin 0.919] | lo 1.005 (z   0.4) [quad 1.065 lin 0.928] | cjn 0.907 (z  -7.2) [quad 0.907 lin 0.906] | sd(V̂)/V: hc2 0.625 lo 0.452
+chisq  rough  K/n 0.402: M∘M is singular (some unit has leverage 1), so the exact-diagonal moment and CJN do not exist; cell skipped
+
