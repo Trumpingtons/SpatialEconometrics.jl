@@ -15,7 +15,8 @@ jobs:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     # A hung suite fails here rather than at GitHub's six-hour default. The
-    # slowest healthy job so far is macOS at 90 minutes (2026-11-19).
+    # slowest healthy job was macOS at 90 minutes before the suite was split
+    # (2026-11-19); since then every job takes under 15.
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -44,17 +45,15 @@ jobs:
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       # SE_TEST_PROGRESS makes runtests.jl print one line per top-level
-      # testset and a 60 s heartbeat, with memory figures. The step timeout is
-      # for the Julia 1 job on ubuntu-latest: it has three times lost its
-      # runner at 63-66 minutes (healthy: 14-35), and a lost runner keeps no
-      # log. Stopping the step at 55 minutes keeps the log, and with it the
-      # last testset and memory reading. The other jobs keep the 120-minute
-      # job limit, since macOS and nightly have run 90 and 55 minutes healthy.
-      # The likely cause, found 2026-11-19: the suite was one ~11,000-line
-      # top-level block, compiled whole before any test ran (32 min and a
-      # 16 GiB peak locally); it is now one file per testset (test/README.md).
+      # testset and a 60 s heartbeat, with memory figures. It was added to
+      # diagnose the Julia 1 ubuntu-latest job, which three times lost its
+      # runner at 63-66 minutes. The cause, found 2026-11-19: the suite was
+      # one ~11,000-line top-level block, compiled whole before any test ran
+      # (32 min and a 16 GiB peak locally, 14.7 GiB on the runner). It is now
+      # one file per testset (test/README.md); on 3a1e6ff every job finished
+      # in 7-13 minutes (Julia 1 ubuntu peaked at 1.17 GiB), so the 55-minute step
+      # timeout that kept the log of a lost runner was removed.
       - uses: julia-actions/julia-runtest@v1
-        timeout-minutes: ${{ (matrix.version == '1' && matrix.os == 'ubuntu-latest') && 55 || 115 }}
         env:
           SE_TEST_PROGRESS: '1'
       - uses: julia-actions/julia-processcoverage@v1
