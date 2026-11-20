@@ -784,7 +784,10 @@ function fit_gravity(
     residuals = y .- μ
     deviance = _nb_deviance(y, μ, alpha)
     pseudo_R2 = one(T) - loglik / min(null_ll, -T(1e-12))
-    vcov_mat = _sandwich_vcov(X_dm, residuals, w)
+    # The negative binomial score is x (y - mu) / (1 + alpha mu): the meat of
+    # the sandwich takes those residuals, not y - mu, which would inflate it by
+    # (1 + alpha mu)^2.
+    vcov_mat = _sandwich_vcov(X_dm, residuals ./ (one(T) .+ alpha .* μ), w)
 
     return GravityModel{NegBinGravity, T}(
         NegBinGravity(), β, vcov_mat,
