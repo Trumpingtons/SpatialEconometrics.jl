@@ -1560,6 +1560,124 @@ function _scm_predictors(::Type{T}, Y::AbstractMatrix, predictors, T0::Int,
     return X, scales
 end
 
+# ─── Predictor weights by nested search ──────────────────────────────
+
+# Lawson & Hanson's active-set non-negative least squares, for the
+# unpenalised program with predictor weights `V`: the sum-to-one constraint
+# enters as one heavily weighted row of `A`, so the solution is that of
+# minimise ||A w - b||^2 over the simplex to rounding. Exact in a finite
+# number of steps, which the nested search needs: it solves this program
+# once for every candidate `V`.
+function _simplex_ls(X0::Matrix{T}, x1::Vector{T}, s::Vector{T}) where {T<:AbstractFloat}
+    K, J = size(X0)
+    M = T(1e6) * max(one(T), maximum(abs, X0 .* s), maximum(abs, x1 .* s))
+    A = vcat(X0 .* s, fill(M, 1, J))
+    b = vcat(x1 .* s, M)
+    x = zeros(T, J)
+    P = falses(J)
+    tol = T(1e-12) * M
+    g = A' * b
+    for _ in 1:(3 * J)
+        any(j -> !P[j] && g[j] > tol, 1:J) || break
+        j = argmax(ifelse.(P, T(-Inf), g))
+        P[j] = true
+        while true
+            z = zeros(T, J)
+            z[P] = qr(A[:, P], ColumnNorm()) \ b  # pivoted, for columns dependent to rounding
+            if all(>(zero(T)), z[P])
+                x = z
+                break
+            end
+            Q = P .& (z .<= zero(T))
+            α = minimum(x[Q] ./ (x[Q] .- z[Q]))
+            x .+= α .* (z .- x)
+            P .&= x .> eps(T)
+            x[.!P] .= zero(T)
+        end
+        g = A' * (b - A * x)
+    end
+    return x ./ sum(x)
+end
+
+# Nelder & Mead's simplex search for the minimum of `f` from `x0`, with the
+# reflection, expansion, contraction and shrink steps of the original, until
+# the values at the vertices agree to the relative tolerance `tol` or after
+# `maxiter` steps. The nested search's loss is piecewise smooth and flat in
+# places, where the vertices may never agree, so the steps are capped and
+# the search restarted instead.
+function _nelder_mead(f, x0::Vector{T}; tol::T = T(1e-8),
+                      maxiter::Int = 500) where {T<:AbstractFloat}
+    n = length(x0)
+    S = [copy(x0) for _ in 1:(n + 1)]
+    for i in 1:n
+        S[i + 1][i] += T(0.5) * max(abs(x0[i]), T(1e-3))
+    end
+    fs = map(f, S)
+    for _ in 1:maxiter
+        o = sortperm(fs)
+        S, fs = S[o], fs[o]
+        maximum(fs) - minimum(fs) <= tol * max(one(T), abs(fs[1])) && break
+        c = sum(S[1:n]) ./ n
+        xr = c .+ (c .- S[end])
+        fr = f(xr)
+        if fr < fs[1]
+            xe = c .+ T(2) .* (c .- S[end])
+            fe = f(xe)
+            if fe < fr
+                S[end], fs[end] = xe, fe
+            else
+                S[end], fs[end] = xr, fr
+            end
+        elseif fr < fs[n]
+            S[end], fs[end] = xr, fr
+        else
+            xc = c .+ T(0.5) .* (S[end] .- c)
+            fc = f(xc)
+            if fc < fs[end]
+                S[end], fs[end] = xc, fc
+            else
+                for i in 2:(n + 1)
+                    S[i] = S[1] .+ T(0.5) .* (S[i] .- S[1])
+                    fs[i] = f(S[i])
+                end
+            end
+        end
+    end
+    k = argmin(fs)
+    return S[k], fs[k]
+end
+
+# The predictor weights `V` of Abadie, Diamond & Hainmueller (2010), as
+# their Synth chooses them: those whose donor weights give the treated unit
+# the smallest mean squared gap in the outcome over the optimisation window.
+# `V` is written as |u| / Σ|u| so that it stays non-negative and sums to
+# one, and `u` is searched by Nelder-Mead from equal weights and from K
+# starts that each put 0.9 on one predictor, every search restarted twice
+# from where it stopped. Returns `V`.
+function _nested_v(X0::Matrix{T}, x1::Vector{T}, Z0::Matrix{T},
+                   z1::Vector{T}) where {T<:AbstractFloat}
+    K = size(X0, 1)
+    K == 1 && return ones(T, 1)
+    tov(u) = abs.(u) ./ max(sum(abs, u), floatmin(T))
+    function loss(u)
+        w = _simplex_ls(X0, x1, sqrt.(tov(u)))
+        return sum(abs2, z1 .- Z0 * w) / length(z1)
+    end
+    starts = [[fill(one(T) / K, K)];
+              [(e = fill(T(0.1) / (K - 1), K); e[k] = T(0.9); e) for k in 1:K]]
+    best_u, best_f = starts[1], T(Inf)
+    for u0 in starts
+        u, f = _nelder_mead(loss, u0)
+        for _ in 1:2
+            u, f = _nelder_mead(loss, tov(u))
+        end
+        if f < best_f
+            best_u, best_f = u, f
+        end
+    end
+    return tov(best_u)
+end
+
 # ─── Penalty distances ───────────────────────────────────────────────
 
 # `d[q]` is the distance from treated unit `i` to donor `donors[q]`, which
@@ -1632,6 +1750,10 @@ The fitted synthetic control for one or more treated units, returned by
 - `kkt_gap`, `kkt_violation`, `iterations`: solver diagnostics per treated
   unit. The two KKT numbers certify the weights are at the constrained
   optimum and should be ~0. See [`fit_synthetic_control`](@ref).
+- `predictor_weights`: `m x K`, the weights `V` of the predictors, one row
+  per treated unit, each summing to one; `predictor_rule` is `:equal`,
+  `:nested` or `:given`, and `optimization_window` the periods the nested
+  search fits.
 
 # Why there is no `vcov`
 
@@ -1668,6 +1790,9 @@ struct SyntheticControlResult{T<:AbstractFloat} <: StatsAPI.StatisticalModel
     T0::Int
     n_units::Int
     n_periods::Int
+    predictor_weights::Matrix{T}
+    predictor_rule::Symbol
+    optimization_window::UnitRange{Int}
 end
 
 """
@@ -1762,11 +1887,21 @@ needs `coords`, with `metric = HaversineDistance()` for lon/lat.
 - `coords`: `N x 2`, required by `penalty_metric = :spatial`.
 - `predictors`: optional `N x K` pre-treatment predictors. The default is
   the pre-period outcome path, `Y[:, 1:T0]`.
-- `standardize`: scale each predictor to unit variance before fitting.
-  This is `V = I` on standardised predictors, taken deliberately in place
-  of a nested search over `V`. The nested form is non-unique, so two
-  equally good `V` give different weights, and the result stops being
-  reproducible.
+- `standardize`: scale each predictor to unit variance, over the treated
+  units and the donors together, before fitting.
+- `predictor_weights`: the weights `V` of the predictors in the distance
+  `(x_i - X0 w)' V (x_i - X0 w)`. `:equal` (the default) is `V = I` on the
+  standardised predictors. `:nested` chooses `V` as Abadie, Diamond &
+  Hainmueller (2010) do with Synth: the `V`, non-negative and summing to
+  one, whose weights give the treated unit the smallest mean squared gap
+  in the outcome over `optimization_window`, found by Nelder-Mead from
+  equal weights and from one start leaning on each predictor. A vector of
+  length `K` gives `V` itself. The nested search is not unique: `V` that
+  fit the window equally well can give different weights, so the result
+  depends on the search, and it costs one solve of the program per
+  candidate `V`. It needs `penalty = 0`.
+- `optimization_window`: the pre-treatment periods whose outcome gap the
+  nested search minimises; the default is `1:T0`.
 - `penalty`, `penalty_metric`, `metric`: as above.
 - `tol`, `maxiter`: solver controls.
 
@@ -1814,6 +1949,8 @@ function fit_synthetic_control(Y::AbstractMatrix, treated, T0::Int;
                                coords = nothing,
                                predictors = nothing,
                                standardize::Bool = true,
+                               predictor_weights = :equal,
+                               optimization_window = nothing,
                                donor_pool = :exclude_neighbours,
                                penalty::Real = 0.0,
                                penalty_metric::Symbol = :spatial,
@@ -1853,6 +1990,32 @@ function fit_synthetic_control(Y::AbstractMatrix, treated, T0::Int;
     Yf = T.(Y)
     Yd = Yf[donors, :]
 
+    window = optimization_window === nothing ? (1:T0) : UnitRange{Int}(optimization_window)
+    (!isempty(window) && first(window) >= 1 && last(window) <= T0) || throw(ArgumentError(
+        "fit_synthetic_control: `optimization_window` must lie in the " *
+        "pre-treatment periods 1:$T0, got $window."))
+    vrule, Vgiven = if predictor_weights === :equal
+        :equal, fill(one(T) / K, K)
+    elseif predictor_weights === :nested
+        λ == zero(T) || throw(ArgumentError(
+            "fit_synthetic_control: `predictor_weights = :nested` needs " *
+            "`penalty = 0`."))
+        :nested, T[]
+    elseif predictor_weights isa AbstractVector
+        length(predictor_weights) == K || throw(DimensionMismatch(
+            "fit_synthetic_control: `predictor_weights` has " *
+            "$(length(predictor_weights)) entries for $K predictors."))
+        all(>=(0), predictor_weights) && sum(predictor_weights) > 0 || throw(ArgumentError(
+            "fit_synthetic_control: `predictor_weights` must be non-negative " *
+            "with a positive sum."))
+        :given, T.(predictor_weights) ./ T(sum(predictor_weights))
+    else
+        throw(ArgumentError(
+            "fit_synthetic_control: `predictor_weights` must be :equal, " *
+            ":nested or a vector of length $K, got $(repr(predictor_weights))."))
+    end
+    Vmat = Matrix{T}(undef, m, K)
+
     weights = Matrix{T}(undef, m, J)
     synthetic = Matrix{T}(undef, m, T_per)
     gaps = Matrix{T}(undef, m, T_per)
@@ -1863,7 +2026,12 @@ function fit_synthetic_control(Y::AbstractMatrix, treated, T0::Int;
     for (k, i) in enumerate(tr)
         x1 = Vector{T}(Xall[:, col_of[i]])
         d = _penalty_distances(T, pmetric, i, donors, coords, Xall, col_of, metric)
-        w, _, it, kg, kv = _solve_pensynth(Matrix{T}(X0), x1, d, λ;
+        V = vrule === :nested ?
+            _nested_v(Matrix{T}(X0), x1, Matrix{T}(Yd[:, window]'), Vector{T}(Yf[i, window])) :
+            Vgiven
+        Vmat[k, :] .= V
+        s = vrule === :equal ? ones(T, K) : sqrt.(V)  # equal weights leave the program as it was
+        w, _, it, kg, kv = _solve_pensynth(Matrix{T}(X0 .* s), x1 .* s, d, λ;
                                            tol = T(tol), maxiter = maxiter)
         weights[k, :] .= w
         syn = Yd' * w                       # length T_per
@@ -1889,7 +2057,7 @@ function fit_synthetic_control(Y::AbstractMatrix, treated, T0::Int;
     return SyntheticControlResult{T}(
         weights, tr, donors, excluded, rule, synthetic, gaps, att_path, att,
         rmspe_pre, rmspe_post, ratio, ratio_agg, kkt, viol, iters,
-        λ, pmetric, standardize, K, T0, N, T_per)
+        λ, pmetric, standardize, K, T0, N, T_per, Vmat, vrule, window)
 end
 
 function Base.show(io::IO, scm::SyntheticControlResult{T}) where {T}
@@ -2133,6 +2301,9 @@ function placebo_test(scm::SyntheticControlResult{T}, Y::AbstractMatrix;
         pscm = fit_synthetic_control(Y, set, scm.T0;
                                      donor_pool = sub,
                                      standardize = scm.standardized,
+                                     predictor_weights = scm.predictor_rule === :given ?
+                                         vec(scm.predictor_weights[1, :]) : scm.predictor_rule,
+                                     optimization_window = scm.optimization_window,
                                      penalty = scm.penalty,
                                      penalty_metric = scm.penalty_metric,
                                      kwargs...)
